@@ -10,6 +10,7 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div id="root"></div>
@@ -27,7 +28,7 @@
 
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useRef } = React;
 
         function App() {
             const [salespeople, setSalespeople] = useState([]);
@@ -40,8 +41,11 @@
             const [monthlyGoals, setMonthlyGoals] = useState({});
             const [yearlyGoals, setYearlyGoals] = useState({});
             const [teamMonthlyGoal, setTeamMonthlyGoal] = useState(0);
-            const [teamYearlyGoal, setTeamYearlyGoal] = useState(0);
             const [loading, setLoading] = useState(true);
+            const dailyChartRef = useRef(null);
+            const tradeChartRef = useRef(null);
+            const dailyChartInstance = useRef(null);
+            const tradeChartInstance = useRef(null);
 
             useEffect(() => {
                 const ref = database.ref('salespeople');
@@ -80,14 +84,10 @@
                 const teamMonthlyRef = database.ref('teamMonthlyGoal');
                 teamMonthlyRef.on('value', (snapshot) => setTeamMonthlyGoal(snapshot.val() || 0));
 
-                const teamYearlyRef = database.ref('teamYearlyGoal');
-                teamYearlyRef.on('value', (snapshot) => setTeamYearlyGoal(snapshot.val() || 0));
-
                 return () => {
                     monthlyRef.off();
                     yearlyRef.off();
                     teamMonthlyRef.off();
-                    teamYearlyRef.off();
                 };
             }, []);
 
@@ -145,6 +145,7 @@
                     jobComplete: false,
                     jobSold: false,
                     amountSold: 0,
+                    moneyOwed: 0,
                     leftEstimate: false,
                     estimateAmount: 0,
                     tradePlumbing: false,
@@ -197,6 +198,7 @@
                     totalCalls: 0,
                     callsSold: 0,
                     amountSold: 0,
+                    moneyOwed: 0,
                     selfGenLeads: 0,
                     reviewsCompleted: 0,
                     turnoversAttempted: 0,
@@ -211,15 +213,28 @@
                     tradeHVAC: 0,
                     tradeElectrical: 0,
                     tradeCameras: 0,
-                    jobsComplete: 0
+                    jobsComplete: 0,
+                    dailyBreakdown: {}
                 };
                 
                 dates.forEach(date => {
                     const calls = getCallLogs(personId, date);
+                    const dateKey = getDateKey(date);
+                    totals.dailyBreakdown[dateKey] = { calls: 0, sold: 0, revenue: 0 };
+                    
                     calls.forEach(c => {
                         totals.totalCalls++;
-                        if (c.jobSold) totals.callsSold++;
-                        totals.amountSold += parseFloat(c.amountSold) || 0;
+                        totals.dailyBreakdown[dateKey].calls++;
+                        
+                        if (c.jobSold) {
+                            totals.callsSold++;
+                            totals.dailyBreakdown[dateKey].sold++;
+                            const amount = parseFloat(c.amountSold) || 0;
+                            totals.amountSold += amount;
+                            totals.dailyBreakdown[dateKey].revenue += amount;
+                        }
+                        
+                        totals.moneyOwed += parseFloat(c.moneyOwed) || 0;
                         if (c.selfGeneratedLead) totals.selfGenLeads++;
                         if (c.reviewCompleted) totals.reviewsCompleted++;
                         if (c.turnoverAttempted) totals.turnoversAttempted++;
@@ -243,6 +258,48 @@
                 return totals;
             };
 
+            const getTodayStats = () => {
+                const today = new Date();
+                let totalCalls = 0;
+                let totalRevenue = 0;
+                salespeople.forEach(person => {
+                    const calls = getCallLogs(person.id, today);
+                    totalCalls += calls.length;
+                    totalRevenue += calls.reduce((sum, c) => sum + (parseFloat(c.amountSold) || 0), 0);
+                });
+                return { totalCalls, totalRevenue };
+            };
+
+            const getStreak = (personId) => {
+                let streak = 0;
+                const today = new Date();
+                for (let i = 0; i < 30; i++) {
+                    const date = new Date(today);
+                    date.setDate(today.getDate() - i);
+                    const calls = getCallLogs(personId, date);
+                    const hasSale = calls.some(c => c.jobSold);
+                    if (hasSale) {
+                        streak++;
+                    } else if (i > 0) {
+                        break;
+                    }
+                }
+                return streak;
+            };
+
+            const getDaysSinceLastSale = (personId) => {
+                const today = new Date();
+                for (let i = 0; i < 90; i++) {
+                    const date = new Date(today);
+                    date.setDate(today.getDate() - i);
+                    const calls = getCallLogs(personId, date);
+                    if (calls.some(c => c.jobSold)) {
+                        return i;
+                    }
+                }
+                return 90;
+            };
+
             const weeklyTotals = useMemo(() => 
                 selectedPerson ? calculateTotals(selectedPerson, weekDates) : null,
                 [selectedPerson, weekDates, callLogs]
@@ -260,13 +317,38 @@
 
             const allMemberStats = useMemo(() => {
                 return salespeople.map(person => {
-                    const stats = calculateTotals(person.id, getMonthDates(currentDate));
-                    return { ...person, ...stats };
+                    const monthStats = calculateTotals(person.id, getMonthDates(currentDate));
+                    const weekStats = calculateTotals(person.id, weekDates);
+                    const yearStats = calculateTotals(person.id, getYearDates(currentDate.getFullYear()));
+                    const streak = getStreak(person.id);
+                    const daysSinceSale = getDaysSinceLastSale(person.id);
+                    return { 
+                        ...person, 
+                        ...monthStats,
+                        weekRevenue: weekStats.amountSold,
+                        yearRevenue: yearStats.amountSold,
+                        streak,
+                        daysSinceSale
+                    };
                 }).sort((a, b) => b.amountSold - a.amountSold);
-            }, [salespeople, currentDate, callLogs]);
+            }, [salespeople, currentDate, weekDates, callLogs]);
+
+            const teamWeeklyTotal = useMemo(() => {
+                return allMemberStats.reduce((sum, member) => sum + member.weekRevenue, 0);
+            }, [allMemberStats]);
 
             const teamMonthlyTotal = useMemo(() => {
                 return allMemberStats.reduce((sum, member) => sum + member.amountSold, 0);
+            }, [allMemberStats]);
+
+            const teamYearlyTotal = useMemo(() => {
+                return allMemberStats.reduce((sum, member) => sum + member.yearRevenue, 0);
+            }, [allMemberStats]);
+
+            const todayStats = useMemo(() => getTodayStats(), [salespeople, callLogs]);
+
+            const topPerformerWeek = useMemo(() => {
+                return [...allMemberStats].sort((a, b) => b.weekRevenue - a.weekRevenue)[0];
             }, [allMemberStats]);
 
             const updateMonthlyGoal = (personId, value) => {
@@ -293,6 +375,147 @@
                 database.ref('teamMonthlyGoal').set(parseFloat(value) || 0);
             };
 
+            const getBestDayOfWeek = (personId) => {
+                const dayTotals = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+                const year = currentDate.getFullYear();
+                
+                for (let month = 0; month < 12; month++) {
+                    const monthDates = getMonthDates(new Date(year, month, 1));
+                    monthDates.forEach(date => {
+                        const calls = getCallLogs(personId, date);
+                        const revenue = calls.reduce((sum, c) => sum + (parseFloat(c.amountSold) || 0), 0);
+                        dayTotals[date.getDay()] += revenue;
+                    });
+                }
+                
+                const maxDay = Object.keys(dayTotals).reduce((a, b) => dayTotals[a] > dayTotals[b] ? a : b);
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                return days[maxDay];
+            };
+
+            const getMonthlyForecast = (personId) => {
+                const today = new Date();
+                const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+                const daysPassed = today.getDate();
+                const monthStats = calculateTotals(personId, getMonthDates(today));
+                const dailyAverage = monthStats.amountSold / daysPassed;
+                return dailyAverage * daysInMonth;
+            };
+
+            // Create charts
+            useEffect(() => {
+                if (selectedPerson && weeklyTotals && dailyChartRef.current) {
+                    const ctx = dailyChartRef.current.getContext('2d');
+                    
+                    if (dailyChartInstance.current) {
+                        dailyChartInstance.current.destroy();
+                    }
+
+                    const labels = weekDates.map(d => d.toLocaleDateString('en-US', { weekday: 'short' }));
+                    const data = weekDates.map(d => {
+                        const dateKey = getDateKey(d);
+                        return weeklyTotals.dailyBreakdown[dateKey]?.revenue || 0;
+                    });
+
+                    dailyChartInstance.current = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [{
+                                label: 'Daily Revenue',
+                                data,
+                                backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                                borderColor: 'rgb(59, 130, 246)',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return '$' + value.toLocaleString();
+                                        }
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            }
+                        }
+                    });
+                }
+
+                return () => {
+                    if (dailyChartInstance.current) {
+                        dailyChartInstance.current.destroy();
+                    }
+                };
+            }, [selectedPerson, weeklyTotals, weekDates]);
+
+            useEffect(() => {
+                if (selectedPerson && monthlyTotals && tradeChartRef.current) {
+                    const ctx = tradeChartRef.current.getContext('2d');
+                    
+                    if (tradeChartInstance.current) {
+                        tradeChartInstance.current.destroy();
+                    }
+
+                    const data = [
+                        monthlyTotals.tradePlumbing || 0,
+                        monthlyTotals.tradeElectrical || 0,
+                        monthlyTotals.tradeHVAC || 0,
+                        monthlyTotals.tradeCameras || 0
+                    ];
+
+                    const total = data.reduce((a, b) => a + b, 0);
+                    if (total > 0) {
+                        tradeChartInstance.current = new Chart(ctx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ['Plumbing', 'Electrical', 'HVAC', 'Cameras'],
+                                datasets: [{
+                                    data,
+                                    backgroundColor: [
+                                        'rgba(59, 130, 246, 0.7)',
+                                        'rgba(250, 204, 21, 0.7)',
+                                        'rgba(239, 68, 68, 0.7)',
+                                        'rgba(168, 85, 247, 0.7)'
+                                    ],
+                                    borderColor: [
+                                        'rgb(59, 130, 246)',
+                                        'rgb(250, 204, 21)',
+                                        'rgb(239, 68, 68)',
+                                        'rgb(168, 85, 247)'
+                                    ],
+                                    borderWidth: 2
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom'
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+
+                return () => {
+                    if (tradeChartInstance.current) {
+                        tradeChartInstance.current.destroy();
+                    }
+                };
+            }, [selectedPerson, monthlyTotals]);
+
             if (loading) {
                 return (
                     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -304,6 +527,30 @@
                 <div className="min-h-screen bg-gray-50 p-4">
                     <div className="max-w-7xl mx-auto">
                         <h1 className="text-3xl font-bold mb-6 text-blue-900">🔧 Action Plumbing Sales Tracker</h1>
+
+                        {/* DASHBOARD SUMMARY */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                            <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-lg shadow-lg">
+                                <p className="text-sm font-semibold opacity-90">Today's Calls</p>
+                                <p className="text-4xl font-bold">{todayStats.totalCalls}</p>
+                                <p className="text-xs opacity-75 mt-1">All team members</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-lg shadow-lg">
+                                <p className="text-sm font-semibold opacity-90">Today's Revenue</p>
+                                <p className="text-4xl font-bold">${todayStats.totalRevenue.toLocaleString()}</p>
+                                <p className="text-xs opacity-75 mt-1">Team total</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-lg shadow-lg">
+                                <p className="text-sm font-semibold opacity-90">Week's Revenue</p>
+                                <p className="text-4xl font-bold">${teamWeeklyTotal.toLocaleString()}</p>
+                                <p className="text-xs opacity-75 mt-1">Last 7 days</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-lg shadow-lg">
+                                <p className="text-sm font-semibold opacity-90">Top Performer</p>
+                                <p className="text-2xl font-bold">{topPerformerWeek?.name || 'N/A'}</p>
+                                <p className="text-xs opacity-75 mt-1">${(topPerformerWeek?.weekRevenue || 0).toLocaleString()} this week</p>
+                            </div>
+                        </div>
 
                         <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
                             <div className="flex items-center justify-between mb-4">
@@ -342,26 +589,34 @@
                                 </div>
                             ) : (
                                 <div className="flex flex-wrap gap-3">
-                                    {salespeople.map((person) => (
-                                        <div key={person.id} className="relative group">
-                                            <button
-                                                onClick={() => setSelectedPerson(person.id)}
-                                                className={`px-6 py-3 rounded-lg font-bold text-lg transition-all ${
-                                                    selectedPerson === person.id
-                                                        ? 'bg-blue-600 text-white shadow-lg'
-                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                                }`}
-                                            >
-                                                {person.name}
-                                            </button>
-                                            <button
-                                                onClick={() => removeSalesperson(person.id)}
-                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs opacity-0 group-hover:opacity-100"
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    ))}
+                                    {salespeople.map((person) => {
+                                        const personStats = allMemberStats.find(m => m.id === person.id);
+                                        const streak = personStats?.streak || 0;
+                                        const daysSinceSale = personStats?.daysSinceSale || 0;
+                                        
+                                        return (
+                                            <div key={person.id} className="relative group">
+                                                <button
+                                                    onClick={() => setSelectedPerson(person.id)}
+                                                    className={`px-6 py-3 rounded-lg font-bold text-lg transition-all ${
+                                                        selectedPerson === person.id
+                                                            ? 'bg-blue-600 text-white shadow-lg'
+                                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                    }`}
+                                                >
+                                                    {person.name}
+                                                    {streak >= 3 && <span className="ml-2">🔥</span>}
+                                                    {daysSinceSale > 7 && <span className="ml-2">❄️</span>}
+                                                </button>
+                                                <button
+                                                    onClick={() => removeSalesperson(person.id)}
+                                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs opacity-0 group-hover:opacity-100"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -478,13 +733,22 @@
                                                         </label>
 
                                                         {call.jobSold && (
-                                                            <input
-                                                                type="number"
-                                                                value={call.amountSold || ''}
-                                                                onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'amountSold', parseFloat(e.target.value) || 0)}
-                                                                className="w-full px-3 py-2 border-2 border-green-300 rounded-lg text-lg font-bold"
-                                                                placeholder="Amount Sold ($)"
-                                                            />
+                                                            <div className="space-y-2">
+                                                                <input
+                                                                    type="number"
+                                                                    value={call.amountSold || ''}
+                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'amountSold', parseFloat(e.target.value) || 0)}
+                                                                    className="w-full px-3 py-2 border-2 border-green-300 rounded-lg text-lg font-bold"
+                                                                    placeholder="Amount Sold ($)"
+                                                                />
+                                                                <input
+                                                                    type="number"
+                                                                    value={call.moneyOwed || ''}
+                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'moneyOwed', parseFloat(e.target.value) || 0)}
+                                                                    className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg font-bold"
+                                                                    placeholder="Money Owed ($)"
+                                                                />
+                                                            </div>
                                                         )}
 
                                                         <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-orange-400">
@@ -652,13 +916,12 @@
                                         </div>
                                     </div>
                                 )}
-
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                                     <div className="bg-white p-6 rounded-lg shadow-lg">
                                         <h2 className="text-2xl font-bold mb-4 text-blue-900">
-                                            📊 Weekly Totals - {salespeople.find(p => p.id === selectedPerson)?.name}
+                                            📊 Weekly Performance
                                         </h2>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-2 gap-3 mb-4">
                                             <div className="p-3 bg-blue-50 rounded border-2 border-blue-300">
                                                 <p className="text-xs font-bold text-blue-700">Total Calls</p>
                                                 <p className="text-2xl font-bold text-blue-900">{weeklyTotals?.totalCalls || 0}</p>
@@ -668,37 +931,42 @@
                                                 <p className="text-2xl font-bold text-green-900">{weeklyTotals?.callsSold || 0}</p>
                                             </div>
                                             <div className="p-3 bg-purple-50 rounded border-2 border-purple-300">
-                                                <p className="text-xs font-bold text-purple-700">Amount Sold</p>
+                                                <p className="text-xs font-bold text-purple-700">Revenue</p>
                                                 <p className="text-2xl font-bold text-purple-900">${(weeklyTotals?.amountSold || 0).toLocaleString()}</p>
                                             </div>
                                             <div className="p-3 bg-orange-50 rounded border-2 border-orange-300">
-                                                <p className="text-xs font-bold text-orange-700">Self-Gen Leads</p>
-                                                <p className="text-2xl font-bold text-orange-900">{weeklyTotals?.selfGenLeads || 0}</p>
+                                                <p className="text-xs font-bold text-orange-700">Money Owed</p>
+                                                <p className="text-2xl font-bold text-orange-900">${(weeklyTotals?.moneyOwed || 0).toLocaleString()}</p>
                                             </div>
                                         </div>
 
-                                        <div className="mt-4 p-4 bg-gray-50 rounded border">
-                                            <h3 className="font-bold text-sm mb-2">Weekly Performance</h3>
+                                        <div className="mb-4">
+                                            <h3 className="font-bold text-sm mb-2">Daily Revenue Chart</h3>
+                                            <div style={{ height: '200px' }}>
+                                                <canvas ref={dailyChartRef}></canvas>
+                                            </div>
+                                        </div>
+
+                                        <div className="p-4 bg-gray-50 rounded border">
+                                            <h3 className="font-bold text-sm mb-2">Key Metrics</h3>
                                             <div className="space-y-2 text-sm">
                                                 <div className="flex justify-between">
                                                     <span>Closing Rate:</span>
                                                     <span className="font-bold">{weeklyTotals?.totalCalls > 0 ? ((weeklyTotals.callsSold / weeklyTotals.totalCalls) * 100).toFixed(1) : 0}%</span>
                                                 </div>
                                                 <div className="flex justify-between">
-                                                    <span>Call Average:</span>
-                                                    <span className="font-bold">${weeklyTotals?.callsSold > 0 ? (weeklyTotals.amountSold / weeklyTotals.callsSold).toLocaleString(undefined, {maximumFractionDigits: 0}) : 0}</span>
+                                                    <span>Streak:</span>
+                                                    <span className="font-bold">{getStreak(selectedPerson)} days {getStreak(selectedPerson) >= 3 ? '🔥' : ''}</span>
                                                 </div>
                                                 <div className="flex justify-between">
-                                                    <span>Reviews Rate:</span>
-                                                    <span className="font-bold">{weeklyTotals?.totalCalls > 0 ? ((weeklyTotals.reviewsCompleted / weeklyTotals.totalCalls) * 100).toFixed(1) : 0}%</span>
+                                                    <span>Days Since Last Sale:</span>
+                                                    <span className={`font-bold ${getDaysSinceLastSale(selectedPerson) > 7 ? 'text-red-600' : 'text-green-600'}`}>
+                                                        {getDaysSinceLastSale(selectedPerson)} days
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between">
-                                                    <span>Turnover Rate:</span>
-                                                    <span className="font-bold">{weeklyTotals?.turnoversAttempted > 0 ? ((weeklyTotals.turnoversAccepted / weeklyTotals.turnoversAttempted) * 100).toFixed(1) : 0}%</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span>Rilla Compliance:</span>
-                                                    <span className="font-bold">{weeklyTotals?.totalCalls > 0 ? ((weeklyTotals.rillaCompliant / weeklyTotals.totalCalls) * 100).toFixed(1) : 0}%</span>
+                                                    <span>Best Day:</span>
+                                                    <span className="font-bold">{getBestDayOfWeek(selectedPerson)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -706,9 +974,9 @@
 
                                     <div className="bg-white p-6 rounded-lg shadow-lg">
                                         <h2 className="text-2xl font-bold mb-4 text-blue-900">
-                                            📈 Monthly Totals - {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                            📈 Monthly Stats - {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                                         </h2>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-2 gap-3 mb-4">
                                             <div className="p-3 bg-blue-50 rounded border-2 border-blue-300">
                                                 <p className="text-xs font-bold text-blue-700">Total Calls</p>
                                                 <p className="text-2xl font-bold text-blue-900">{monthlyTotals?.totalCalls || 0}</p>
@@ -718,16 +986,16 @@
                                                 <p className="text-2xl font-bold text-green-900">{monthlyTotals?.callsSold || 0}</p>
                                             </div>
                                             <div className="p-3 bg-purple-50 rounded border-2 border-purple-300">
-                                                <p className="text-xs font-bold text-purple-700">Amount Sold</p>
+                                                <p className="text-xs font-bold text-purple-700">Revenue</p>
                                                 <p className="text-2xl font-bold text-purple-900">${(monthlyTotals?.amountSold || 0).toLocaleString()}</p>
                                             </div>
                                             <div className="p-3 bg-orange-50 rounded border-2 border-orange-300">
-                                                <p className="text-xs font-bold text-orange-700">Self-Gen Leads</p>
-                                                <p className="text-2xl font-bold text-orange-900">{monthlyTotals?.selfGenLeads || 0}</p>
+                                                <p className="text-xs font-bold text-orange-700">Money Owed</p>
+                                                <p className="text-2xl font-bold text-orange-900">${(monthlyTotals?.moneyOwed || 0).toLocaleString()}</p>
                                             </div>
                                         </div>
 
-                                        <div className="mt-4 p-4 bg-blue-50 rounded border-2 border-blue-300">
+                                        <div className="p-4 bg-blue-50 rounded border-2 border-blue-300 mb-4">
                                             <h3 className="font-bold mb-2">Monthly Sales Goal</h3>
                                             <input
                                                 type="number"
@@ -737,86 +1005,52 @@
                                                 placeholder="Set Goal ($)"
                                             />
                                             {getMonthlyGoal(selectedPerson) > 0 && (
-                                                <div className="space-y-1 text-sm">
-                                                    <div className="flex justify-between">
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between text-sm">
                                                         <span>Progress:</span>
                                                         <span className="font-bold">{((monthlyTotals?.amountSold / getMonthlyGoal(selectedPerson)) * 100).toFixed(1)}%</span>
                                                     </div>
-                                                    <div className="w-full bg-gray-200 rounded-full h-4">
+                                                    <div className="w-full bg-gray-200 rounded-full h-6">
                                                         <div 
-                                                            className="h-full bg-green-600 rounded-full"
+                                                            className={`h-full rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                                                                (monthlyTotals?.amountSold / getMonthlyGoal(selectedPerson)) >= 1 ? 'bg-green-600' :
+                                                                (monthlyTotals?.amountSold / getMonthlyGoal(selectedPerson)) >= 0.5 ? 'bg-yellow-500' :
+                                                                'bg-red-500'
+                                                            }`}
                                                             style={{ width: `${Math.min((monthlyTotals?.amountSold / getMonthlyGoal(selectedPerson)) * 100, 100)}%` }}
-                                                        ></div>
+                                                        >
+                                                            {((monthlyTotals?.amountSold / getMonthlyGoal(selectedPerson)) * 100).toFixed(0)}%
+                                                        </div>
                                                     </div>
-                                                    <div className="flex justify-between pt-1">
-                                                        <span>Remaining:</span>
-                                                        <span className="font-bold text-orange-600">${(getMonthlyGoal(selectedPerson) - (monthlyTotals?.amountSold || 0)).toLocaleString()}</span>
+                                                    <div className="grid grid-cols-3 gap-2 text-sm pt-2">
+                                                        <div>
+                                                            <p className="text-xs text-gray-600">Sold</p>
+                                                            <p className="font-bold">${(monthlyTotals?.amountSold || 0).toLocaleString()}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs text-gray-600">Goal</p>
+                                                            <p className="font-bold">${getMonthlyGoal(selectedPerson).toLocaleString()}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs text-gray-600">Remaining</p>
+                                                            <p className="font-bold text-orange-600">${Math.max(0, getMonthlyGoal(selectedPerson) - (monthlyTotals?.amountSold || 0)).toLocaleString()}</p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )}
                                         </div>
 
-                                        <div className="mt-4 p-4 bg-gray-50 rounded border">
-                                            <h3 className="font-bold text-sm mb-2">Monthly Performance Metrics</h3>
-                                            <div className="grid grid-cols-2 gap-3 text-xs">
-                                                <div>
-                                                    <span className="text-gray-600">Closing Rate:</span>
-                                                    <p className="font-bold text-lg">{monthlyTotals?.totalCalls > 0 ? ((monthlyTotals.callsSold / monthlyTotals.totalCalls) * 100).toFixed(1) : 0}%</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-600">Call Average:</span>
-                                                    <p className="font-bold text-lg">${monthlyTotals?.callsSold > 0 ? (monthlyTotals.amountSold / monthlyTotals.callsSold).toLocaleString(undefined, {maximumFractionDigits: 0}) : 0}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-600">Reviews Rate:</span>
-                                                    <p className="font-bold text-lg">{monthlyTotals?.totalCalls > 0 ? ((monthlyTotals.reviewsCompleted / monthlyTotals.totalCalls) * 100).toFixed(1) : 0}%</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-600">Rilla Compliance:</span>
-                                                    <p className="font-bold text-lg">{monthlyTotals?.totalCalls > 0 ? ((monthlyTotals.rillaCompliant / monthlyTotals.totalCalls) * 100).toFixed(1) : 0}%</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-600">Plans Sold:</span>
-                                                    <p className="font-bold text-lg">{monthlyTotals?.plansSold || 0}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-600">Membership Rate:</span>
-                                                    <p className="font-bold text-lg">{monthlyTotals?.totalCalls > 0 ? ((monthlyTotals.plansSold / monthlyTotals.totalCalls) * 100).toFixed(1) : 0}%</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-600">Upsells:</span>
-                                                    <p className="font-bold text-lg">{monthlyTotals?.upsellsCompleted || 0}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-600">Restoration Leads:</span>
-                                                    <p className="font-bold text-lg">{monthlyTotals?.restorationLeads || 0}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4 p-4 bg-orange-50 rounded border-2 border-orange-300">
-                                            <h3 className="font-bold mb-2">Revenue Tracking</h3>
-                                            <div className="space-y-1 text-sm">
-                                                <div className="flex justify-between">
-                                                    <span>Estimates Left:</span>
-                                                    <span className="font-bold">{monthlyTotals?.estimatesLeft || 0}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span>Total Est. Value:</span>
-                                                    <span className="font-bold">${(monthlyTotals?.estimateValue || 0).toLocaleString()}</span>
-                                                </div>
-                                                <div className="flex justify-between text-red-600">
-                                                    <span>Missed Revenue:</span>
-                                                    <span className="font-bold">${(monthlyTotals?.estimateValue || 0).toLocaleString()}</span>
-                                                </div>
-                                            </div>
+                                        <div className="p-4 bg-indigo-50 rounded border-2 border-indigo-300">
+                                            <h3 className="font-bold mb-2 text-sm">Monthly Forecast</h3>
+                                            <p className="text-xs text-gray-600 mb-1">Based on current daily average</p>
+                                            <p className="text-2xl font-bold text-indigo-900">${getMonthlyForecast(selectedPerson).toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
                                     <h2 className="text-2xl font-bold mb-4 text-purple-900">
-                                        🏆 {currentDate.getFullYear()} Yearly Summary
+                                        🏆 {currentDate.getFullYear()} Yearly Performance
                                     </h2>
                                     <div className="grid grid-cols-4 gap-3 mb-4">
                                         <div className="p-3 bg-blue-50 rounded border-2 border-blue-300">
@@ -828,17 +1062,17 @@
                                             <p className="text-2xl font-bold text-green-900">{yearlyTotals?.callsSold || 0}</p>
                                         </div>
                                         <div className="p-3 bg-purple-50 rounded border-2 border-purple-300">
-                                            <p className="text-xs font-bold text-purple-700">Amount Sold</p>
+                                            <p className="text-xs font-bold text-purple-700">Revenue</p>
                                             <p className="text-2xl font-bold text-purple-900">${(yearlyTotals?.amountSold || 0).toLocaleString()}</p>
                                         </div>
                                         <div className="p-3 bg-orange-50 rounded border-2 border-orange-300">
-                                            <p className="text-xs font-bold text-orange-700">Closing Rate</p>
-                                            <p className="text-2xl font-bold text-orange-900">{yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.callsSold / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%</p>
+                                            <p className="text-xs font-bold text-orange-700">Money Owed</p>
+                                            <p className="text-2xl font-bold text-orange-900">${(yearlyTotals?.moneyOwed || 0).toLocaleString()}</p>
                                         </div>
                                     </div>
 
                                     <div className="p-4 bg-purple-50 rounded border-2 border-purple-300 mb-4">
-                                        <h3 className="font-bold mb-2">Yearly Sales Goal</h3>
+                                        <h3 className="font-bold mb-2">Yearly Sales Goal - {currentDate.getFullYear()}</h3>
                                         <input
                                             type="number"
                                             value={getYearlyGoal(selectedPerson) || ''}
@@ -847,16 +1081,36 @@
                                             placeholder="Set Yearly Goal ($)"
                                         />
                                         {getYearlyGoal(selectedPerson) > 0 && (
-                                            <div className="space-y-1 text-sm">
-                                                <div className="flex justify-between">
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between text-sm">
                                                     <span>Progress:</span>
                                                     <span className="font-bold">{((yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) * 100).toFixed(1)}%</span>
                                                 </div>
-                                                <div className="w-full bg-gray-200 rounded-full h-4">
+                                                <div className="w-full bg-gray-200 rounded-full h-6">
                                                     <div 
-                                                        className="h-full bg-purple-600 rounded-full"
+                                                        className={`h-full rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                                                            (yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) >= 1 ? 'bg-green-600' :
+                                                            (yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) >= 0.5 ? 'bg-yellow-500' :
+                                                            'bg-red-500'
+                                                        }`}
                                                         style={{ width: `${Math.min((yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) * 100, 100)}%` }}
-                                                    ></div>
+                                                    >
+                                                        {((yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) * 100).toFixed(0)}%
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-2 text-sm pt-2">
+                                                    <div>
+                                                        <p className="text-xs text-gray-600">Sold So Far</p>
+                                                        <p className="font-bold">${(yearlyTotals?.amountSold || 0).toLocaleString()}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-600">Goal</p>
+                                                        <p className="font-bold">${getYearlyGoal(selectedPerson).toLocaleString()}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-600">Left to Goal</p>
+                                                        <p className="font-bold text-orange-600">${Math.max(0, getYearlyGoal(selectedPerson) - (yearlyTotals?.amountSold || 0)).toLocaleString()}</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
@@ -865,32 +1119,17 @@
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-4 bg-gray-50 rounded border">
                                             <h3 className="font-bold text-sm mb-3">Trade Distribution</h3>
-                                            <div className="space-y-2 text-sm">
-                                                <div className="flex justify-between">
-                                                    <span>🔧 Plumbing:</span>
-                                                    <span className="font-bold">{yearlyTotals?.tradePlumbing || 0} ({yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.tradePlumbing / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%)</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span>⚡ Electrical:</span>
-                                                    <span className="font-bold">{yearlyTotals?.tradeElectrical || 0} ({yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.tradeElectrical / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%)</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span>🌡️ HVAC:</span>
-                                                    <span className="font-bold">{yearlyTotals?.tradeHVAC || 0} ({yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.tradeHVAC / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%)</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span>📹 Cameras:</span>
-                                                    <span className="font-bold">{yearlyTotals?.tradeCameras || 0} ({yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.tradeCameras / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%)</span>
-                                                </div>
+                                            <div style={{ height: '200px' }}>
+                                                <canvas ref={tradeChartRef}></canvas>
                                             </div>
                                         </div>
 
                                         <div className="p-4 bg-gray-50 rounded border">
-                                            <h3 className="font-bold text-sm mb-3">Yearly Performance Metrics</h3>
+                                            <h3 className="font-bold text-sm mb-3">Performance Metrics</h3>
                                             <div className="space-y-2 text-sm">
                                                 <div className="flex justify-between">
-                                                    <span>Call Average:</span>
-                                                    <span className="font-bold">${yearlyTotals?.callsSold > 0 ? (yearlyTotals.amountSold / yearlyTotals.callsSold).toLocaleString(undefined, {maximumFractionDigits: 0}) : 0}</span>
+                                                    <span>Closing Rate:</span>
+                                                    <span className="font-bold">{yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.callsSold / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span>Reviews Rate:</span>
@@ -901,20 +1140,28 @@
                                                     <span className="font-bold">{yearlyTotals?.turnoversAttempted > 0 ? ((yearlyTotals.turnoversAccepted / yearlyTotals.turnoversAttempted) * 100).toFixed(1) : 0}%</span>
                                                 </div>
                                                 <div className="flex justify-between">
+                                                    <span>Rilla Compliance:</span>
+                                                    <span className="font-bold">{yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.rillaCompliant / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%</span>
+                                                </div>
+                                                <div className="flex justify-between">
                                                     <span>Plans Sold:</span>
                                                     <span className="font-bold">{yearlyTotals?.plansSold || 0}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Restoration Leads:</span>
+                                                    <span className="font-bold">{yearlyTotals?.restorationLeads || 0}</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 rounded-lg shadow-lg border-2 border-indigo-300">
+                                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 rounded-lg shadow-lg border-2 border-indigo-300 mb-6">
                                     <h2 className="text-2xl font-bold mb-4 text-indigo-900">👥 Team Performance</h2>
 
                                     <div className="bg-white p-4 rounded-lg border-2 border-blue-400 mb-4">
                                         <h3 className="font-bold mb-3">Team Monthly Goal</h3>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-2 gap-4 mb-2">
                                             <input
                                                 type="number"
                                                 value={teamMonthlyGoal || ''}
@@ -929,31 +1176,59 @@
                                                 )}
                                             </div>
                                         </div>
+                                        {teamMonthlyGoal > 0 && (
+                                            <div className="w-full bg-gray-200 rounded-full h-6">
+                                                <div 
+                                                    className={`h-full rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                                                        (teamMonthlyTotal / teamMonthlyGoal) >= 1 ? 'bg-green-600' :
+                                                        (teamMonthlyTotal / teamMonthlyGoal) >= 0.5 ? 'bg-yellow-500' :
+                                                        'bg-red-500'
+                                                    }`}
+                                                    style={{ width: `${Math.min((teamMonthlyTotal / teamMonthlyGoal) * 100, 100)}%` }}
+                                                >
+                                                    {((teamMonthlyTotal / teamMonthlyGoal) * 100).toFixed(0)}%
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    <div className="bg-white p-4 rounded-lg border">
+                                    <div className="bg-white p-4 rounded-lg border mb-4">
                                         <h3 className="font-bold mb-3">Individual Monthly Goals</h3>
                                         <div className="space-y-2">
                                             {allMemberStats.map(member => {
                                                 const goal = getMonthlyGoal(member.id);
                                                 const progress = goal > 0 ? (member.amountSold / goal) * 100 : 0;
                                                 return (
-                                                    <div key={member.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded border">
-                                                        <div className="flex-1">
-                                                            <p className="font-bold">{member.name}</p>
-                                                            <p className="text-sm text-gray-600">Goal: ${goal.toLocaleString()}</p>
+                                                    <div key={member.id} className="p-3 bg-gray-50 rounded border">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <div>
+                                                                <p className="font-bold">{member.name}</p>
+                                                                <p className="text-xs text-gray-600">Goal: ${goal.toLocaleString()}</p>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="font-bold text-lg">${member.amountSold.toLocaleString()}</p>
+                                                                {goal > 0 && <p className="text-sm text-gray-600">{progress.toFixed(1)}%</p>}
+                                                            </div>
                                                         </div>
-                                                        <div className="text-right">
-                                                            <p className="font-bold text-lg">${member.amountSold.toLocaleString()}</p>
-                                                            {goal > 0 && <p className="text-sm text-gray-600">{progress.toFixed(1)}%</p>}
-                                                        </div>
+                                                        {goal > 0 && (
+                                                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                                                                <div 
+                                                                    className={`h-full rounded-full ${
+                                                                        progress >= 100 ? 'bg-green-600' :
+                                                                        progress >= 50 ? 'bg-yellow-500' :
+                                                                        'bg-red-500'
+                                                                    }`}
+                                                                    style={{ width: `${Math.min(progress, 100)}%` }}
+                                                                ></div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     </div>
 
-                                    <div className="bg-white p-4 rounded-lg border mt-4">
+                                    <div className="bg-white p-4 rounded-lg border">
                                         <h3 className="font-bold mb-3">Team Member Contributions</h3>
                                         <div className="space-y-2">
                                             {allMemberStats.map(member => {
@@ -966,7 +1241,7 @@
                                                             <span className="font-bold text-lg">${member.amountSold.toLocaleString()}</span>
                                                         </div>
                                                         <div className="text-xs text-gray-600">
-                                                            {member.callsSold} sales from {member.totalCalls} calls • {teamPercent.toFixed(1)}% of team
+                                                            {member.callsSold} sales from {member.totalCalls} calls • {closeRate.toFixed(1)}% close rate • {teamPercent.toFixed(1)}% of team
                                                         </div>
                                                     </div>
                                                 );
@@ -975,14 +1250,19 @@
                                     </div>
                                 </div>
 
-                                <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-lg shadow-lg border-2 border-yellow-400 mt-6">
-                                    <h2 className="text-2xl font-bold mb-4 text-yellow-900">🏆 {currentDate.getFullYear()} Leaderboard - Who's Winning?</h2>
+                                <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-lg shadow-lg border-2 border-yellow-400">
+                                    <h2 className="text-2xl font-bold mb-4 text-yellow-900">🏆 {currentDate.getFullYear()} Leaderboard</h2>
                                     <div className="space-y-3">
-                                        {salespeople.map((person, idx) => {
+                                        {salespeople.map((person) => {
                                             const yearStats = calculateTotals(person.id, getYearDates(currentDate.getFullYear()));
-                                            const closeRate = yearStats.totalCalls > 0 ? (yearStats.callsSold / yearStats.totalCalls) * 100 : 0;
+                                            return { ...person, ...yearStats };
+                                        })
+                                        .sort((a, b) => b.amountSold - a.amountSold)
+                                        .map((person, idx) => {
+                                            const closeRate = person.totalCalls > 0 ? (person.callsSold / person.totalCalls) * 100 : 0;
                                             const medals = ['🥇', '🥈', '🥉'];
                                             const titles = ['👑 Top Performer', '⭐ Runner Up', '🎯 Bronze'];
+                                            const streak = getStreak(person.id);
                                             
                                             return (
                                                 <div key={person.id} className={`p-4 rounded-lg border-2 ${
@@ -995,22 +1275,21 @@
                                                         <div className="flex items-center gap-3">
                                                             <span className="text-2xl">{idx < 3 ? medals[idx] : `#${idx + 1}`}</span>
                                                             <div>
-                                                                <p className="font-bold text-lg">{person.name}</p>
+                                                                <p className="font-bold text-lg">
+                                                                    {person.name} 
+                                                                    {streak >= 3 && <span className="ml-2">🔥</span>}
+                                                                </p>
                                                                 {idx < 3 && <p className="text-xs text-gray-600">{titles[idx]}</p>}
                                                             </div>
                                                         </div>
                                                         <div className="text-right">
                                                             <p className="text-sm text-gray-600">Total Sold</p>
-                                                            <p className="font-bold text-xl">${yearStats.amountSold.toLocaleString()}</p>
+                                                            <p className="font-bold text-xl">${person.amountSold.toLocaleString()}</p>
                                                             <p className="text-xs text-gray-600">Close Rate: {closeRate.toFixed(1)}%</p>
                                                         </div>
                                                     </div>
                                                 </div>
                                             );
-                                        }).sort((a, b) => {
-                                            const aStats = calculateTotals(salespeople.find(p => p.id === a.key).id, getYearDates(currentDate.getFullYear()));
-                                            const bStats = calculateTotals(salespeople.find(p => p.id === b.key).id, getYearDates(currentDate.getFullYear()));
-                                            return bStats.amountSold - aStats.amountSold;
                                         })}
                                     </div>
                                 </div>
