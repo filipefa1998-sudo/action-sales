@@ -1,9 +1,11 @@
-                                       <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Action Plumbing Sales Tracker</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -13,67 +15,570 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",
+            authDomain: "action-sales-tracker.firebaseapp.com",
+            databaseURL: "https://action-sales-tracker-default-rtdb.firebaseio.com",
+            projectId: "action-sales-tracker",
+            storageBucket: "action-sales-tracker.firebasestorage.app",
+            messagingSenderId: "686455834332",
+            appId: "1:686455834332:web:84e9b843f912522bbdd619"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        const { useState, useEffect, useMemo } = React;
 
         function App() {
             const [salespeople, setSalespeople] = useState([]);
-            const [newName, setNewName] = useState('');
+            const [selectedPerson, setSelectedPerson] = useState(null);
+            const [currentDate, setCurrentDate] = useState(new Date());
+            const [callLogs, setCallLogs] = useState({});
+            const [selectedDate, setSelectedDate] = useState(null);
+            const [newPersonName, setNewPersonName] = useState('');
+            const [showAddPerson, setShowAddPerson] = useState(false);
+            const [weeklyGoals, setWeeklyGoals] = useState({});
+            const [monthlyGoals, setMonthlyGoals] = useState({});
+            const [yearlyGoals, setYearlyGoals] = useState({});
 
+            // Load salespeople from Firebase
             useEffect(() => {
-                const saved = localStorage.getItem('salespeople');
-                if (saved) setSalespeople(JSON.parse(saved));
+                const ref = database.ref('salespeople');
+                ref.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        const peopleArray = Object.keys(data).map(key => ({
+                            id: key,
+                            name: data[key].name
+                        }));
+                        setSalespeople(peopleArray);
+                        if (!selectedPerson && peopleArray.length > 0) {
+                            setSelectedPerson(peopleArray[0].id);
+                        }
+                    }
+                });
+                return () => ref.off();
             }, []);
 
+            // Load call logs from Firebase
             useEffect(() => {
-                localStorage.setItem('salespeople', JSON.stringify(salespeople));
-            }, [salespeople]);
+                const ref = database.ref('callLogs');
+                ref.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    setCallLogs(data || {});
+                });
+                return () => ref.off();
+            }, []);
 
-            const addPerson = () => {
-                if (newName.trim()) {
-                    setSalespeople([...salespeople, { id: Date.now(), name: newName.trim() }]);
-                    setNewName('');
+            // Load goals from Firebase
+            useEffect(() => {
+                const weeklyRef = database.ref('weeklyGoals');
+                weeklyRef.on('value', (snapshot) => {
+                    setWeeklyGoals(snapshot.val() || {});
+                });
+
+                const monthlyRef = database.ref('monthlyGoals');
+                monthlyRef.on('value', (snapshot) => {
+                    setMonthlyGoals(snapshot.val() || {});
+                });
+
+                const yearlyRef = database.ref('yearlyGoals');
+                yearlyRef.on('value', (snapshot) => {
+                    setYearlyGoals(snapshot.val() || {});
+                });
+
+                return () => {
+                    weeklyRef.off();
+                    monthlyRef.off();
+                    yearlyRef.off();
+                };
+            }, []);
+
+            const addSalesperson = () => {
+                if (newPersonName.trim()) {
+                    const newRef = database.ref('salespeople').push();
+                    newRef.set({
+                        name: newPersonName.trim()
+                    });
+                    setNewPersonName('');
+                    setShowAddPerson(false);
                 }
             };
 
-            return (
-                <div className="min-h-screen bg-gray-50 p-8">
-                    <div className="max-w-4xl mx-auto">
-                        <h1 className="text-3xl font-bold mb-6">Action Plumbing Sales Tracker</h1>
-                        
-                        <div className="bg-white p-6 rounded-lg shadow mb-6">
-                            <h2 className="text-xl font-semibold mb-4">Add Salesperson</h2>
-                            <div className="flex gap-2">
+            const removeSalesperson = (id) => {
+                const person = salespeople.find(p => p.id === id);
+                if (window.confirm(`Remove ${person.name}? This will delete all their data permanently.`)) {
+                    database.ref(`salespeople/${id}`).remove();
+                    if (selectedPerson === id) {
+                        setSelectedPerson(null);
+                    }
+                }
+            };
+
+            const getWeekDates = (date) => {
+                const day = date.getDay();
+                const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+                const monday = new Date(date);
+                monday.setDate(diff);
+                const week = [];
+                for (let i = 0; i < 7; i++) {
+                    const d = new Date(monday);
+                    d.setDate(monday.getDate() + i);
+                    week.push(d);
+                }
+                return week;
+            };
+
+            const getDateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const getDataKey = (personId, date) => `${personId}_${getDateKey(date)}`;
+            const getWeekKey = (date) => {
+                const weekStart = getWeekDates(date)[0];
+                return getDateKey(weekStart);
+            };
+            const getMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            const getYearKey = (date) => `${date.getFullYear()}`;
+
+            const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate]);
+
+            const addCall = (personId, date) => {
+                const key = getDataKey(personId, date);
+                const newCallRef = database.ref(`callLogs/${key}`).push();
+                newCallRef.set({
+                    customerName: '',
+                    jobNumber: '',
+                    reviewCompleted: false,
+                    selfGeneratedLead: false,
+                    membershipSold: false,
+                    jobSold: false,
+                    amountSold: 0,
+                    leftEstimate: false,
+                    estimateAmount: 0,
+                    tradePlumbing: false,
+                    tradeHVAC: false,
+                    tradeElectrical: false,
+                    tradeDrain: false,
+                    timestamp: Date.now()
+                });
+            };
+
+            const updateCall = (personId, date, callId, field, value) => {
+                const key = getDataKey(personId, date);
+                database.ref(`callLogs/${key}/${callId}/${field}`).set(value);
+            };
+
+            const deleteCall = (personId, date, callId) => {
+                const key = getDataKey(personId, date);
+                database.ref(`callLogs/${key}/${callId}`).remove();
+            };
+
+            const getCallLogs = (personId, date) => {
+                const key = getDataKey(personId, date);
+                const logs = callLogs[key];
+                if (!logs) return [];
+                return Object.keys(logs).map(id => ({
+                    id,
+                    ...logs[id]
+                }));
+            };
+
+            const updateWeeklyGoal = (personId, date, value) => {
+                const key = `${personId}_${getWeekKey(date)}`;
+                database.ref(`weeklyGoals/${key}`).set(parseFloat(value) || 0);
+            };
+
+            const updateMonthlyGoal = (personId, date, value) => {
+                const key = `${personId}_${getMonthKey(date)}`;
+                database.ref(`monthlyGoals/${key}`).set(parseFloat(value) || 0);
+            };
+
+            const updateYearlyGoal = (personId, date, value) => {
+                const key = `${personId}_${getYearKey(date)}`;
+                database.ref(`yearlyGoals/${key}`).set(parseFloat(value) || 0);
+            };
+
+            const getWeeklyGoal = (personId, date) => {
+                const key = `${personId}_${getWeekKey(date)}`;
+                return weeklyGoals[key] || 0;
+            };
+
+            const getMonthlyGoal = (personId, date) => {
+                const key = `${personId}_${getMonthKey(date)}`;
+                return monthlyGoals[key] || 0;
+            };
+
+            const getYearlyGoal = (personId, date) => {
+                const key = `${personId}_${getYearKey(date)}`;
+                return yearlyGoals[key] || 0;
+            };
+
+            const getMonthDates = (date) => {
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const dates = [];
+                const lastDay = new Date(year, month + 1, 0).getDate();
+                for (let day = 1; day <= lastDay; day++) {
+                    dates.push(new Date(year, month, day));
+                }
+                return dates;
+            };
+
+            const calculateTotals = (personId, dates) => {
+                const totals = { totalCalls: 0, callsSold: 0, amountSold: 0 };
+                dates.forEach(date => {
+                    const calls = getCallLogs(personId, date);
+                    totals.totalCalls += calls.length;
+                    totals.callsSold += calls.filter(c => c.jobSold).length;
+                    totals.amountSold += calls.reduce((sum, c) => sum + (parseFloat(c.amountSold) || 0), 0);
+                });
+                return totals;
+            };
+
+            const weeklyTotals = useMemo(() => 
+                selectedPerson ? calculateTotals(selectedPerson, weekDates) : { totalCalls: 0, callsSold: 0, amountSold: 0 },
+                [selectedPerson, weekDates, callLogs]
+            );
+
+            const monthlyTotals = useMemo(() => 
+                selectedPerson ? calculateTotals(selectedPerson, getMonthDates(currentDate)) : { totalCalls: 0, callsSold: 0, amountSold: 0 },
+                [selectedPerson, currentDate, callLogs]
+            );
+
+            const calculateYearly = (personId) => {
+                const year = currentDate.getFullYear();
+                let yearlySold = 0;
+                for (let month = 0; month < 12; month++) {
+                    const monthDates = getMonthDates(new Date(year, month, 1));
+                    yearlySold += calculateTotals(personId, monthDates).amountSold;
+                }
+                return yearlySold;
+            };
+
+            const colors = ['blue', 'purple', 'green', 'orange'];
+            const getPersonColor = (personId) => {
+                const idx = salespeople.findIndex(p => p.id === personId);
+                return colors[idx % colors.length];
+            };
+
+            const GoalCard = ({ title, color, goal, sold, onGoalChange }) => {
+                const progress = goal > 0 ? Math.min((sold / goal) * 100, 100) : 0;
+                return (
+                    <div className={`mt-4 p-4 bg-${color}-50 rounded border-2 border-${color}-300`}>
+                        <h3 className="text-sm font-bold mb-2">{title}</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-medium mb-1">Set Goal</label>
                                 <input
-                                    type="text"
-                                    value={newName}
-                                    onChange={(e) => setNewName(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && addPerson()}
-                                    placeholder="Enter name"
-                                    className="flex-1 px-4 py-2 border rounded"
+                                    type="number"
+                                    value={goal || ''}
+                                    onChange={(e) => onGoalChange(e.target.value)}
+                                    className="w-full px-3 py-2 border rounded"
+                                    placeholder="Enter goal"
                                 />
-                                <button
-                                    onClick={addPerson}
-                                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                >
-                                    Add
-                                </button>
+                            </div>
+                            <div className="bg-white p-3 rounded border">
+                                <div className="w-full bg-gray-200 rounded-full h-6 mb-2">
+                                    <div 
+                                        className={`h-full bg-${color}-600 rounded-full flex items-center justify-center text-white text-xs font-bold`}
+                                        style={{ width: `${progress}%` }}
+                                    >
+                                        {progress.toFixed(0)}%
+                                    </div>
+                                </div>
+                                <div className="text-sm">
+                                    <div className="flex justify-between">
+                                        <span>Sold:</span>
+                                        <span className="font-bold">${sold.toLocaleString()}</span>
+                                    </div>
+                                    {goal > 0 && (
+                                        <>
+                                            <div className="flex justify-between">
+                                                <span>Goal:</span>
+                                                <span className="font-bold">${goal.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between text-xs pt-1 border-t mt-1">
+                                                <span>{sold >= goal ? 'Over:' : 'Left:'}</span>
+                                                <span className={sold >= goal ? 'text-green-600 font-bold' : 'text-orange-600 font-bold'}>
+                                                    ${Math.abs(goal - sold).toLocaleString()}
+                                                </span>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </div>
+                    </div>
+                );
+            };
 
-                        <div className="bg-white p-6 rounded-lg shadow">
-                            <h2 className="text-xl font-semibold mb-4">Team Members</h2>
+            return (
+                <div className="min-h-screen bg-gray-50 p-4">
+                    <div className="max-w-7xl mx-auto">
+                        <h1 className="text-3xl font-bold mb-6">Action Plumbing Sales Tracker</h1>
+
+                        <div className="bg-white p-4 rounded-lg shadow mb-6">
+                            <div className="flex items-center justify-between mb-3">
+                                <h2 className="text-xl font-semibold">Team</h2>
+                                {!showAddPerson && (
+                                    <button
+                                        onClick={() => setShowAddPerson(true)}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                    >
+                                        + Add Person
+                                    </button>
+                                )}
+                            </div>
+
+                            {showAddPerson && (
+                                <div className="mb-4 p-3 bg-blue-50 rounded">
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={newPersonName}
+                                            onChange={(e) => setNewPersonName(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && addSalesperson()}
+                                            placeholder="Enter name"
+                                            className="flex-1 px-3 py-2 border rounded"
+                                            autoFocus
+                                        />
+                                        <button onClick={addSalesperson} className="px-4 py-2 bg-green-600 text-white rounded">Add</button>
+                                        <button onClick={() => { setShowAddPerson(false); setNewPersonName(''); }} className="px-4 py-2 bg-gray-300 rounded">Cancel</button>
+                                    </div>
+                                </div>
+                            )}
+
                             {salespeople.length === 0 ? (
-                                <p className="text-gray-500">No salespeople added yet</p>
+                                <p className="text-gray-500 text-center py-4">No salespeople added yet</p>
                             ) : (
-                                <ul className="space-y-2">
+                                <div className="flex flex-wrap gap-2">
                                     {salespeople.map(person => (
-                                        <li key={person.id} className="p-3 bg-blue-50 rounded">
-                                            {person.name}
-                                        </li>
+                                        <div key={person.id} className="relative group">
+                                            <button
+                                                onClick={() => setSelectedPerson(person.id)}
+                                                className={`px-5 py-2.5 rounded-lg font-semibold ${
+                                                    selectedPerson === person.id
+                                                        ? `bg-${getPersonColor(person.id)}-600 text-white`
+                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                {person.name}
+                                            </button>
+                                            <button
+                                                onClick={() => removeSalesperson(person.id)}
+                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
                                     ))}
-                                </ul>
+                                </div>
                             )}
                         </div>
+
+                        {selectedPerson && (
+                            <>
+                                <div className={`bg-${getPersonColor(selectedPerson)}-50 p-4 rounded-lg border-2 border-${getPersonColor(selectedPerson)}-500 mb-6`}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <button 
+                                            onClick={() => setCurrentDate(new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000))}
+                                            className="p-2 hover:bg-white rounded"
+                                        >
+                                            ←
+                                        </button>
+                                        <h2 className="text-lg font-semibold">
+                                            {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </h2>
+                                        <button 
+                                            onClick={() => setCurrentDate(new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000))}
+                                            className="p-2 hover:bg-white rounded"
+                                        >
+                                            →
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-7 gap-2">
+                                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                                            <div key={day} className="text-center text-xs font-semibold mb-2">{day}</div>
+                                        ))}
+                                        {weekDates.map((date, idx) => {
+                                            const calls = getCallLogs(selectedPerson, date);
+                                            const sold = calls.filter(c => c.jobSold);
+                                            const total = calls.reduce((sum, c) => sum + (parseFloat(c.amountSold) || 0), 0);
+                                            const dateKey = getDateKey(date);
+                                            
+                                            return (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => setSelectedDate(selectedDate === dateKey ? null : dateKey)}
+                                                    className={`p-3 rounded-lg border-2 ${
+                                                        selectedDate === dateKey 
+                                                            ? `border-${getPersonColor(selectedPerson)}-500 bg-${getPersonColor(selectedPerson)}-100` 
+                                                            : calls.length > 0 ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-white'
+                                                    }`}
+                                                >
+                                                    <div className="text-lg font-bold">{date.getDate()}</div>
+                                                    {calls.length > 0 && (
+                                                        <div className="mt-1">
+                                                            <div className="text-xs font-semibold text-green-700">{sold.length} sales</div>
+                                                            <div className="text-xs font-semibold text-green-700">${total.toLocaleString()}</div>
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {selectedDate && (
+                                    <div className="bg-white p-4 rounded-lg shadow mb-6 max-h-96 overflow-y-auto">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="text-lg font-semibold">Call Logs</h3>
+                                            <button
+                                                onClick={() => addCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate))}
+                                                className={`px-4 py-2 bg-${getPersonColor(selectedPerson)}-600 text-white rounded hover:bg-${getPersonColor(selectedPerson)}-700`}
+                                            >
+                                                + Add Call
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="space-y-3">
+                                            {getCallLogs(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate)).map(call => (
+                                                <div key={call.id} className="p-3 bg-gray-50 rounded border">
+                                                    <div className="flex justify-between mb-2">
+                                                        <span className="text-xs font-semibold">Call Entry</span>
+                                                        <button 
+                                                            onClick={() => deleteCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id)}
+                                                            className="text-red-600 text-sm"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-2">
+                                                        <input
+                                                            type="text"
+                                                            value={call.customerName || ''}
+                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'customerName', e.target.value)}
+                                                            className="w-full px-2 py-1 text-sm border rounded"
+                                                            placeholder="Customer name"
+                                                        />
+                                                        
+                                                        <input
+                                                            type="text"
+                                                            value={call.jobNumber || ''}
+                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'jobNumber', e.target.value)}
+                                                            className="w-full px-2 py-1 text-sm border rounded"
+                                                            placeholder="Job number"
+                                                        />
+
+                                                        <label className="flex items-center gap-2 p-2 bg-white rounded border">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={call.jobSold || false}
+                                                                onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'jobSold', e.target.checked)}
+                                                                className="w-4 h-4"
+                                                            />
+                                                            <span className="text-sm font-semibold">Job Sold</span>
+                                                        </label>
+
+                                                        {call.jobSold && (
+                                                            <input
+                                                                type="number"
+                                                                value={call.amountSold || ''}
+                                                                onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'amountSold', parseFloat(e.target.value) || 0)}
+                                                                className="w-full px-2 py-1 text-sm border rounded"
+                                                                placeholder="Amount sold"
+                                                            />
+                                                        )}
+
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <label className="flex items-center gap-2 text-xs">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={call.tradePlumbing || false}
+                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradePlumbing', e.target.checked)}
+                                                                />
+                                                                Plumbing
+                                                            </label>
+                                                            <label className="flex items-center gap-2 text-xs">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={call.tradeHVAC || false}
+                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeHVAC', e.target.checked)}
+                                                                />
+                                                                HVAC
+                                                            </label>
+                                                            <label className="flex items-center gap-2 text-xs">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={call.tradeElectrical || false}
+                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeElectrical', e.target.checked)}
+                                                                />
+                                                                Electrical
+                                                            </label>
+                                                            <label className="flex items-center gap-2 text-xs">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={call.tradeDrain || false}
+                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeDrain', e.target.checked)}
+                                                                />
+                                                                Drain
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="bg-white p-4 rounded-lg shadow">
+                                    <h2 className="text-xl font-semibold mb-4">
+                                        {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} Performance
+                                    </h2>
+                                    
+                                    <div className="grid grid-cols-3 gap-3 mb-4">
+                                        <div className="p-3 bg-blue-50 rounded">
+                                            <p className="text-xs font-semibold text-blue-700">Total Calls</p>
+                                            <p className="text-2xl font-bold text-blue-900">{monthlyTotals.totalCalls}</p>
+                                        </div>
+                                        <div className="p-3 bg-green-50 rounded">
+                                            <p className="text-xs font-semibold text-green-700">Calls Sold</p>
+                                            <p className="text-2xl font-bold text-green-900">{monthlyTotals.callsSold}</p>
+                                        </div>
+                                        <div className="p-3 bg-purple-50 rounded">
+                                            <p className="text-xs font-semibold text-purple-700">Amount Sold</p>
+                                            <p className="text-2xl font-bold text-purple-900">${monthlyTotals.amountSold.toLocaleString()}</p>
+                                        </div>
+                                    </div>
+
+                                    <GoalCard
+                                        title="Weekly Goal"
+                                        color="blue"
+                                        goal={getWeeklyGoal(selectedPerson, currentDate)}
+                                        sold={weeklyTotals.amountSold}
+                                        onGoalChange={(val) => updateWeeklyGoal(selectedPerson, currentDate, val)}
+                                    />
+
+                                    <GoalCard
+                                        title="Monthly Goal"
+                                        color="green"
+                                        goal={getMonthlyGoal(selectedPerson, currentDate)}
+                                        sold={monthlyTotals.amountSold}
+                                        onGoalChange={(val) => updateMonthlyGoal(selectedPerson, currentDate, val)}
+                                    />
+
+                                    <GoalCard
+                                        title={`${currentDate.getFullYear()} Yearly Goal`}
+                                        color="purple"
+                                        goal={getYearlyGoal(selectedPerson, currentDate)}
+                                        sold={calculateYearly(selectedPerson)}
+                                        onGoalChange={(val) => updateYearlyGoal(selectedPerson, currentDate, val)}
+                                    />
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             );
