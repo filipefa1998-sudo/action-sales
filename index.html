@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+
+            <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -41,6 +42,7 @@
             const [monthlyGoals, setMonthlyGoals] = useState({});
             const [yearlyGoals, setYearlyGoals] = useState({});
             const [teamMonthlyGoal, setTeamMonthlyGoal] = useState(0);
+            const [teamYearlyGoal, setTeamYearlyGoal] = useState(0);
             const [loading, setLoading] = useState(true);
             const dailyChartRef = useRef(null);
             const tradeChartRef = useRef(null);
@@ -84,10 +86,14 @@
                 const teamMonthlyRef = database.ref('teamMonthlyGoal');
                 teamMonthlyRef.on('value', (snapshot) => setTeamMonthlyGoal(snapshot.val() || 0));
 
+                const teamYearlyRef = database.ref('teamYearlyGoal');
+                teamYearlyRef.on('value', (snapshot) => setTeamYearlyGoal(snapshot.val() || 0));
+
                 return () => {
                     monthlyRef.off();
                     yearlyRef.off();
                     teamMonthlyRef.off();
+                    teamYearlyRef.off();
                 };
             }, []);
 
@@ -133,6 +139,7 @@
                 database.ref(`callLogs/${key}`).push().set({
                     customerName: '',
                     jobNumber: '',
+                    customerPhone: '',
                     reviewCompleted: false,
                     restorationLead: false,
                     turnoverAttempted: false,
@@ -146,6 +153,7 @@
                     jobSold: false,
                     amountSold: 0,
                     moneyOwed: 0,
+                    followUpPlan: '',
                     leftEstimate: false,
                     estimateAmount: 0,
                     tradePlumbing: false,
@@ -341,6 +349,10 @@
                 return allMemberStats.reduce((sum, member) => sum + member.amountSold, 0);
             }, [allMemberStats]);
 
+            const teamYearlyTotal = useMemo(() => {
+                return allMemberStats.reduce((sum, member) => sum + member.yearRevenue, 0);
+            }, [allMemberStats]);
+
             const todayStats = useMemo(() => getTodayStats(), [salespeople, callLogs]);
 
             const topPerformerWeek = useMemo(() => {
@@ -518,7 +530,6 @@
                     </div>
                 );
             }
-
             return (
                 <div className="min-h-screen bg-gray-50 p-4">
                     <div className="max-w-7xl mx-auto">
@@ -546,6 +557,7 @@
                                 <p className="text-xs opacity-75 mt-1">${(topPerformerWeek?.weekRevenue || 0).toLocaleString()} this week</p>
                             </div>
                         </div>
+
                         <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-semibold">Sales Team</h2>
@@ -677,7 +689,7 @@
                                 {selectedDate && (
                                     <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
                                         <div className="flex items-center justify-between mb-4">
-                                            <h3 className="text-2xl font-bold text-blue-900">📞 Call Logs - {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</h3>
+                                            <h3 className="text-2xl font-bold text-blue-900">📞 Call Logs</h3>
                                             <button
                                                 onClick={() => addCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate))}
                                                 className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold"
@@ -717,6 +729,14 @@
                                                                 onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'jobNumber', e.target.value)}
                                                                 className="w-full px-3 py-2 border-2 rounded-lg"
                                                                 placeholder="Job Number"
+                                                            />
+
+                                                            <input
+                                                                type="tel"
+                                                                value={call.customerPhone || ''}
+                                                                onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'customerPhone', e.target.value)}
+                                                                className="w-full px-3 py-2 border-2 rounded-lg"
+                                                                placeholder="Customer Phone"
                                                             />
 
                                                             <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-green-400">
@@ -915,7 +935,214 @@
                                     </div>
                                 )}
 
-                                <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-lg shadow-lg border-2 border-green-400 mb-6">
+                                <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+                                    <h2 className="text-2xl font-bold mb-4 text-orange-900">💰 Money Owed Tracker</h2>
+                                    
+                                    <div className="mb-4 p-4 bg-orange-50 rounded-lg border-2 border-orange-300">
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div>
+                                                <p className="text-sm font-bold text-orange-700">Total Money Owed</p>
+                                                <p className="text-3xl font-bold text-orange-900">${(monthlyTotals?.moneyOwed || 0).toLocaleString()}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-green-700">Total Collected</p>
+                                                <p className="text-3xl font-bold text-green-900">${((monthlyTotals?.amountSold || 0) - (monthlyTotals?.moneyOwed || 0)).toLocaleString()}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-blue-700">Collection Rate</p>
+                                                <p className="text-3xl font-bold text-blue-900">
+                                                    {monthlyTotals?.amountSold > 0 ? (((monthlyTotals.amountSold - monthlyTotals.moneyOwed) / monthlyTotals.amountSold) * 100).toFixed(1) : 0}%
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <h3 className="font-bold text-lg">Outstanding Payments - This Month</h3>
+                                        {(() => {
+                                            const monthDates = getMonthDates(currentDate);
+                                            const outstandingPayments = [];
+                                            
+                                            monthDates.forEach(date => {
+                                                const calls = getCallLogs(selectedPerson, date);
+                                                calls.forEach(call => {
+                                                    if (call.moneyOwed && call.moneyOwed > 0) {
+                                                        outstandingPayments.push({
+                                                            ...call,
+                                                            date: date,
+                                                            dateKey: getDateKey(date)
+                                                        });
+                                                    }
+                                                });
+                                            });
+
+                                            if (outstandingPayments.length === 0) {
+                                                return (
+                                                    <div className="text-center py-8 bg-gray-50 rounded">
+                                                        <p className="text-gray-500">✅ No outstanding payments this month!</p>
+                                                    </div>
+                                                );
+                                            }
+
+                                            return outstandingPayments.map((payment, idx) => (
+                                                <div key={idx} className="p-4 bg-orange-50 rounded-lg border-2 border-orange-200">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <p className="font-bold text-lg">{payment.customerName || 'Unnamed Customer'}</p>
+                                                            <p className="text-sm text-gray-600">Job #{payment.jobNumber || 'N/A'} • {payment.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-sm text-gray-600">Amount Owed</p>
+                                                            <p className="text-2xl font-bold text-orange-600">${payment.moneyOwed.toLocaleString()}</p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t">
+                                                        <div>
+                                                            <p className="text-xs text-gray-600">Total Sale</p>
+                                                            <p className="font-bold">${(payment.amountSold || 0).toLocaleString()}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs text-gray-600">Collected</p>
+                                                            <p className="font-bold text-green-600">${((payment.amountSold || 0) - payment.moneyOwed).toLocaleString()}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-3 pt-3 border-t">
+                                                        <label className="block text-xs font-bold text-gray-700 mb-1">Follow-Up Plan:</label>
+                                                        <textarea
+                                                            value={payment.followUpPlan || ''}
+                                                            onChange={(e) => updateCall(selectedPerson, payment.date, payment.id, 'followUpPlan', e.target.value)}
+                                                            className="w-full px-3 py-2 border-2 rounded-lg text-sm"
+                                                            placeholder="Add follow-up notes (e.g., 'Call customer on Friday', 'Send invoice reminder')"
+                                                            rows="2"
+                                                        />
+                                                    </div>
+
+                                                    <div className="mt-2 flex gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                if (window.confirm('Mark this payment as collected?')) {
+                                                                    updateCall(selectedPerson, payment.date, payment.id, 'moneyOwed', 0);
+                                                                }
+                                                            }}
+                                                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-bold"
+                                                        >
+                                                            ✅ Mark as Collected
+                                                        </button>
+                                                        {payment.customerPhone && (
+                                                            <a 
+                                                                href={`tel:${payment.customerPhone}`}
+                                                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-bold"
+                                                            >
+                                                                📞 Call Customer
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ));
+                                        })()}
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+                                    <h2 className="text-2xl font-bold mb-4 text-purple-900">
+                                        🎯 {currentDate.getFullYear()} Goals Tracker
+                                    </h2>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="p-4 bg-purple-50 rounded-lg border-2 border-purple-300">
+                                            <h3 className="font-bold mb-3">Individual Yearly Goal</h3>
+                                            <input
+                                                type="number"
+                                                value={getYearlyGoal(selectedPerson) || ''}
+                                                onChange={(e) => updateYearlyGoal(selectedPerson, e.target.value)}
+                                                className="w-full px-3 py-2 border-2 rounded-lg mb-2"
+                                                placeholder="Set Yearly Goal ($)"
+                                            />
+                                            {getYearlyGoal(selectedPerson) > 0 && (
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between text-sm">
+                                                        <span>Progress:</span>
+                                                        <span className="font-bold">{((yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) * 100).toFixed(1)}%</span>
+                                                    </div>
+                                                    <div className="w-full bg-gray-200 rounded-full h-6">
+                                                        <div 
+                                                            className={`h-full rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                                                                (yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) >= 1 ? 'bg-green-600' :
+                                                                (yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) >= 0.5 ? 'bg-yellow-500' :
+                                                                'bg-red-500'
+                                                            }`}
+                                                            style={{ width: `${Math.min((yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) * 100, 100)}%` }}
+                                                        >
+                                                            {((yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) * 100).toFixed(0)}%
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-3 gap-2 text-sm pt-2">
+                                                        <div>
+                                                            <p className="text-xs text-gray-600">Sold So Far</p>
+                                                            <p className="font-bold">${(yearlyTotals?.amountSold || 0).toLocaleString()}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs text-gray-600">Goal</p>
+                                                            <p className="font-bold">${getYearlyGoal(selectedPerson).toLocaleString()}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs text-gray-600">Left to Goal</p>
+                                                            <p className="font-bold text-orange-600">${Math.max(0, getYearlyGoal(selectedPerson) - (yearlyTotals?.amountSold || 0)).toLocaleString()}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="p-4 bg-indigo-50 rounded-lg border-2 border-indigo-300">
+                                            <h3 className="font-bold mb-3">Team Yearly Goal</h3>
+                                            <input
+                                                type="number"
+                                                value={teamYearlyGoal || ''}
+                                                onChange={(e) => database.ref('teamYearlyGoal').set(parseFloat(e.target.value) || 0)}
+                                                className="w-full px-3 py-2 border-2 rounded-lg mb-2"
+                                                placeholder="Set Team Yearly Goal ($)"
+                                            />
+                                            {teamYearlyGoal > 0 && (
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between text-sm">
+                                                        <span>Team Progress:</span>
+                                                        <span className="font-bold">{((teamYearlyTotal / teamYearlyGoal) * 100).toFixed(1)}%</span>
+                                                    </div>
+                                                    <div className="w-full bg-gray-200 rounded-full h-6">
+                                                        <div 
+                                                            className={`h-full rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                                                                (teamYearlyTotal / teamYearlyGoal) >= 1 ? 'bg-green-600' :
+                                                                (teamYearlyTotal / teamYearlyGoal) >= 0.5 ? 'bg-yellow-500' :
+                                                                'bg-red-500'
+                                                            }`}
+                                                            style={{ width: `${Math.min((teamYearlyTotal / teamYearlyGoal) * 100, 100)}%` }}
+                                                        >
+                                                            {((teamYearlyTotal / teamYearlyGoal) * 100).toFixed(0)}%
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-3 gap-2 text-sm pt-2">
+                                                        <div>
+                                                            <p className="text-xs text-gray-600">Team Sold</p>
+                                                            <p className="font-bold">${teamYearlyTotal.toLocaleString()}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs text-gray-600">Goal</p>
+                                                            <p className="font-bold">${teamYearlyGoal.toLocaleString()}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs text-gray-600">Remaining</p>
+                                                            <p className="font-bold text-orange-600">${Math.max(0, teamYearlyGoal - teamYearlyTotal).toLocaleString()}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-lg shadow-lg border-2 border-green-400">
                                     <h2 className="text-2xl font-bold mb-4 text-green-900">
                                         🏅 Monthly Leaderboard - {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                                     </h2>
