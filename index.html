@@ -1,5 +1,4 @@
-
-            <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -43,11 +42,8 @@
             const [yearlyGoals, setYearlyGoals] = useState({});
             const [teamMonthlyGoal, setTeamMonthlyGoal] = useState(0);
             const [teamYearlyGoal, setTeamYearlyGoal] = useState(0);
+            const [commissionRate, setCommissionRate] = useState(0);
             const [loading, setLoading] = useState(true);
-            const dailyChartRef = useRef(null);
-            const tradeChartRef = useRef(null);
-            const dailyChartInstance = useRef(null);
-            const tradeChartInstance = useRef(null);
 
             useEffect(() => {
                 const ref = database.ref('salespeople');
@@ -89,11 +85,15 @@
                 const teamYearlyRef = database.ref('teamYearlyGoal');
                 teamYearlyRef.on('value', (snapshot) => setTeamYearlyGoal(snapshot.val() || 0));
 
+                const commissionRef = database.ref('commissionRate');
+                commissionRef.on('value', (snapshot) => setCommissionRate(snapshot.val() || 0));
+
                 return () => {
                     monthlyRef.off();
                     yearlyRef.off();
                     teamMonthlyRef.off();
                     teamYearlyRef.off();
+                    commissionRef.off();
                 };
             }, []);
 
@@ -160,7 +160,8 @@
                     tradeHVAC: false,
                     tradeElectrical: false,
                     tradeCameras: false,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    timeOfDay: new Date().getHours()
                 });
             };
 
@@ -208,6 +209,9 @@
                     amountSold: 0,
                     moneyOwed: 0,
                     selfGenLeads: 0,
+                    companyLeads: 0,
+                    selfGenSales: 0,
+                    companySales: 0,
                     reviewsCompleted: 0,
                     turnoversAttempted: 0,
                     turnoversAccepted: 0,
@@ -222,7 +226,8 @@
                     tradeElectrical: 0,
                     tradeCameras: 0,
                     jobsComplete: 0,
-                    dailyBreakdown: {}
+                    dailyBreakdown: {},
+                    hourlyBreakdown: {}
                 };
                 
                 dates.forEach(date => {
@@ -234,16 +239,26 @@
                         totals.totalCalls++;
                         totals.dailyBreakdown[dateKey].calls++;
                         
+                        if (c.selfGeneratedLead) {
+                            totals.selfGenLeads++;
+                            if (c.jobSold) totals.selfGenSales++;
+                        } else {
+                            totals.companyLeads++;
+                            if (c.jobSold) totals.companySales++;
+                        }
+                        
                         if (c.jobSold) {
                             totals.callsSold++;
                             totals.dailyBreakdown[dateKey].sold++;
                             const amount = parseFloat(c.amountSold) || 0;
                             totals.amountSold += amount;
                             totals.dailyBreakdown[dateKey].revenue += amount;
+                            
+                            const hour = c.timeOfDay || new Date(c.timestamp).getHours();
+                            totals.hourlyBreakdown[hour] = (totals.hourlyBreakdown[hour] || 0) + 1;
                         }
                         
                         totals.moneyOwed += parseFloat(c.moneyOwed) || 0;
-                        if (c.selfGeneratedLead) totals.selfGenLeads++;
                         if (c.reviewCompleted) totals.reviewsCompleted++;
                         if (c.turnoverAttempted) totals.turnoversAttempted++;
                         if (c.turnoverAccepted) totals.turnoversAccepted++;
@@ -383,145 +398,13 @@
                 database.ref('teamMonthlyGoal').set(parseFloat(value) || 0);
             };
 
-            const getBestDayOfWeek = (personId) => {
-                const dayTotals = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-                const year = currentDate.getFullYear();
-                
-                for (let month = 0; month < 12; month++) {
-                    const monthDates = getMonthDates(new Date(year, month, 1));
-                    monthDates.forEach(date => {
-                        const calls = getCallLogs(personId, date);
-                        const revenue = calls.reduce((sum, c) => sum + (parseFloat(c.amountSold) || 0), 0);
-                        dayTotals[date.getDay()] += revenue;
-                    });
-                }
-                
-                const maxDay = Object.keys(dayTotals).reduce((a, b) => dayTotals[a] > dayTotals[b] ? a : b);
-                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                return days[maxDay];
+            const updateCommissionRate = (value) => {
+                database.ref('commissionRate').set(parseFloat(value) || 0);
             };
 
-            const getMonthlyForecast = (personId) => {
-                const today = new Date();
-                const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-                const daysPassed = today.getDate();
-                const monthStats = calculateTotals(personId, getMonthDates(today));
-                const dailyAverage = monthStats.amountSold / daysPassed;
-                return dailyAverage * daysInMonth;
+            const calculateCommission = (amount) => {
+                return (amount * (commissionRate / 100)).toFixed(2);
             };
-
-            useEffect(() => {
-                if (selectedPerson && weeklyTotals && dailyChartRef.current) {
-                    const ctx = dailyChartRef.current.getContext('2d');
-                    
-                    if (dailyChartInstance.current) {
-                        dailyChartInstance.current.destroy();
-                    }
-
-                    const labels = weekDates.map(d => d.toLocaleDateString('en-US', { weekday: 'short' }));
-                    const data = weekDates.map(d => {
-                        const dateKey = getDateKey(d);
-                        return weeklyTotals.dailyBreakdown[dateKey]?.revenue || 0;
-                    });
-
-                    dailyChartInstance.current = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: [{
-                                label: 'Daily Revenue',
-                                data,
-                                backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                                borderColor: 'rgb(59, 130, 246)',
-                                borderWidth: 2
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        callback: function(value) {
-                                            return '$' + value.toLocaleString();
-                                        }
-                                    }
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    display: false
-                                }
-                            }
-                        }
-                    });
-                }
-
-                return () => {
-                    if (dailyChartInstance.current) {
-                        dailyChartInstance.current.destroy();
-                    }
-                };
-            }, [selectedPerson, weeklyTotals, weekDates]);
-
-            useEffect(() => {
-                if (selectedPerson && monthlyTotals && tradeChartRef.current) {
-                    const ctx = tradeChartRef.current.getContext('2d');
-                    
-                    if (tradeChartInstance.current) {
-                        tradeChartInstance.current.destroy();
-                    }
-
-                    const data = [
-                        monthlyTotals.tradePlumbing || 0,
-                        monthlyTotals.tradeElectrical || 0,
-                        monthlyTotals.tradeHVAC || 0,
-                        monthlyTotals.tradeCameras || 0
-                    ];
-
-                    const total = data.reduce((a, b) => a + b, 0);
-                    if (total > 0) {
-                        tradeChartInstance.current = new Chart(ctx, {
-                            type: 'doughnut',
-                            data: {
-                                labels: ['Plumbing', 'Electrical', 'HVAC', 'Cameras'],
-                                datasets: [{
-                                    data,
-                                    backgroundColor: [
-                                        'rgba(59, 130, 246, 0.7)',
-                                        'rgba(250, 204, 21, 0.7)',
-                                        'rgba(239, 68, 68, 0.7)',
-                                        'rgba(168, 85, 247, 0.7)'
-                                    ],
-                                    borderColor: [
-                                        'rgb(59, 130, 246)',
-                                        'rgb(250, 204, 21)',
-                                        'rgb(239, 68, 68)',
-                                        'rgb(168, 85, 247)'
-                                    ],
-                                    borderWidth: 2
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: {
-                                        position: 'bottom'
-                                    }
-                                }
-                            }
-                        });
-                    }
-                }
-
-                return () => {
-                    if (tradeChartInstance.current) {
-                        tradeChartInstance.current.destroy();
-                    }
-                };
-            }, [selectedPerson, monthlyTotals]);
 
             if (loading) {
                 return (
@@ -530,7 +413,7 @@
                     </div>
                 );
             }
-            return (
+                    return (
                 <div className="min-h-screen bg-gray-50 p-4">
                     <div className="max-w-7xl mx-auto">
                         <h1 className="text-3xl font-bold mb-6 text-blue-900">🔧 Action Plumbing Sales Tracker</h1>
@@ -629,6 +512,112 @@
 
                         {selectedPerson && (
                             <>
+                                <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+                                    <h2 className="text-2xl font-bold mb-4 text-blue-900">
+                                        📊 Monthly Performance Metrics - {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                    </h2>
+                                    
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                        <div className="p-4 bg-blue-50 rounded-lg border-2 border-blue-300">
+                                            <p className="text-sm font-bold text-blue-700">Closing Rate</p>
+                                            <p className="text-3xl font-bold text-blue-900">
+                                                {monthlyTotals?.totalCalls > 0 ? ((monthlyTotals.callsSold / monthlyTotals.totalCalls) * 100).toFixed(1) : 0}%
+                                            </p>
+                                            <p className="text-xs text-gray-600">{monthlyTotals?.callsSold} / {monthlyTotals?.totalCalls} calls</p>
+                                        </div>
+
+                                        <div className="p-4 bg-green-50 rounded-lg border-2 border-green-300">
+                                            <p className="text-sm font-bold text-green-700">Call Average</p>
+                                            <p className="text-3xl font-bold text-green-900">
+                                                ${monthlyTotals?.callsSold > 0 ? (monthlyTotals.amountSold / monthlyTotals.callsSold).toFixed(0) : 0}
+                                            </p>
+                                            <p className="text-xs text-gray-600">per sale</p>
+                                        </div>
+
+                                        <div className="p-4 bg-purple-50 rounded-lg border-2 border-purple-300">
+                                            <p className="text-sm font-bold text-purple-700">Review Rate</p>
+                                            <p className="text-3xl font-bold text-purple-900">
+                                                {monthlyTotals?.totalCalls > 0 ? ((monthlyTotals.reviewsCompleted / monthlyTotals.totalCalls) * 100).toFixed(1) : 0}%
+                                            </p>
+                                            <p className="text-xs text-gray-600">{monthlyTotals?.reviewsCompleted} reviews</p>
+                                        </div>
+
+                                        <div className="p-4 bg-orange-50 rounded-lg border-2 border-orange-300">
+                                            <p className="text-sm font-bold text-orange-700">Turnover Rate</p>
+                                            <p className="text-3xl font-bold text-orange-900">
+                                                {monthlyTotals?.turnoversAttempted > 0 ? ((monthlyTotals.turnoversAccepted / monthlyTotals.turnoversAttempted) * 100).toFixed(1) : 0}%
+                                            </p>
+                                            <p className="text-xs text-gray-600">{monthlyTotals?.turnoversAccepted} / {monthlyTotals?.turnoversAttempted}</p>
+                                        </div>
+
+                                        <div className="p-4 bg-indigo-50 rounded-lg border-2 border-indigo-300">
+                                            <p className="text-sm font-bold text-indigo-700">Rilla Compliance</p>
+                                            <p className="text-3xl font-bold text-indigo-900">
+                                                {monthlyTotals?.totalCalls > 0 ? ((monthlyTotals.rillaCompliant / monthlyTotals.totalCalls) * 100).toFixed(1) : 0}%
+                                            </p>
+                                            <p className="text-xs text-gray-600">{monthlyTotals?.rillaCompliant} compliant</p>
+                                        </div>
+
+                                        <div className="p-4 bg-pink-50 rounded-lg border-2 border-pink-300">
+                                            <p className="text-sm font-bold text-pink-700">Restoration Leads</p>
+                                            <p className="text-3xl font-bold text-pink-900">{monthlyTotals?.restorationLeads || 0}</p>
+                                            <p className="text-xs text-gray-600">this month</p>
+                                        </div>
+
+                                        <div className="p-4 bg-yellow-50 rounded-lg border-2 border-yellow-300">
+                                            <p className="text-sm font-bold text-yellow-700">Plans Sold</p>
+                                            <p className="text-3xl font-bold text-yellow-900">{monthlyTotals?.plansSold || 0}</p>
+                                            <p className="text-xs text-gray-600">maintenance plans</p>
+                                        </div>
+
+                                        <div className="p-4 bg-teal-50 rounded-lg border-2 border-teal-300">
+                                            <p className="text-sm font-bold text-teal-700">Membership Rate</p>
+                                            <p className="text-3xl font-bold text-teal-900">
+                                                {monthlyTotals?.callsSold > 0 ? ((monthlyTotals.plansSold / monthlyTotals.callsSold) * 100).toFixed(1) : 0}%
+                                            </p>
+                                            <p className="text-xs text-gray-600">of sales</p>
+                                        </div>
+
+                                        <div className="p-4 bg-red-50 rounded-lg border-2 border-red-300">
+                                            <p className="text-sm font-bold text-red-700">Upsell Rate</p>
+                                            <p className="text-3xl font-bold text-red-900">
+                                                {monthlyTotals?.callsSold > 0 ? ((monthlyTotals.upsellsCompleted / monthlyTotals.callsSold) * 100).toFixed(1) : 0}%
+                                            </p>
+                                            <p className="text-xs text-gray-600">{monthlyTotals?.upsellsCompleted} upsells</p>
+                                        </div>
+
+                                        <div className="p-4 bg-cyan-50 rounded-lg border-2 border-cyan-300 col-span-2">
+                                            <p className="text-sm font-bold text-cyan-700">Year Total Revenue</p>
+                                            <p className="text-4xl font-bold text-cyan-900">${(yearlyTotals?.amountSold || 0).toLocaleString()}</p>
+                                            <p className="text-xs text-gray-600">{yearlyTotals?.callsSold || 0} sales in {currentDate.getFullYear()}</p>
+                                        </div>
+
+                                        <div className="p-4 bg-lime-50 rounded-lg border-2 border-lime-300">
+                                            <p className="text-sm font-bold text-lime-700">Commission Earned</p>
+                                            <p className="text-3xl font-bold text-lime-900">
+                                                ${commissionRate > 0 ? calculateCommission(monthlyTotals?.amountSold || 0) : '0'}
+                                            </p>
+                                            <p className="text-xs text-gray-600">at {commissionRate}% rate</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+                                        <h3 className="font-bold mb-2">Commission Settings</h3>
+                                        <div className="flex items-center gap-3">
+                                            <label className="text-sm font-bold">Commission Rate (%):</label>
+                                            <input
+                                                type="number"
+                                                value={commissionRate || ''}
+                                                onChange={(e) => updateCommissionRate(e.target.value)}
+                                                className="px-3 py-2 border-2 rounded-lg w-24"
+                                                placeholder="0"
+                                                step="0.1"
+                                            />
+                                            <span className="text-sm text-gray-600">Monthly Commission: ${commissionRate > 0 ? calculateCommission(monthlyTotals?.amountSold || 0) : '0'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow-lg border-2 border-blue-300 mb-6">
                                     <div className="flex items-center justify-between mb-6">
                                         <button 
@@ -934,215 +923,7 @@
                                         </div>
                                     </div>
                                 )}
-
-                                <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
-                                    <h2 className="text-2xl font-bold mb-4 text-orange-900">💰 Money Owed Tracker</h2>
-                                    
-                                    <div className="mb-4 p-4 bg-orange-50 rounded-lg border-2 border-orange-300">
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <div>
-                                                <p className="text-sm font-bold text-orange-700">Total Money Owed</p>
-                                                <p className="text-3xl font-bold text-orange-900">${(monthlyTotals?.moneyOwed || 0).toLocaleString()}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-green-700">Total Collected</p>
-                                                <p className="text-3xl font-bold text-green-900">${((monthlyTotals?.amountSold || 0) - (monthlyTotals?.moneyOwed || 0)).toLocaleString()}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-blue-700">Collection Rate</p>
-                                                <p className="text-3xl font-bold text-blue-900">
-                                                    {monthlyTotals?.amountSold > 0 ? (((monthlyTotals.amountSold - monthlyTotals.moneyOwed) / monthlyTotals.amountSold) * 100).toFixed(1) : 0}%
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        <h3 className="font-bold text-lg">Outstanding Payments - This Month</h3>
-                                        {(() => {
-                                            const monthDates = getMonthDates(currentDate);
-                                            const outstandingPayments = [];
-                                            
-                                            monthDates.forEach(date => {
-                                                const calls = getCallLogs(selectedPerson, date);
-                                                calls.forEach(call => {
-                                                    if (call.moneyOwed && call.moneyOwed > 0) {
-                                                        outstandingPayments.push({
-                                                            ...call,
-                                                            date: date,
-                                                            dateKey: getDateKey(date)
-                                                        });
-                                                    }
-                                                });
-                                            });
-
-                                            if (outstandingPayments.length === 0) {
-                                                return (
-                                                    <div className="text-center py-8 bg-gray-50 rounded">
-                                                        <p className="text-gray-500">✅ No outstanding payments this month!</p>
-                                                    </div>
-                                                );
-                                            }
-
-                                            return outstandingPayments.map((payment, idx) => (
-                                                <div key={idx} className="p-4 bg-orange-50 rounded-lg border-2 border-orange-200">
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <div>
-                                                            <p className="font-bold text-lg">{payment.customerName || 'Unnamed Customer'}</p>
-                                                            <p className="text-sm text-gray-600">Job #{payment.jobNumber || 'N/A'} • {payment.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <p className="text-sm text-gray-600">Amount Owed</p>
-                                                            <p className="text-2xl font-bold text-orange-600">${payment.moneyOwed.toLocaleString()}</p>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t">
-                                                        <div>
-                                                            <p className="text-xs text-gray-600">Total Sale</p>
-                                                            <p className="font-bold">${(payment.amountSold || 0).toLocaleString()}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs text-gray-600">Collected</p>
-                                                            <p className="font-bold text-green-600">${((payment.amountSold || 0) - payment.moneyOwed).toLocaleString()}</p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="mt-3 pt-3 border-t">
-                                                        <label className="block text-xs font-bold text-gray-700 mb-1">Follow-Up Plan:</label>
-                                                        <textarea
-                                                            value={payment.followUpPlan || ''}
-                                                            onChange={(e) => updateCall(selectedPerson, payment.date, payment.id, 'followUpPlan', e.target.value)}
-                                                            className="w-full px-3 py-2 border-2 rounded-lg text-sm"
-                                                            placeholder="Add follow-up notes (e.g., 'Call customer on Friday', 'Send invoice reminder')"
-                                                            rows="2"
-                                                        />
-                                                    </div>
-
-                                                    <div className="mt-2 flex gap-2">
-                                                        <button
-                                                            onClick={() => {
-                                                                if (window.confirm('Mark this payment as collected?')) {
-                                                                    updateCall(selectedPerson, payment.date, payment.id, 'moneyOwed', 0);
-                                                                }
-                                                            }}
-                                                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-bold"
-                                                        >
-                                                            ✅ Mark as Collected
-                                                        </button>
-                                                        {payment.customerPhone && (
-                                                            <a 
-                                                                href={`tel:${payment.customerPhone}`}
-                                                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-bold"
-                                                            >
-                                                                📞 Call Customer
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ));
-                                        })()}
-                                    </div>
-                                </div>
-
-                                <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
-                                    <h2 className="text-2xl font-bold mb-4 text-purple-900">
-                                        🎯 {currentDate.getFullYear()} Goals Tracker
-                                    </h2>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="p-4 bg-purple-50 rounded-lg border-2 border-purple-300">
-                                            <h3 className="font-bold mb-3">Individual Yearly Goal</h3>
-                                            <input
-                                                type="number"
-                                                value={getYearlyGoal(selectedPerson) || ''}
-                                                onChange={(e) => updateYearlyGoal(selectedPerson, e.target.value)}
-                                                className="w-full px-3 py-2 border-2 rounded-lg mb-2"
-                                                placeholder="Set Yearly Goal ($)"
-                                            />
-                                            {getYearlyGoal(selectedPerson) > 0 && (
-                                                <div className="space-y-2">
-                                                    <div className="flex justify-between text-sm">
-                                                        <span>Progress:</span>
-                                                        <span className="font-bold">{((yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) * 100).toFixed(1)}%</span>
-                                                    </div>
-                                                    <div className="w-full bg-gray-200 rounded-full h-6">
-                                                        <div 
-                                                            className={`h-full rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                                                                (yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) >= 1 ? 'bg-green-600' :
-                                                                (yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) >= 0.5 ? 'bg-yellow-500' :
-                                                                'bg-red-500'
-                                                            }`}
-                                                            style={{ width: `${Math.min((yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) * 100, 100)}%` }}
-                                                        >
-                                                            {((yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) * 100).toFixed(0)}%
-                                                        </div>
-                                                    </div>
-                                                    <div className="grid grid-cols-3 gap-2 text-sm pt-2">
-                                                        <div>
-                                                            <p className="text-xs text-gray-600">Sold So Far</p>
-                                                            <p className="font-bold">${(yearlyTotals?.amountSold || 0).toLocaleString()}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs text-gray-600">Goal</p>
-                                                            <p className="font-bold">${getYearlyGoal(selectedPerson).toLocaleString()}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs text-gray-600">Left to Goal</p>
-                                                            <p className="font-bold text-orange-600">${Math.max(0, getYearlyGoal(selectedPerson) - (yearlyTotals?.amountSold || 0)).toLocaleString()}</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="p-4 bg-indigo-50 rounded-lg border-2 border-indigo-300">
-                                            <h3 className="font-bold mb-3">Team Yearly Goal</h3>
-                                            <input
-                                                type="number"
-                                                value={teamYearlyGoal || ''}
-                                                onChange={(e) => database.ref('teamYearlyGoal').set(parseFloat(e.target.value) || 0)}
-                                                className="w-full px-3 py-2 border-2 rounded-lg mb-2"
-                                                placeholder="Set Team Yearly Goal ($)"
-                                            />
-                                            {teamYearlyGoal > 0 && (
-                                                <div className="space-y-2">
-                                                    <div className="flex justify-between text-sm">
-                                                        <span>Team Progress:</span>
-                                                        <span className="font-bold">{((teamYearlyTotal / teamYearlyGoal) * 100).toFixed(1)}%</span>
-                                                    </div>
-                                                    <div className="w-full bg-gray-200 rounded-full h-6">
-                                                        <div 
-                                                            className={`h-full rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                                                                (teamYearlyTotal / teamYearlyGoal) >= 1 ? 'bg-green-600' :
-                                                                (teamYearlyTotal / teamYearlyGoal) >= 0.5 ? 'bg-yellow-500' :
-                                                                'bg-red-500'
-                                                            }`}
-                                                            style={{ width: `${Math.min((teamYearlyTotal / teamYearlyGoal) * 100, 100)}%` }}
-                                                        >
-                                                            {((teamYearlyTotal / teamYearlyGoal) * 100).toFixed(0)}%
-                                                        </div>
-                                                    </div>
-                                                    <div className="grid grid-cols-3 gap-2 text-sm pt-2">
-                                                        <div>
-                                                            <p className="text-xs text-gray-600">Team Sold</p>
-                                                            <p className="font-bold">${teamYearlyTotal.toLocaleString()}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs text-gray-600">Goal</p>
-                                                            <p className="font-bold">${teamYearlyGoal.toLocaleString()}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs text-gray-600">Remaining</p>
-                                                            <p className="font-bold text-orange-600">${Math.max(0, teamYearlyGoal - teamYearlyTotal).toLocaleString()}</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-lg shadow-lg border-2 border-green-400">
+                                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-lg shadow-lg border-2 border-green-400">
                                     <h2 className="text-2xl font-bold mb-4 text-green-900">
                                         🏅 Monthly Leaderboard - {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                                     </h2>
