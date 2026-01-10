@@ -15,7 +15,6 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // Initialize Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",
             authDomain: "action-sales-tracker.firebaseapp.com",
@@ -28,7 +27,6 @@
 
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-
         const { useState, useEffect, useMemo } = React;
 
         function App() {
@@ -39,11 +37,12 @@
             const [selectedDate, setSelectedDate] = useState(null);
             const [newPersonName, setNewPersonName] = useState('');
             const [showAddPerson, setShowAddPerson] = useState(false);
-            const [weeklyGoals, setWeeklyGoals] = useState({});
             const [monthlyGoals, setMonthlyGoals] = useState({});
             const [yearlyGoals, setYearlyGoals] = useState({});
+            const [teamMonthlyGoal, setTeamMonthlyGoal] = useState(0);
+            const [teamYearlyGoal, setTeamYearlyGoal] = useState(0);
+            const [loading, setLoading] = useState(true);
 
-            // Load salespeople from Firebase
             useEffect(() => {
                 const ref = database.ref('salespeople');
                 ref.on('value', (snapshot) => {
@@ -58,50 +57,43 @@
                             setSelectedPerson(peopleArray[0].id);
                         }
                     }
+                    setLoading(false);
                 });
                 return () => ref.off();
             }, []);
 
-            // Load call logs from Firebase
             useEffect(() => {
                 const ref = database.ref('callLogs');
                 ref.on('value', (snapshot) => {
-                    const data = snapshot.val();
-                    setCallLogs(data || {});
+                    setCallLogs(snapshot.val() || {});
                 });
                 return () => ref.off();
             }, []);
 
-            // Load goals from Firebase
             useEffect(() => {
-                const weeklyRef = database.ref('weeklyGoals');
-                weeklyRef.on('value', (snapshot) => {
-                    setWeeklyGoals(snapshot.val() || {});
-                });
-
                 const monthlyRef = database.ref('monthlyGoals');
-                monthlyRef.on('value', (snapshot) => {
-                    setMonthlyGoals(snapshot.val() || {});
-                });
+                monthlyRef.on('value', (snapshot) => setMonthlyGoals(snapshot.val() || {}));
 
                 const yearlyRef = database.ref('yearlyGoals');
-                yearlyRef.on('value', (snapshot) => {
-                    setYearlyGoals(snapshot.val() || {});
-                });
+                yearlyRef.on('value', (snapshot) => setYearlyGoals(snapshot.val() || {}));
+
+                const teamMonthlyRef = database.ref('teamMonthlyGoal');
+                teamMonthlyRef.on('value', (snapshot) => setTeamMonthlyGoal(snapshot.val() || 0));
+
+                const teamYearlyRef = database.ref('teamYearlyGoal');
+                teamYearlyRef.on('value', (snapshot) => setTeamYearlyGoal(snapshot.val() || 0));
 
                 return () => {
-                    weeklyRef.off();
                     monthlyRef.off();
                     yearlyRef.off();
+                    teamMonthlyRef.off();
+                    teamYearlyRef.off();
                 };
             }, []);
 
             const addSalesperson = () => {
                 if (newPersonName.trim()) {
-                    const newRef = database.ref('salespeople').push();
-                    newRef.set({
-                        name: newPersonName.trim()
-                    });
+                    database.ref('salespeople').push().set({ name: newPersonName.trim() });
                     setNewPersonName('');
                     setShowAddPerson(false);
                 }
@@ -109,11 +101,9 @@
 
             const removeSalesperson = (id) => {
                 const person = salespeople.find(p => p.id === id);
-                if (window.confirm(`Remove ${person.name}? This will delete all their data permanently.`)) {
+                if (window.confirm(`Remove ${person.name}? This will delete all their data.`)) {
                     database.ref(`salespeople/${id}`).remove();
-                    if (selectedPerson === id) {
-                        setSelectedPerson(null);
-                    }
+                    if (selectedPerson === id) setSelectedPerson(null);
                 }
             };
 
@@ -133,24 +123,26 @@
 
             const getDateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             const getDataKey = (personId, date) => `${personId}_${getDateKey(date)}`;
-            const getWeekKey = (date) => {
-                const weekStart = getWeekDates(date)[0];
-                return getDateKey(weekStart);
-            };
             const getMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             const getYearKey = (date) => `${date.getFullYear()}`;
-
+            
             const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate]);
 
             const addCall = (personId, date) => {
                 const key = getDataKey(personId, date);
-                const newCallRef = database.ref(`callLogs/${key}`).push();
-                newCallRef.set({
+                database.ref(`callLogs/${key}`).push().set({
                     customerName: '',
                     jobNumber: '',
                     reviewCompleted: false,
+                    restorationLead: false,
+                    turnoverAttempted: false,
+                    turnoverAccepted: false,
                     selfGeneratedLead: false,
-                    membershipSold: false,
+                    rillaCompliant: false,
+                    maintenancePlanSold: false,
+                    upsellCompleted: false,
+                    upsellAmount: 0,
+                    jobComplete: false,
                     jobSold: false,
                     amountSold: 0,
                     leftEstimate: false,
@@ -158,7 +150,7 @@
                     tradePlumbing: false,
                     tradeHVAC: false,
                     tradeElectrical: false,
-                    tradeDrain: false,
+                    tradeCameras: false,
                     timestamp: Date.now()
                 });
             };
@@ -170,47 +162,16 @@
 
             const deleteCall = (personId, date, callId) => {
                 const key = getDataKey(personId, date);
-                database.ref(`callLogs/${key}/${callId}`).remove();
+                if (window.confirm('Delete this call?')) {
+                    database.ref(`callLogs/${key}/${callId}`).remove();
+                }
             };
 
             const getCallLogs = (personId, date) => {
                 const key = getDataKey(personId, date);
                 const logs = callLogs[key];
                 if (!logs) return [];
-                return Object.keys(logs).map(id => ({
-                    id,
-                    ...logs[id]
-                }));
-            };
-
-            const updateWeeklyGoal = (personId, date, value) => {
-                const key = `${personId}_${getWeekKey(date)}`;
-                database.ref(`weeklyGoals/${key}`).set(parseFloat(value) || 0);
-            };
-
-            const updateMonthlyGoal = (personId, date, value) => {
-                const key = `${personId}_${getMonthKey(date)}`;
-                database.ref(`monthlyGoals/${key}`).set(parseFloat(value) || 0);
-            };
-
-            const updateYearlyGoal = (personId, date, value) => {
-                const key = `${personId}_${getYearKey(date)}`;
-                database.ref(`yearlyGoals/${key}`).set(parseFloat(value) || 0);
-            };
-
-            const getWeeklyGoal = (personId, date) => {
-                const key = `${personId}_${getWeekKey(date)}`;
-                return weeklyGoals[key] || 0;
-            };
-
-            const getMonthlyGoal = (personId, date) => {
-                const key = `${personId}_${getMonthKey(date)}`;
-                return monthlyGoals[key] || 0;
-            };
-
-            const getYearlyGoal = (personId, date) => {
-                const key = `${personId}_${getYearKey(date)}`;
-                return yearlyGoals[key] || 0;
+                return Object.keys(logs).map(id => ({ id, ...logs[id] }));
             };
 
             const getMonthDates = (date) => {
@@ -218,112 +179,139 @@
                 const month = date.getMonth();
                 const dates = [];
                 const lastDay = new Date(year, month + 1, 0).getDate();
-                for (let day = 1; day <= lastDay; day++) {
-                    dates.push(new Date(year, month, day));
+                for (let day = 1; day <= lastDay; day++) dates.push(new Date(year, month, day));
+                return dates;
+            };
+
+            const getYearDates = (year) => {
+                const dates = [];
+                for (let month = 0; month < 12; month++) {
+                    const monthDates = getMonthDates(new Date(year, month, 1));
+                    dates.push(...monthDates);
                 }
                 return dates;
             };
 
             const calculateTotals = (personId, dates) => {
-                const totals = { totalCalls: 0, callsSold: 0, amountSold: 0 };
+                const totals = {
+                    totalCalls: 0,
+                    callsSold: 0,
+                    amountSold: 0,
+                    selfGenLeads: 0,
+                    reviewsCompleted: 0,
+                    turnoversAttempted: 0,
+                    turnoversAccepted: 0,
+                    rillaCompliant: 0,
+                    restorationLeads: 0,
+                    plansSold: 0,
+                    upsellsCompleted: 0,
+                    estimatesLeft: 0,
+                    estimateValue: 0,
+                    tradePlumbing: 0,
+                    tradeHVAC: 0,
+                    tradeElectrical: 0,
+                    tradeCameras: 0,
+                    jobsComplete: 0
+                };
+                
                 dates.forEach(date => {
                     const calls = getCallLogs(personId, date);
-                    totals.totalCalls += calls.length;
-                    totals.callsSold += calls.filter(c => c.jobSold).length;
-                    totals.amountSold += calls.reduce((sum, c) => sum + (parseFloat(c.amountSold) || 0), 0);
+                    calls.forEach(c => {
+                        totals.totalCalls++;
+                        if (c.jobSold) totals.callsSold++;
+                        totals.amountSold += parseFloat(c.amountSold) || 0;
+                        if (c.selfGeneratedLead) totals.selfGenLeads++;
+                        if (c.reviewCompleted) totals.reviewsCompleted++;
+                        if (c.turnoverAttempted) totals.turnoversAttempted++;
+                        if (c.turnoverAccepted) totals.turnoversAccepted++;
+                        if (c.rillaCompliant) totals.rillaCompliant++;
+                        if (c.restorationLead) totals.restorationLeads++;
+                        if (c.maintenancePlanSold) totals.plansSold++;
+                        if (c.upsellCompleted) totals.upsellsCompleted++;
+                        if (c.leftEstimate) {
+                            totals.estimatesLeft++;
+                            totals.estimateValue += parseFloat(c.estimateAmount) || 0;
+                        }
+                        if (c.tradePlumbing) totals.tradePlumbing++;
+                        if (c.tradeHVAC) totals.tradeHVAC++;
+                        if (c.tradeElectrical) totals.tradeElectrical++;
+                        if (c.tradeCameras) totals.tradeCameras++;
+                        if (c.jobComplete) totals.jobsComplete++;
+                    });
                 });
+                
                 return totals;
             };
 
             const weeklyTotals = useMemo(() => 
-                selectedPerson ? calculateTotals(selectedPerson, weekDates) : { totalCalls: 0, callsSold: 0, amountSold: 0 },
+                selectedPerson ? calculateTotals(selectedPerson, weekDates) : null,
                 [selectedPerson, weekDates, callLogs]
             );
 
             const monthlyTotals = useMemo(() => 
-                selectedPerson ? calculateTotals(selectedPerson, getMonthDates(currentDate)) : { totalCalls: 0, callsSold: 0, amountSold: 0 },
+                selectedPerson ? calculateTotals(selectedPerson, getMonthDates(currentDate)) : null,
                 [selectedPerson, currentDate, callLogs]
             );
 
-            const calculateYearly = (personId) => {
-                const year = currentDate.getFullYear();
-                let yearlySold = 0;
-                for (let month = 0; month < 12; month++) {
-                    const monthDates = getMonthDates(new Date(year, month, 1));
-                    yearlySold += calculateTotals(personId, monthDates).amountSold;
-                }
-                return yearlySold;
+            const yearlyTotals = useMemo(() => 
+                selectedPerson ? calculateTotals(selectedPerson, getYearDates(currentDate.getFullYear())) : null,
+                [selectedPerson, currentDate, callLogs]
+            );
+
+            const allMemberStats = useMemo(() => {
+                return salespeople.map(person => {
+                    const stats = calculateTotals(person.id, getMonthDates(currentDate));
+                    return { ...person, ...stats };
+                }).sort((a, b) => b.amountSold - a.amountSold);
+            }, [salespeople, currentDate, callLogs]);
+
+            const teamMonthlyTotal = useMemo(() => {
+                return allMemberStats.reduce((sum, member) => sum + member.amountSold, 0);
+            }, [allMemberStats]);
+
+            const updateMonthlyGoal = (personId, value) => {
+                const key = `${personId}_${getMonthKey(currentDate)}`;
+                database.ref(`monthlyGoals/${key}`).set(parseFloat(value) || 0);
             };
 
-            const colors = ['blue', 'purple', 'green', 'orange'];
-            const getPersonColor = (personId) => {
-                const idx = salespeople.findIndex(p => p.id === personId);
-                return colors[idx % colors.length];
+            const updateYearlyGoal = (personId, value) => {
+                const key = `${personId}_${getYearKey(currentDate)}`;
+                database.ref(`yearlyGoals/${key}`).set(parseFloat(value) || 0);
             };
 
-            const GoalCard = ({ title, color, goal, sold, onGoalChange }) => {
-                const progress = goal > 0 ? Math.min((sold / goal) * 100, 100) : 0;
+            const getMonthlyGoal = (personId) => {
+                const key = `${personId}_${getMonthKey(currentDate)}`;
+                return monthlyGoals[key] || 0;
+            };
+
+            const getYearlyGoal = (personId) => {
+                const key = `${personId}_${getYearKey(currentDate)}`;
+                return yearlyGoals[key] || 0;
+            };
+
+            const updateTeamMonthlyGoal = (value) => {
+                database.ref('teamMonthlyGoal').set(parseFloat(value) || 0);
+            };
+
+            if (loading) {
                 return (
-                    <div className={`mt-4 p-4 bg-${color}-50 rounded border-2 border-${color}-300`}>
-                        <h3 className="text-sm font-bold mb-2">{title}</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-medium mb-1">Set Goal</label>
-                                <input
-                                    type="number"
-                                    value={goal || ''}
-                                    onChange={(e) => onGoalChange(e.target.value)}
-                                    className="w-full px-3 py-2 border rounded"
-                                    placeholder="Enter goal"
-                                />
-                            </div>
-                            <div className="bg-white p-3 rounded border">
-                                <div className="w-full bg-gray-200 rounded-full h-6 mb-2">
-                                    <div 
-                                        className={`h-full bg-${color}-600 rounded-full flex items-center justify-center text-white text-xs font-bold`}
-                                        style={{ width: `${progress}%` }}
-                                    >
-                                        {progress.toFixed(0)}%
-                                    </div>
-                                </div>
-                                <div className="text-sm">
-                                    <div className="flex justify-between">
-                                        <span>Sold:</span>
-                                        <span className="font-bold">${sold.toLocaleString()}</span>
-                                    </div>
-                                    {goal > 0 && (
-                                        <>
-                                            <div className="flex justify-between">
-                                                <span>Goal:</span>
-                                                <span className="font-bold">${goal.toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex justify-between text-xs pt-1 border-t mt-1">
-                                                <span>{sold >= goal ? 'Over:' : 'Left:'}</span>
-                                                <span className={sold >= goal ? 'text-green-600 font-bold' : 'text-orange-600 font-bold'}>
-                                                    ${Math.abs(goal - sold).toLocaleString()}
-                                                </span>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                        <div className="text-2xl font-bold text-blue-600">Loading...</div>
                     </div>
                 );
-            };
-
+            }
             return (
                 <div className="min-h-screen bg-gray-50 p-4">
                     <div className="max-w-7xl mx-auto">
-                        <h1 className="text-3xl font-bold mb-6">Action Plumbing Sales Tracker</h1>
+                        <h1 className="text-3xl font-bold mb-6 text-blue-900">🔧 Action Plumbing Sales Tracker</h1>
 
-                        <div className="bg-white p-4 rounded-lg shadow mb-6">
-                            <div className="flex items-center justify-between mb-3">
-                                <h2 className="text-xl font-semibold">Team</h2>
+                        <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-semibold">Sales Team</h2>
                                 {!showAddPerson && (
                                     <button
                                         onClick={() => setShowAddPerson(true)}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
                                     >
                                         + Add Person
                                     </button>
@@ -331,34 +319,36 @@
                             </div>
 
                             {showAddPerson && (
-                                <div className="mb-4 p-3 bg-blue-50 rounded">
+                                <div className="mb-4 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
                                             value={newPersonName}
                                             onChange={(e) => setNewPersonName(e.target.value)}
                                             onKeyPress={(e) => e.key === 'Enter' && addSalesperson()}
-                                            placeholder="Enter name"
-                                            className="flex-1 px-3 py-2 border rounded"
+                                            placeholder="Enter salesperson name"
+                                            className="flex-1 px-4 py-2 border-2 rounded-lg"
                                             autoFocus
                                         />
-                                        <button onClick={addSalesperson} className="px-4 py-2 bg-green-600 text-white rounded">Add</button>
-                                        <button onClick={() => { setShowAddPerson(false); setNewPersonName(''); }} className="px-4 py-2 bg-gray-300 rounded">Cancel</button>
+                                        <button onClick={addSalesperson} className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">Add</button>
+                                        <button onClick={() => { setShowAddPerson(false); setNewPersonName(''); }} className="px-6 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 font-semibold">Cancel</button>
                                     </div>
                                 </div>
                             )}
 
                             {salespeople.length === 0 ? (
-                                <p className="text-gray-500 text-center py-4">No salespeople added yet</p>
+                                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                                    <p className="text-xl text-gray-500">No salespeople added yet</p>
+                                </div>
                             ) : (
-                                <div className="flex flex-wrap gap-2">
-                                    {salespeople.map(person => (
+                                <div className="flex flex-wrap gap-3">
+                                    {salespeople.map((person) => (
                                         <div key={person.id} className="relative group">
                                             <button
                                                 onClick={() => setSelectedPerson(person.id)}
-                                                className={`px-5 py-2.5 rounded-lg font-semibold ${
+                                                className={`px-6 py-3 rounded-lg font-bold text-lg transition-all ${
                                                     selectedPerson === person.id
-                                                        ? `bg-${getPersonColor(person.id)}-600 text-white`
+                                                        ? 'bg-blue-600 text-white shadow-lg'
                                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                                 }`}
                                             >
@@ -366,7 +356,7 @@
                                             </button>
                                             <button
                                                 onClick={() => removeSalesperson(person.id)}
-                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100"
+                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs opacity-0 group-hover:opacity-100"
                                             >
                                                 ×
                                             </button>
@@ -378,50 +368,55 @@
 
                         {selectedPerson && (
                             <>
-                                <div className={`bg-${getPersonColor(selectedPerson)}-50 p-4 rounded-lg border-2 border-${getPersonColor(selectedPerson)}-500 mb-6`}>
-                                    <div className="flex items-center justify-between mb-4">
+                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow-lg border-2 border-blue-300 mb-6">
+                                    <div className="flex items-center justify-between mb-6">
                                         <button 
                                             onClick={() => setCurrentDate(new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000))}
-                                            className="p-2 hover:bg-white rounded"
+                                            className="p-3 bg-white rounded-full hover:bg-blue-100 shadow font-bold text-xl"
                                         >
                                             ←
                                         </button>
-                                        <h2 className="text-lg font-semibold">
+                                        <h2 className="text-xl font-bold text-blue-900">
                                             {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                         </h2>
                                         <button 
                                             onClick={() => setCurrentDate(new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000))}
-                                            className="p-2 hover:bg-white rounded"
+                                            className="p-3 bg-white rounded-full hover:bg-blue-100 shadow font-bold text-xl"
                                         >
                                             →
                                         </button>
                                     </div>
 
-                                    <div className="grid grid-cols-7 gap-2">
+                                    <div className="grid grid-cols-7 gap-3">
                                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                                            <div key={day} className="text-center text-xs font-semibold mb-2">{day}</div>
+                                            <div key={day} className="text-center text-sm font-bold text-blue-700 mb-2">{day}</div>
                                         ))}
                                         {weekDates.map((date, idx) => {
                                             const calls = getCallLogs(selectedPerson, date);
                                             const sold = calls.filter(c => c.jobSold);
                                             const total = calls.reduce((sum, c) => sum + (parseFloat(c.amountSold) || 0), 0);
                                             const dateKey = getDateKey(date);
+                                            const isToday = getDateKey(new Date()) === dateKey;
                                             
                                             return (
                                                 <button
                                                     key={idx}
                                                     onClick={() => setSelectedDate(selectedDate === dateKey ? null : dateKey)}
-                                                    className={`p-3 rounded-lg border-2 ${
+                                                    className={`p-4 rounded-xl border-2 transition-all ${
                                                         selectedDate === dateKey 
-                                                            ? `border-${getPersonColor(selectedPerson)}-500 bg-${getPersonColor(selectedPerson)}-100` 
-                                                            : calls.length > 0 ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-white'
+                                                            ? 'border-blue-600 bg-blue-100 shadow-lg' 
+                                                            : calls.length > 0 
+                                                                ? 'border-green-400 bg-green-50 hover:shadow-md' 
+                                                                : isToday 
+                                                                    ? 'border-blue-300 bg-white shadow-md'
+                                                                    : 'border-gray-200 bg-white hover:border-gray-300'
                                                     }`}
                                                 >
-                                                    <div className="text-lg font-bold">{date.getDate()}</div>
+                                                    <div className="text-xl font-bold">{date.getDate()}</div>
                                                     {calls.length > 0 && (
-                                                        <div className="mt-1">
-                                                            <div className="text-xs font-semibold text-green-700">{sold.length} sales</div>
-                                                            <div className="text-xs font-semibold text-green-700">${total.toLocaleString()}</div>
+                                                        <div className="mt-2">
+                                                            <div className="text-xs font-bold text-green-700">{sold.length} sold</div>
+                                                            <div className="text-xs font-bold text-green-700">${total.toLocaleString()}</div>
                                                         </div>
                                                     )}
                                                 </button>
@@ -431,55 +426,55 @@
                                 </div>
 
                                 {selectedDate && (
-                                    <div className="bg-white p-4 rounded-lg shadow mb-6 max-h-96 overflow-y-auto">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h3 className="text-lg font-semibold">Call Logs</h3>
+                                    <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-2xl font-bold text-blue-900">📞 Call Logs</h3>
                                             <button
                                                 onClick={() => addCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate))}
-                                                className={`px-4 py-2 bg-${getPersonColor(selectedPerson)}-600 text-white rounded hover:bg-${getPersonColor(selectedPerson)}-700`}
+                                                className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold"
                                             >
                                                 + Add Call
                                             </button>
                                         </div>
                                         
-                                        <div className="space-y-3">
+                                        <div className="space-y-4 max-h-[600px] overflow-y-auto">
                                             {getCallLogs(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate)).map(call => (
-                                                <div key={call.id} className="p-3 bg-gray-50 rounded border">
-                                                    <div className="flex justify-between mb-2">
-                                                        <span className="text-xs font-semibold">Call Entry</span>
+                                                <div key={call.id} className="p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                                                    <div className="flex justify-between mb-3">
+                                                        <span className="text-sm font-bold text-gray-600">Call Entry</span>
                                                         <button 
                                                             onClick={() => deleteCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id)}
-                                                            className="text-red-600 text-sm"
+                                                            className="text-red-600 font-bold hover:text-red-800"
                                                         >
-                                                            Delete
+                                                            🗑️ Delete
                                                         </button>
                                                     </div>
                                                     
-                                                    <div className="space-y-2">
+                                                    <div className="space-y-3">
                                                         <input
                                                             type="text"
                                                             value={call.customerName || ''}
                                                             onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'customerName', e.target.value)}
-                                                            className="w-full px-2 py-1 text-sm border rounded"
-                                                            placeholder="Customer name"
+                                                            className="w-full px-3 py-2 border-2 rounded-lg"
+                                                            placeholder="Customer Name"
                                                         />
                                                         
                                                         <input
                                                             type="text"
                                                             value={call.jobNumber || ''}
                                                             onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'jobNumber', e.target.value)}
-                                                            className="w-full px-2 py-1 text-sm border rounded"
-                                                            placeholder="Job number"
+                                                            className="w-full px-3 py-2 border-2 rounded-lg"
+                                                            placeholder="Job Number"
                                                         />
 
-                                                        <label className="flex items-center gap-2 p-2 bg-white rounded border">
+                                                        <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-green-400">
                                                             <input
                                                                 type="checkbox"
                                                                 checked={call.jobSold || false}
                                                                 onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'jobSold', e.target.checked)}
-                                                                className="w-4 h-4"
+                                                                className="w-5 h-5"
                                                             />
-                                                            <span className="text-sm font-semibold">Job Sold</span>
+                                                            <span className="font-bold text-lg">💰 Job Sold</span>
                                                         </label>
 
                                                         {call.jobSold && (
@@ -487,44 +482,169 @@
                                                                 type="number"
                                                                 value={call.amountSold || ''}
                                                                 onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'amountSold', parseFloat(e.target.value) || 0)}
-                                                                className="w-full px-2 py-1 text-sm border rounded"
-                                                                placeholder="Amount sold"
+                                                                className="w-full px-3 py-2 border-2 border-green-300 rounded-lg text-lg font-bold"
+                                                                placeholder="Amount Sold ($)"
                                                             />
                                                         )}
 
-                                                        <div className="grid grid-cols-2 gap-2">
-                                                            <label className="flex items-center gap-2 text-xs">
+                                                        <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-orange-400">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={call.leftEstimate || false}
+                                                                onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'leftEstimate', e.target.checked)}
+                                                                className="w-5 h-5"
+                                                            />
+                                                            <span className="font-bold">📋 Left Estimate</span>
+                                                        </label>
+
+                                                        {call.leftEstimate && (
+                                                            <input
+                                                                type="number"
+                                                                value={call.estimateAmount || ''}
+                                                                onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'estimateAmount', parseFloat(e.target.value) || 0)}
+                                                                className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg"
+                                                                placeholder="Estimate Amount ($)"
+                                                            />
+                                                        )}
+
+                                                        <div className="border-t-2 pt-3 mt-3">
+                                                            <p className="font-bold text-sm text-gray-700 mb-2">Trade Type</p>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                <label className="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-300 cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.tradePlumbing || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradePlumbing', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <span className="text-sm font-bold text-blue-700">🔧 Plumbing</span>
+                                                                </label>
+                                                                <label className="flex items-center gap-2 p-2 bg-yellow-50 rounded border border-yellow-300 cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.tradeElectrical || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeElectrical', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <span className="text-sm font-bold text-yellow-700">⚡ Electrical</span>
+                                                                </label>
+                                                                <label className="flex items-center gap-2 p-2 bg-red-50 rounded border border-red-300 cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.tradeHVAC || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeHVAC', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <span className="text-sm font-bold text-red-700">🌡️ HVAC</span>
+                                                                </label>
+                                                                <label className="flex items-center gap-2 p-2 bg-purple-50 rounded border border-purple-300 cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.tradeCameras || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeCameras', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <span className="text-sm font-bold text-purple-700">📹 Cameras</span>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="border-t-2 pt-3 mt-3">
+                                                            <p className="font-bold text-sm text-gray-700 mb-2">Performance Metrics</p>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.reviewCompleted || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'reviewCompleted', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <span>✅ Review Completed</span>
+                                                                </label>
+                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.restorationLead || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'restorationLead', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <span>🏠 Restoration Lead</span>
+                                                                </label>
+                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.turnoverAttempted || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'turnoverAttempted', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <span>🔄 Turnover Attempted</span>
+                                                                </label>
+                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.turnoverAccepted || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'turnoverAccepted', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                        disabled={!call.turnoverAttempted}
+                                                                    />
+                                                                    <span>✔️ Turnover Accepted</span>
+                                                                </label>
+                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.selfGeneratedLead || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'selfGeneratedLead', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <span>🎯 Self-Generated Lead</span>
+                                                                </label>
+                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.rillaCompliant || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'rillaCompliant', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <span>🎙️ Rilla Compliant</span>
+                                                                </label>
+                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.maintenancePlanSold || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'maintenancePlanSold', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <span>🛡️ Maintenance Plan Sold</span>
+                                                                </label>
+                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.upsellCompleted || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'upsellCompleted', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <span>⬆️ Upsell Completed</span>
+                                                                </label>
+                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={call.jobComplete || false}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'jobComplete', e.target.checked)}
+                                                                        className="w-4 h-4"
+                                                                    />
+                                                                    <span>✔️ Job Complete</span>
+                                                                </label>
+                                                            </div>
+
+                                                            {call.upsellCompleted && (
                                                                 <input
-                                                                    type="checkbox"
-                                                                    checked={call.tradePlumbing || false}
-                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradePlumbing', e.target.checked)}
+                                                                    type="number"
+                                                                    value={call.upsellAmount || ''}
+                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'upsellAmount', parseFloat(e.target.value) || 0)}
+                                                                    className="w-full px-3 py-2 border-2 rounded-lg mt-2"
+                                                                    placeholder="Upsell Amount ($)"
                                                                 />
-                                                                Plumbing
-                                                            </label>
-                                                            <label className="flex items-center gap-2 text-xs">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={call.tradeHVAC || false}
-                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeHVAC', e.target.checked)}
-                                                                />
-                                                                HVAC
-                                                            </label>
-                                                            <label className="flex items-center gap-2 text-xs">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={call.tradeElectrical || false}
-                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeElectrical', e.target.checked)}
-                                                                />
-                                                                Electrical
-                                                            </label>
-                                                            <label className="flex items-center gap-2 text-xs">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={call.tradeDrain || false}
-                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeDrain', e.target.checked)}
-                                                                />
-                                                                Drain
-                                                            </label>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -533,49 +653,366 @@
                                     </div>
                                 )}
 
-                                <div className="bg-white p-4 rounded-lg shadow">
-                                    <h2 className="text-xl font-semibold mb-4">
-                                        {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} Performance
-                                    </h2>
-                                    
-                                    <div className="grid grid-cols-3 gap-3 mb-4">
-                                        <div className="p-3 bg-blue-50 rounded">
-                                            <p className="text-xs font-semibold text-blue-700">Total Calls</p>
-                                            <p className="text-2xl font-bold text-blue-900">{monthlyTotals.totalCalls}</p>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                                    <div className="bg-white p-6 rounded-lg shadow-lg">
+                                        <h2 className="text-2xl font-bold mb-4 text-blue-900">
+                                            📊 Weekly Totals - {salespeople.find(p => p.id === selectedPerson)?.name}
+                                        </h2>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="p-3 bg-blue-50 rounded border-2 border-blue-300">
+                                                <p className="text-xs font-bold text-blue-700">Total Calls</p>
+                                                <p className="text-2xl font-bold text-blue-900">{weeklyTotals?.totalCalls || 0}</p>
+                                            </div>
+                                            <div className="p-3 bg-green-50 rounded border-2 border-green-300">
+                                                <p className="text-xs font-bold text-green-700">Calls Sold</p>
+                                                <p className="text-2xl font-bold text-green-900">{weeklyTotals?.callsSold || 0}</p>
+                                            </div>
+                                            <div className="p-3 bg-purple-50 rounded border-2 border-purple-300">
+                                                <p className="text-xs font-bold text-purple-700">Amount Sold</p>
+                                                <p className="text-2xl font-bold text-purple-900">${(weeklyTotals?.amountSold || 0).toLocaleString()}</p>
+                                            </div>
+                                            <div className="p-3 bg-orange-50 rounded border-2 border-orange-300">
+                                                <p className="text-xs font-bold text-orange-700">Self-Gen Leads</p>
+                                                <p className="text-2xl font-bold text-orange-900">{weeklyTotals?.selfGenLeads || 0}</p>
+                                            </div>
                                         </div>
-                                        <div className="p-3 bg-green-50 rounded">
-                                            <p className="text-xs font-semibold text-green-700">Calls Sold</p>
-                                            <p className="text-2xl font-bold text-green-900">{monthlyTotals.callsSold}</p>
-                                        </div>
-                                        <div className="p-3 bg-purple-50 rounded">
-                                            <p className="text-xs font-semibold text-purple-700">Amount Sold</p>
-                                            <p className="text-2xl font-bold text-purple-900">${monthlyTotals.amountSold.toLocaleString()}</p>
+
+                                        <div className="mt-4 p-4 bg-gray-50 rounded border">
+                                            <h3 className="font-bold text-sm mb-2">Weekly Performance</h3>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span>Closing Rate:</span>
+                                                    <span className="font-bold">{weeklyTotals?.totalCalls > 0 ? ((weeklyTotals.callsSold / weeklyTotals.totalCalls) * 100).toFixed(1) : 0}%</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Call Average:</span>
+                                                    <span className="font-bold">${weeklyTotals?.callsSold > 0 ? (weeklyTotals.amountSold / weeklyTotals.callsSold).toLocaleString(undefined, {maximumFractionDigits: 0}) : 0}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Reviews Rate:</span>
+                                                    <span className="font-bold">{weeklyTotals?.totalCalls > 0 ? ((weeklyTotals.reviewsCompleted / weeklyTotals.totalCalls) * 100).toFixed(1) : 0}%</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Turnover Rate:</span>
+                                                    <span className="font-bold">{weeklyTotals?.turnoversAttempted > 0 ? ((weeklyTotals.turnoversAccepted / weeklyTotals.turnoversAttempted) * 100).toFixed(1) : 0}%</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Rilla Compliance:</span>
+                                                    <span className="font-bold">{weeklyTotals?.totalCalls > 0 ? ((weeklyTotals.rillaCompliant / weeklyTotals.totalCalls) * 100).toFixed(1) : 0}%</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <GoalCard
-                                        title="Weekly Goal"
-                                        color="blue"
-                                        goal={getWeeklyGoal(selectedPerson, currentDate)}
-                                        sold={weeklyTotals.amountSold}
-                                        onGoalChange={(val) => updateWeeklyGoal(selectedPerson, currentDate, val)}
-                                    />
+                                    <div className="bg-white p-6 rounded-lg shadow-lg">
+                                        <h2 className="text-2xl font-bold mb-4 text-blue-900">
+                                            📈 Monthly Totals - {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                        </h2>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="p-3 bg-blue-50 rounded border-2 border-blue-300">
+                                                <p className="text-xs font-bold text-blue-700">Total Calls</p>
+                                                <p className="text-2xl font-bold text-blue-900">{monthlyTotals?.totalCalls || 0}</p>
+                                            </div>
+                                            <div className="p-3 bg-green-50 rounded border-2 border-green-300">
+                                                <p className="text-xs font-bold text-green-700">Calls Sold</p>
+                                                <p className="text-2xl font-bold text-green-900">{monthlyTotals?.callsSold || 0}</p>
+                                            </div>
+                                            <div className="p-3 bg-purple-50 rounded border-2 border-purple-300">
+                                                <p className="text-xs font-bold text-purple-700">Amount Sold</p>
+                                                <p className="text-2xl font-bold text-purple-900">${(monthlyTotals?.amountSold || 0).toLocaleString()}</p>
+                                            </div>
+                                            <div className="p-3 bg-orange-50 rounded border-2 border-orange-300">
+                                                <p className="text-xs font-bold text-orange-700">Self-Gen Leads</p>
+                                                <p className="text-2xl font-bold text-orange-900">{monthlyTotals?.selfGenLeads || 0}</p>
+                                            </div>
+                                        </div>
 
-                                    <GoalCard
-                                        title="Monthly Goal"
-                                        color="green"
-                                        goal={getMonthlyGoal(selectedPerson, currentDate)}
-                                        sold={monthlyTotals.amountSold}
-                                        onGoalChange={(val) => updateMonthlyGoal(selectedPerson, currentDate, val)}
-                                    />
+                                        <div className="mt-4 p-4 bg-blue-50 rounded border-2 border-blue-300">
+                                            <h3 className="font-bold mb-2">Monthly Sales Goal</h3>
+                                            <input
+                                                type="number"
+                                                value={getMonthlyGoal(selectedPerson) || ''}
+                                                onChange={(e) => updateMonthlyGoal(selectedPerson, e.target.value)}
+                                                className="w-full px-3 py-2 border-2 rounded-lg mb-2"
+                                                placeholder="Set Goal ($)"
+                                            />
+                                            {getMonthlyGoal(selectedPerson) > 0 && (
+                                                <div className="space-y-1 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span>Progress:</span>
+                                                        <span className="font-bold">{((monthlyTotals?.amountSold / getMonthlyGoal(selectedPerson)) * 100).toFixed(1)}%</span>
+                                                    </div>
+                                                    <div className="w-full bg-gray-200 rounded-full h-4">
+                                                        <div 
+                                                            className="h-full bg-green-600 rounded-full"
+                                                            style={{ width: `${Math.min((monthlyTotals?.amountSold / getMonthlyGoal(selectedPerson)) * 100, 100)}%` }}
+                                                        ></div>
+                                                    </div>
+                                                    <div className="flex justify-between pt-1">
+                                                        <span>Remaining:</span>
+                                                        <span className="font-bold text-orange-600">${(getMonthlyGoal(selectedPerson) - (monthlyTotals?.amountSold || 0)).toLocaleString()}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
 
-                                    <GoalCard
-                                        title={`${currentDate.getFullYear()} Yearly Goal`}
-                                        color="purple"
-                                        goal={getYearlyGoal(selectedPerson, currentDate)}
-                                        sold={calculateYearly(selectedPerson)}
-                                        onGoalChange={(val) => updateYearlyGoal(selectedPerson, currentDate, val)}
-                                    />
+                                        <div className="mt-4 p-4 bg-gray-50 rounded border">
+                                            <h3 className="font-bold text-sm mb-2">Monthly Performance Metrics</h3>
+                                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                                <div>
+                                                    <span className="text-gray-600">Closing Rate:</span>
+                                                    <p className="font-bold text-lg">{monthlyTotals?.totalCalls > 0 ? ((monthlyTotals.callsSold / monthlyTotals.totalCalls) * 100).toFixed(1) : 0}%</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-600">Call Average:</span>
+                                                    <p className="font-bold text-lg">${monthlyTotals?.callsSold > 0 ? (monthlyTotals.amountSold / monthlyTotals.callsSold).toLocaleString(undefined, {maximumFractionDigits: 0}) : 0}</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-600">Reviews Rate:</span>
+                                                    <p className="font-bold text-lg">{monthlyTotals?.totalCalls > 0 ? ((monthlyTotals.reviewsCompleted / monthlyTotals.totalCalls) * 100).toFixed(1) : 0}%</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-600">Rilla Compliance:</span>
+                                                    <p className="font-bold text-lg">{monthlyTotals?.totalCalls > 0 ? ((monthlyTotals.rillaCompliant / monthlyTotals.totalCalls) * 100).toFixed(1) : 0}%</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-600">Plans Sold:</span>
+                                                    <p className="font-bold text-lg">{monthlyTotals?.plansSold || 0}</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-600">Membership Rate:</span>
+                                                    <p className="font-bold text-lg">{monthlyTotals?.totalCalls > 0 ? ((monthlyTotals.plansSold / monthlyTotals.totalCalls) * 100).toFixed(1) : 0}%</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-600">Upsells:</span>
+                                                    <p className="font-bold text-lg">{monthlyTotals?.upsellsCompleted || 0}</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-600">Restoration Leads:</span>
+                                                    <p className="font-bold text-lg">{monthlyTotals?.restorationLeads || 0}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4 p-4 bg-orange-50 rounded border-2 border-orange-300">
+                                            <h3 className="font-bold mb-2">Revenue Tracking</h3>
+                                            <div className="space-y-1 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span>Estimates Left:</span>
+                                                    <span className="font-bold">{monthlyTotals?.estimatesLeft || 0}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Total Est. Value:</span>
+                                                    <span className="font-bold">${(monthlyTotals?.estimateValue || 0).toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between text-red-600">
+                                                    <span>Missed Revenue:</span>
+                                                    <span className="font-bold">${(monthlyTotals?.estimateValue || 0).toLocaleString()}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+                                    <h2 className="text-2xl font-bold mb-4 text-purple-900">
+                                        🏆 {currentDate.getFullYear()} Yearly Summary
+                                    </h2>
+                                    <div className="grid grid-cols-4 gap-3 mb-4">
+                                        <div className="p-3 bg-blue-50 rounded border-2 border-blue-300">
+                                            <p className="text-xs font-bold text-blue-700">Total Calls</p>
+                                            <p className="text-2xl font-bold text-blue-900">{yearlyTotals?.totalCalls || 0}</p>
+                                        </div>
+                                        <div className="p-3 bg-green-50 rounded border-2 border-green-300">
+                                            <p className="text-xs font-bold text-green-700">Total Sold</p>
+                                            <p className="text-2xl font-bold text-green-900">{yearlyTotals?.callsSold || 0}</p>
+                                        </div>
+                                        <div className="p-3 bg-purple-50 rounded border-2 border-purple-300">
+                                            <p className="text-xs font-bold text-purple-700">Amount Sold</p>
+                                            <p className="text-2xl font-bold text-purple-900">${(yearlyTotals?.amountSold || 0).toLocaleString()}</p>
+                                        </div>
+                                        <div className="p-3 bg-orange-50 rounded border-2 border-orange-300">
+                                            <p className="text-xs font-bold text-orange-700">Closing Rate</p>
+                                            <p className="text-2xl font-bold text-orange-900">{yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.callsSold / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 bg-purple-50 rounded border-2 border-purple-300 mb-4">
+                                        <h3 className="font-bold mb-2">Yearly Sales Goal</h3>
+                                        <input
+                                            type="number"
+                                            value={getYearlyGoal(selectedPerson) || ''}
+                                            onChange={(e) => updateYearlyGoal(selectedPerson, e.target.value)}
+                                            className="w-full px-3 py-2 border-2 rounded-lg mb-2"
+                                            placeholder="Set Yearly Goal ($)"
+                                        />
+                                        {getYearlyGoal(selectedPerson) > 0 && (
+                                            <div className="space-y-1 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span>Progress:</span>
+                                                    <span className="font-bold">{((yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) * 100).toFixed(1)}%</span>
+                                                </div>
+                                                <div className="w-full bg-gray-200 rounded-full h-4">
+                                                    <div 
+                                                        className="h-full bg-purple-600 rounded-full"
+                                                        style={{ width: `${Math.min((yearlyTotals?.amountSold / getYearlyGoal(selectedPerson)) * 100, 100)}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 bg-gray-50 rounded border">
+                                            <h3 className="font-bold text-sm mb-3">Trade Distribution</h3>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span>🔧 Plumbing:</span>
+                                                    <span className="font-bold">{yearlyTotals?.tradePlumbing || 0} ({yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.tradePlumbing / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%)</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>⚡ Electrical:</span>
+                                                    <span className="font-bold">{yearlyTotals?.tradeElectrical || 0} ({yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.tradeElectrical / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%)</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>🌡️ HVAC:</span>
+                                                    <span className="font-bold">{yearlyTotals?.tradeHVAC || 0} ({yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.tradeHVAC / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%)</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>📹 Cameras:</span>
+                                                    <span className="font-bold">{yearlyTotals?.tradeCameras || 0} ({yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.tradeCameras / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="p-4 bg-gray-50 rounded border">
+                                            <h3 className="font-bold text-sm mb-3">Yearly Performance Metrics</h3>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span>Call Average:</span>
+                                                    <span className="font-bold">${yearlyTotals?.callsSold > 0 ? (yearlyTotals.amountSold / yearlyTotals.callsSold).toLocaleString(undefined, {maximumFractionDigits: 0}) : 0}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Reviews Rate:</span>
+                                                    <span className="font-bold">{yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.reviewsCompleted / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Turnover Rate:</span>
+                                                    <span className="font-bold">{yearlyTotals?.turnoversAttempted > 0 ? ((yearlyTotals.turnoversAccepted / yearlyTotals.turnoversAttempted) * 100).toFixed(1) : 0}%</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Plans Sold:</span>
+                                                    <span className="font-bold">{yearlyTotals?.plansSold || 0}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 rounded-lg shadow-lg border-2 border-indigo-300">
+                                    <h2 className="text-2xl font-bold mb-4 text-indigo-900">👥 Team Performance</h2>
+
+                                    <div className="bg-white p-4 rounded-lg border-2 border-blue-400 mb-4">
+                                        <h3 className="font-bold mb-3">Team Monthly Goal</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <input
+                                                type="number"
+                                                value={teamMonthlyGoal || ''}
+                                                onChange={(e) => updateTeamMonthlyGoal(e.target.value)}
+                                                className="px-3 py-2 border-2 rounded-lg"
+                                                placeholder="Set Team Goal ($)"
+                                            />
+                                            <div className="bg-blue-50 p-3 rounded">
+                                                <p className="text-sm font-bold">Team Sold: ${teamMonthlyTotal.toLocaleString()}</p>
+                                                {teamMonthlyGoal > 0 && (
+                                                    <p className="text-sm">Progress: {((teamMonthlyTotal / teamMonthlyGoal) * 100).toFixed(1)}%</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white p-4 rounded-lg border">
+                                        <h3 className="font-bold mb-3">Individual Monthly Goals</h3>
+                                        <div className="space-y-2">
+                                            {allMemberStats.map(member => {
+                                                const goal = getMonthlyGoal(member.id);
+                                                const progress = goal > 0 ? (member.amountSold / goal) * 100 : 0;
+                                                return (
+                                                    <div key={member.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded border">
+                                                        <div className="flex-1">
+                                                            <p className="font-bold">{member.name}</p>
+                                                            <p className="text-sm text-gray-600">Goal: ${goal.toLocaleString()}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="font-bold text-lg">${member.amountSold.toLocaleString()}</p>
+                                                            {goal > 0 && <p className="text-sm text-gray-600">{progress.toFixed(1)}%</p>}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white p-4 rounded-lg border mt-4">
+                                        <h3 className="font-bold mb-3">Team Member Contributions</h3>
+                                        <div className="space-y-2">
+                                            {allMemberStats.map(member => {
+                                                const closeRate = member.totalCalls > 0 ? (member.callsSold / member.totalCalls) * 100 : 0;
+                                                const teamPercent = teamMonthlyTotal > 0 ? (member.amountSold / teamMonthlyTotal) * 100 : 0;
+                                                return (
+                                                    <div key={member.id} className="p-3 bg-gray-50 rounded border">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="font-bold">{member.name}</span>
+                                                            <span className="font-bold text-lg">${member.amountSold.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="text-xs text-gray-600">
+                                                            {member.callsSold} sales from {member.totalCalls} calls • {teamPercent.toFixed(1)}% of team
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-lg shadow-lg border-2 border-yellow-400 mt-6">
+                                    <h2 className="text-2xl font-bold mb-4 text-yellow-900">🏆 {currentDate.getFullYear()} Leaderboard - Who's Winning?</h2>
+                                    <div className="space-y-3">
+                                        {salespeople.map((person, idx) => {
+                                            const yearStats = calculateTotals(person.id, getYearDates(currentDate.getFullYear()));
+                                            const closeRate = yearStats.totalCalls > 0 ? (yearStats.callsSold / yearStats.totalCalls) * 100 : 0;
+                                            const medals = ['🥇', '🥈', '🥉'];
+                                            const titles = ['👑 Top Performer', '⭐ Runner Up', '🎯 Bronze'];
+                                            
+                                            return (
+                                                <div key={person.id} className={`p-4 rounded-lg border-2 ${
+                                                    idx === 0 ? 'bg-yellow-100 border-yellow-400' :
+                                                    idx === 1 ? 'bg-gray-100 border-gray-400' :
+                                                    idx === 2 ? 'bg-orange-100 border-orange-400' :
+                                                    'bg-white border-gray-300'
+                                                }`}>
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-2xl">{idx < 3 ? medals[idx] : `#${idx + 1}`}</span>
+                                                            <div>
+                                                                <p className="font-bold text-lg">{person.name}</p>
+                                                                {idx < 3 && <p className="text-xs text-gray-600">{titles[idx]}</p>}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-sm text-gray-600">Total Sold</p>
+                                                            <p className="font-bold text-xl">${yearStats.amountSold.toLocaleString()}</p>
+                                                            <p className="text-xs text-gray-600">Close Rate: {closeRate.toFixed(1)}%</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }).sort((a, b) => {
+                                            const aStats = calculateTotals(salespeople.find(p => p.id === a.key).id, getYearDates(currentDate.getFullYear()));
+                                            const bStats = calculateTotals(salespeople.find(p => p.id === b.key).id, getYearDates(currentDate.getFullYear()));
+                                            return bStats.amountSold - aStats.amountSold;
+                                        })}
+                                    </div>
                                 </div>
                             </>
                         )}
@@ -584,7 +1021,8 @@
             );
         }
 
-        ReactDOM.render(<App />, document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
