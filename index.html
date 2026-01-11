@@ -42,6 +42,7 @@
             const [yearlyGoals, setYearlyGoals] = useState({});
             const [teamMonthlyGoal, setTeamMonthlyGoal] = useState(0);
             const [loading, setLoading] = useState(true);
+            const [showOutstandingJobs, setShowOutstandingJobs] = useState(false);
             const dailyChartRef = useRef(null);
             const tradeChartRef = useRef(null);
             const dailyChartInstance = useRef(null);
@@ -145,7 +146,7 @@
                     jobComplete: false,
                     jobSold: false,
                     amountSold: 0,
-                    moneyOwed: 0,
+                    amountCollected: 0,
                     leftEstimate: false,
                     estimateAmount: 0,
                     tradePlumbing: false,
@@ -199,6 +200,7 @@
                     totalCalls: 0,
                     callsSold: 0,
                     amountSold: 0,
+                    amountCollected: 0,
                     moneyOwed: 0,
                     selfGenLeads: 0,
                     reviewsCompleted: 0,
@@ -208,15 +210,19 @@
                     restorationLeads: 0,
                     plansSold: 0,
                     upsellsCompleted: 0,
+                    upsellAmount: 0,
                     estimatesLeft: 0,
                     estimateValue: 0,
+                    estimatesNotSold: 0,
+                    estimatesNotSoldValue: 0,
                     tradePlumbing: 0,
                     tradeHVAC: 0,
                     tradeElectrical: 0,
                     tradeCameras: 0,
                     jobsComplete: 0,
                     financingCount: 0,
-                    dailyBreakdown: {}
+                    dailyBreakdown: {},
+                    outstandingJobs: []
                 };
                 
                 dates.forEach(date => {
@@ -232,11 +238,27 @@
                             totals.callsSold++;
                             totals.dailyBreakdown[dateKey].sold++;
                             const amount = parseFloat(c.amountSold) || 0;
+                            const collected = parseFloat(c.amountCollected) || 0;
+                            const owed = amount - collected;
+                            
                             totals.amountSold += amount;
+                            totals.amountCollected += collected;
+                            totals.moneyOwed += owed;
                             totals.dailyBreakdown[dateKey].revenue += amount;
+                            
+                            // Track jobs with outstanding balance
+                            if (owed > 0) {
+                                totals.outstandingJobs.push({
+                                    customerName: c.customerName || 'No Name',
+                                    jobNumber: c.jobNumber || 'No Job #',
+                                    date: date,
+                                    amountSold: amount,
+                                    amountCollected: collected,
+                                    amountOwed: owed
+                                });
+                            }
                         }
                         
-                        totals.moneyOwed += parseFloat(c.moneyOwed) || 0;
                         if (c.selfGeneratedLead) totals.selfGenLeads++;
                         if (c.reviewCompleted) totals.reviewsCompleted++;
                         if (c.turnoverAttempted) totals.turnoversAttempted++;
@@ -244,10 +266,18 @@
                         if (c.rillaCompliant) totals.rillaCompliant++;
                         if (c.restorationLead) totals.restorationLeads++;
                         if (c.maintenancePlanSold) totals.plansSold++;
-                        if (c.upsellCompleted) totals.upsellsCompleted++;
+                        if (c.upsellCompleted) {
+                            totals.upsellsCompleted++;
+                            totals.upsellAmount += parseFloat(c.upsellAmount) || 0;
+                        }
                         if (c.leftEstimate) {
                             totals.estimatesLeft++;
-                            totals.estimateValue += parseFloat(c.estimateAmount) || 0;
+                            const estAmount = parseFloat(c.estimateAmount) || 0;
+                            totals.estimateValue += estAmount;
+                            if (!c.jobSold) {
+                                totals.estimatesNotSold++;
+                                totals.estimatesNotSoldValue += estAmount;
+                            }
                         }
                         if (c.tradePlumbing) totals.tradePlumbing++;
                         if (c.tradeHVAC) totals.tradeHVAC++;
@@ -260,6 +290,7 @@
                 
                 return totals;
             };
+
             const getTodayStats = () => {
                 const today = new Date();
                 let totalCalls = 0;
@@ -403,7 +434,6 @@
                 const dailyAverage = monthStats.amountSold / daysPassed;
                 return dailyAverage * daysInMonth;
             };
-
             // Create charts
             useEffect(() => {
                 if (selectedPerson && weeklyTotals && dailyChartRef.current) {
@@ -504,6 +534,16 @@
                                 plugins: {
                                     legend: {
                                         position: 'bottom'
+                                    },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                const label = context.label || '';
+                                                const value = context.parsed;
+                                                const percentage = ((value / total) * 100).toFixed(1);
+                                                return `${label}: ${value} (${percentage}%)`;
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -623,6 +663,7 @@
                                 </div>
                             )}
                         </div>
+
                         {selectedPerson && (
                             <>
                                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow-lg border-2 border-blue-300 mb-6">
@@ -695,238 +736,307 @@
                                         </div>
                                         
                                         <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                                            {getCallLogs(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate)).map(call => (
-                                                <div key={call.id} className="p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
-                                                    <div className="flex justify-between mb-3">
-                                                        <span className="text-sm font-bold text-gray-600">Call Entry</span>
-                                                        <button 
-                                                            onClick={() => deleteCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id)}
-                                                            className="text-red-600 font-bold hover:text-red-800"
-                                                        >
-                                                            🗑️ Delete
-                                                        </button>
-                                                    </div>
-                                                    
-                                                    <div className="space-y-3">
-                                                        <input
-                                                            type="text"
-                                                            value={call.customerName || ''}
-                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'customerName', e.target.value)}
-                                                            className="w-full px-3 py-2 border-2 rounded-lg"
-                                                            placeholder="Customer Name"
-                                                        />
-                                                        
-                                                        <input
-                                                            type="text"
-                                                            value={call.jobNumber || ''}
-                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'jobNumber', e.target.value)}
-                                                            className="w-full px-3 py-2 border-2 rounded-lg"
-                                                            placeholder="Job Number"
-                                                        />
-
-                                                        <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-green-400">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={call.jobSold || false}
-                                                                onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'jobSold', e.target.checked)}
-                                                                className="w-5 h-5"
-                                                            />
-                                                            <span className="font-bold text-lg">💰 Job Sold</span>
-                                                        </label>
-
-                                                        {call.jobSold && (
-                                                            <div className="space-y-2">
-                                                                <input
-                                                                    type="number"
-                                                                    value={call.amountSold || ''}
-                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'amountSold', parseFloat(e.target.value) || 0)}
-                                                                    className="w-full px-3 py-2 border-2 border-green-300 rounded-lg text-lg font-bold"
-                                                                    placeholder="Amount Sold ($)"
-                                                                />
-                                                                <input
-                                                                    type="number"
-                                                                    value={call.moneyOwed || ''}
-                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'moneyOwed', parseFloat(e.target.value) || 0)}
-                                                                    className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg font-bold"
-                                                                    placeholder="Money Owed ($)"
-                                                                />
-                                                                <label className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border-2 border-blue-300 cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.paymentFinancing || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'paymentFinancing', e.target.checked)}
-                                                                        className="w-5 h-5"
-                                                                    />
-                                                                    <span className="font-bold">💳 Financing</span>
-                                                                </label>
-                                                            </div>
-                                                        )}
-
-                                                        <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-orange-400">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={call.leftEstimate || false}
-                                                                onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'leftEstimate', e.target.checked)}
-                                                                className="w-5 h-5"
-                                                            />
-                                                            <span className="font-bold">📋 Left Estimate</span>
-                                                        </label>
-
-                                                        {call.leftEstimate && (
-                                                            <input
-                                                                type="number"
-                                                                value={call.estimateAmount || ''}
-                                                                onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'estimateAmount', parseFloat(e.target.value) || 0)}
-                                                                className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg"
-                                                                placeholder="Estimate Amount ($)"
-                                                            />
-                                                        )}
-
-                                                        <div className="border-t-2 pt-3 mt-3">
-                                                            <p className="font-bold text-sm text-gray-700 mb-2">Trade Type</p>
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                <label className="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-300 cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.tradePlumbing || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradePlumbing', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <span className="text-sm font-bold text-blue-700">🔧 Plumbing</span>
-                                                                </label>
-                                                                <label className="flex items-center gap-2 p-2 bg-yellow-50 rounded border border-yellow-300 cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.tradeElectrical || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeElectrical', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <span className="text-sm font-bold text-yellow-700">⚡ Electrical</span>
-                                                                </label>
-                                                                <label className="flex items-center gap-2 p-2 bg-red-50 rounded border border-red-300 cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.tradeHVAC || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeHVAC', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <span className="text-sm font-bold text-red-700">🌡️ HVAC</span>
-                                                                </label>
-                                                                <label className="flex items-center gap-2 p-2 bg-purple-50 rounded border border-purple-300 cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.tradeCameras || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeCameras', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <span className="text-sm font-bold text-purple-700">📹 Cameras</span>
-                                                                </label>
-                                                            </div>
+                                            {getCallLogs(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate)).map(call => {
+                                                const amountOwed = (parseFloat(call.amountSold) || 0) - (parseFloat(call.amountCollected) || 0);
+                                                
+                                                return (
+                                                    <div key={call.id} className="p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                                                        <div className="flex justify-between mb-3">
+                                                            <span className="text-sm font-bold text-gray-600">Call Entry</span>
+                                                            <button 
+                                                                onClick={() => deleteCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id)}
+                                                                className="text-red-600 font-bold hover:text-red-800"
+                                                            >
+                                                                🗑️ Delete
+                                                            </button>
                                                         </div>
+                                                        
+                                                        <div className="space-y-3">
+                                                            <input
+                                                                type="text"
+                                                                value={call.customerName || ''}
+                                                                onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'customerName', e.target.value)}
+                                                                className="w-full px-3 py-2 border-2 rounded-lg"
+                                                                placeholder="Customer Name"
+                                                            />
+                                                            
+                                                            <input
+                                                                type="text"
+                                                                value={call.jobNumber || ''}
+                                                                onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'jobNumber', e.target.value)}
+                                                                className="w-full px-3 py-2 border-2 rounded-lg"
+                                                                placeholder="Job Number"
+                                                            />
 
-                                                        <div className="border-t-2 pt-3 mt-3">
-                                                            <p className="font-bold text-sm text-gray-700 mb-2">Performance Metrics</p>
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.reviewCompleted || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'reviewCompleted', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <span>✅ Review Completed</span>
-                                                                </label>
-                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.restorationLead || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'restorationLead', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <span>🏠 Restoration Lead</span>
-                                                                </label>
-                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.turnoverAttempted || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'turnoverAttempted', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <span>🔄 Turnover Attempted</span>
-                                                                </label>
-                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.turnoverAccepted || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'turnoverAccepted', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                        disabled={!call.turnoverAttempted}
-                                                                    />
-                                                                    <span>✔️ Turnover Accepted</span>
-                                                                </label>
-                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.selfGeneratedLead || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'selfGeneratedLead', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <span>🎯 Self-Generated Lead</span>
-                                                                </label>
-                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.rillaCompliant || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'rillaCompliant', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <span>🎙️ Rilla Compliant</span>
-                                                                </label>
-                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.maintenancePlanSold || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'maintenancePlanSold', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <span>🛡️ Maintenance Plan Sold</span>
-                                                                </label>
-                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.upsellCompleted || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'upsellCompleted', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <span>⬆️ Upsell Completed</span>
-                                                                </label>
-                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={call.jobComplete || false}
-                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'jobComplete', e.target.checked)}
-                                                                        className="w-4 h-4"
-                                                                    />
-                                                                    <span>✔️ Job Complete</span>
-                                                                </label>
-                                                            </div>
+                                                            <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-green-400">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={call.jobSold || false}
+                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'jobSold', e.target.checked)}
+                                                                    className="w-5 h-5"
+                                                                />
+                                                                <span className="font-bold text-lg">💰 Job Sold</span>
+                                                            </label>
 
-                                                            {call.upsellCompleted && (
+                                                            {call.jobSold && (
+                                                                <div className="space-y-2">
+                                                                    <div>
+                                                                        <label className="text-sm font-bold text-gray-700 mb-1 block">Amount Sold</label>
+                                                                        <input
+                                                                            type="number"
+                                                                            value={call.amountSold || ''}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'amountSold', parseFloat(e.target.value) || 0)}
+                                                                            className="w-full px-3 py-2 border-2 border-green-300 rounded-lg text-lg font-bold"
+                                                                            placeholder="Amount Sold ($)"
+                                                                        />
+                                                                    </div>
+                                                                    
+                                                                    <div>
+                                                                        <label className="text-sm font-bold text-gray-700 mb-1 block">Total Collected</label>
+                                                                        <input
+                                                                            type="number"
+                                                                            value={call.amountCollected || ''}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'amountCollected', parseFloat(e.target.value) || 0)}
+                                                                            className="w-full px-3 py-2 border-2 border-blue-300 rounded-lg font-bold"
+                                                                            placeholder="Total Collected ($)"
+                                                                        />
+                                                                    </div>
+                                                                    
+                                                                    <div className="bg-orange-100 border-2 border-orange-400 rounded-lg p-4">
+                                                                        <label className="text-sm font-bold text-gray-700 mb-1 block">Amount Due</label>
+                                                                        <p className="text-3xl font-bold text-orange-900">${amountOwed.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                                                                    </div>
+                                                                    
+                                                                    <label className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border-2 border-blue-300 cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.paymentFinancing || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'paymentFinancing', e.target.checked)}
+                                                                            className="w-5 h-5"
+                                                                        />
+                                                                        <span className="font-bold">💳 Financing</span>
+                                                                    </label>
+                                                                </div>
+                                                            )}
+
+                                                            <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-orange-400">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={call.leftEstimate || false}
+                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'leftEstimate', e.target.checked)}
+                                                                    className="w-5 h-5"
+                                                                />
+                                                                <span className="font-bold">📋 Left Estimate</span>
+                                                            </label>
+
+                                                            {call.leftEstimate && (
                                                                 <input
                                                                     type="number"
-                                                                    value={call.upsellAmount || ''}
-                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'upsellAmount', parseFloat(e.target.value) || 0)}
-                                                                    className="w-full px-3 py-2 border-2 rounded-lg mt-2"
-                                                                    placeholder="Upsell Amount ($)"
+                                                                    value={call.estimateAmount || ''}
+                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'estimateAmount', parseFloat(e.target.value) || 0)}
+                                                                    className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg"
+                                                                    placeholder="Estimate Amount ($)"
                                                                 />
                                                             )}
+                                                            <div className="border-t-2 pt-3 mt-3">
+                                                                <p className="font-bold text-sm text-gray-700 mb-2">Trade Type</p>
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    <label className="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-300 cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.tradePlumbing || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradePlumbing', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                        />
+                                                                        <span className="text-sm font-bold text-blue-700">🔧 Plumbing</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 p-2 bg-yellow-50 rounded border border-yellow-300 cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.tradeElectrical || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeElectrical', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                        />
+                                                                        <span className="text-sm font-bold text-yellow-700">⚡ Electrical</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 p-2 bg-red-50 rounded border border-red-300 cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.tradeHVAC || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeHVAC', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                        />
+                                                                        <span className="text-sm font-bold text-red-700">🌡️ HVAC</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 p-2 bg-purple-50 rounded border border-purple-300 cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.tradeCameras || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'tradeCameras', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                        />
+                                                                        <span className="text-sm font-bold text-purple-700">📹 Cameras</span>
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="border-t-2 pt-3 mt-3">
+                                                                <p className="font-bold text-sm text-gray-700 mb-2">Performance Metrics</p>
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.reviewCompleted || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'reviewCompleted', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                        />
+                                                                        <span>✅ Review Completed</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.restorationLead || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'restorationLead', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                        />
+                                                                        <span>🏠 Restoration Lead</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.turnoverAttempted || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'turnoverAttempted', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                        />
+                                                                        <span>🔄 Turnover Attempted</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.turnoverAccepted || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'turnoverAccepted', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                            disabled={!call.turnoverAttempted}
+                                                                        />
+                                                                        <span>✔️ Turnover Accepted</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.selfGeneratedLead || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'selfGeneratedLead', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                        />
+                                                                        <span>🎯 Self-Generated Lead</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.rillaCompliant || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'rillaCompliant', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                        />
+                                                                        <span>🎙️ Rilla Compliant</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.maintenancePlanSold || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'maintenancePlanSold', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                        />
+                                                                        <span>🛡️ Maintenance Plan Sold</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.upsellCompleted || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'upsellCompleted', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                        />
+                                                                        <span>⬆️ Upsell Completed</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={call.jobComplete || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'jobComplete', e.target.checked)}
+                                                                            className="w-4 h-4"
+                                                                        />
+                                                                        <span>✔️ Job Complete</span>
+                                                                    </label>
+                                                                </div>
+
+                                                                {call.upsellCompleted && (
+                                                                    <input
+                                                                        type="number"
+                                                                        value={call.upsellAmount || ''}
+                                                                        onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'upsellAmount', parseFloat(e.target.value) || 0)}
+                                                                        className="w-full px-3 py-2 border-2 rounded-lg mt-2"
+                                                                        placeholder="Upsell Amount ($)"
+                                                                    />
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
+
+                                {/* OUTSTANDING JOBS DROPDOWN */}
+                                {monthlyTotals && monthlyTotals.moneyOwed > 0 && (
+                                    <div className="bg-gradient-to-br from-red-50 to-orange-50 p-6 rounded-lg shadow-lg border-2 border-red-300 mb-6">
+                                        <button
+                                            onClick={() => setShowOutstandingJobs(!showOutstandingJobs)}
+                                            className="w-full flex items-center justify-between"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xl font-bold text-red-900">💰 Outstanding Jobs - Money Owed</span>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <span className="text-2xl font-bold text-red-900">${monthlyTotals.moneyOwed.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                                <span className="text-2xl">{showOutstandingJobs ? '▼' : '▶'}</span>
+                                            </div>
+                                        </button>
+
+                                        {showOutstandingJobs && (
+                                            <div className="mt-4 space-y-3">
+                                                {monthlyTotals.outstandingJobs.map((job, idx) => (
+                                                    <div key={idx} className="bg-white p-4 rounded-lg border-2 border-red-200">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div>
+                                                                <p className="font-bold text-lg text-gray-900">{job.customerName}</p>
+                                                                <p className="text-sm text-gray-600">Job #: {job.jobNumber}</p>
+                                                                <p className="text-sm text-gray-600">{job.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="text-2xl font-bold text-red-600">${job.amountOwed.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                                                                <p className="text-xs text-gray-500">owed</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex justify-between text-sm text-gray-600 pt-2 border-t">
+                                                            <span>Sold: ${job.amountSold.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                                            <span>Collected: ${job.amountCollected.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                
+                                                <div className="bg-gradient-to-r from-red-600 to-red-700 text-white p-4 rounded-lg">
+                                                    <div className="flex justify-between items-center">
+                                                        <div>
+                                                            <p className="text-xl font-bold">Total Outstanding Balance</p>
+                                                            <p className="text-sm opacity-90">{monthlyTotals.outstandingJobs.length} job{monthlyTotals.outstandingJobs.length !== 1 ? 's' : ''} with outstanding balances</p>
+                                                        </div>
+                                                        <p className="text-3xl font-bold">${monthlyTotals.moneyOwed.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                                     <div className="bg-white p-6 rounded-lg shadow-lg">
                                         <h2 className="text-2xl font-bold mb-4 text-blue-900">
@@ -1076,11 +1186,14 @@
                                                     <span>Membership Rate:</span>
                                                     <span className="font-bold">{monthlyTotals?.callsSold > 0 ? ((monthlyTotals.plansSold / monthlyTotals.callsSold) * 100).toFixed(1) : 0}%</span>
                                                 </div>
+                                                <div className="flex justify-between">
+                                                    <span>Upsell Rate:</span>
+                                                    <span className="font-bold">{monthlyTotals?.callsSold > 0 ? ((monthlyTotals.upsellsCompleted / monthlyTotals.callsSold) * 100).toFixed(1) : 0}%</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-
                                 <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
                                     <h2 className="text-2xl font-bold mb-4 text-purple-900">
                                         🏆 {currentDate.getFullYear()} Yearly Performance
@@ -1155,6 +1268,48 @@
                                             <div style={{ height: '200px' }}>
                                                 <canvas ref={tradeChartRef}></canvas>
                                             </div>
+                                            <div className="mt-3 space-y-1 text-sm">
+                                                {monthlyTotals && (
+                                                    <>
+                                                        {(() => {
+                                                            const total = (monthlyTotals.tradePlumbing || 0) + (monthlyTotals.tradeElectrical || 0) + (monthlyTotals.tradeHVAC || 0) + (monthlyTotals.tradeCameras || 0);
+                                                            if (total === 0) return null;
+                                                            return (
+                                                                <>
+                                                                    <div className="flex justify-between">
+                                                                        <span className="flex items-center gap-2">
+                                                                            <span className="w-3 h-3 bg-blue-500 rounded"></span>
+                                                                            Plumbing
+                                                                        </span>
+                                                                        <span className="font-bold">{monthlyTotals.tradePlumbing || 0} ({((monthlyTotals.tradePlumbing || 0) / total * 100).toFixed(1)}%)</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between">
+                                                                        <span className="flex items-center gap-2">
+                                                                            <span className="w-3 h-3 bg-yellow-400 rounded"></span>
+                                                                            Electrical
+                                                                        </span>
+                                                                        <span className="font-bold">{monthlyTotals.tradeElectrical || 0} ({((monthlyTotals.tradeElectrical || 0) / total * 100).toFixed(1)}%)</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between">
+                                                                        <span className="flex items-center gap-2">
+                                                                            <span className="w-3 h-3 bg-red-500 rounded"></span>
+                                                                            HVAC
+                                                                        </span>
+                                                                        <span className="font-bold">{monthlyTotals.tradeHVAC || 0} ({((monthlyTotals.tradeHVAC || 0) / total * 100).toFixed(1)}%)</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between">
+                                                                        <span className="flex items-center gap-2">
+                                                                            <span className="w-3 h-3 bg-purple-500 rounded"></span>
+                                                                            Cameras
+                                                                        </span>
+                                                                        <span className="font-bold">{monthlyTotals.tradeCameras || 0} ({((monthlyTotals.tradeCameras || 0) / total * 100).toFixed(1)}%)</span>
+                                                                    </div>
+                                                                </>
+                                                            );
+                                                        })()}
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
 
                                         <div className="p-4 bg-gray-50 rounded border">
@@ -1183,6 +1338,10 @@
                                                 <div className="flex justify-between">
                                                     <span>Restoration Leads:</span>
                                                     <span className="font-bold">{yearlyTotals?.restorationLeads || 0}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Upsell Rate:</span>
+                                                    <span className="font-bold">{yearlyTotals?.callsSold > 0 ? ((yearlyTotals.upsellsCompleted / yearlyTotals.callsSold) * 100).toFixed(1) : 0}%</span>
                                                 </div>
                                             </div>
                                         </div>
