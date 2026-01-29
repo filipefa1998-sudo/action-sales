@@ -283,15 +283,15 @@
                                     amountOwed: owed
                                 });
                             }
-                        } else {
-                            // Count objections for non-sold jobs
-                            if (c.objections && Array.isArray(c.objections)) {
-                                c.objections.forEach(objection => {
-                                    if (totals.objectionCounts[objection] !== undefined) {
-                                        totals.objectionCounts[objection]++;
-                                    }
-                                });
-                            }
+                        }
+                        
+                        // Count objections for estimates that didn't sell
+                        if (c.leftEstimate && !c.jobSold && c.objections && Array.isArray(c.objections)) {
+                            c.objections.forEach(objection => {
+                                if (totals.objectionCounts[objection] !== undefined) {
+                                    totals.objectionCounts[objection]++;
+                                }
+                            });
                         }
                         
                         if (c.doorKnocks) totals.doorKnocks++;
@@ -889,8 +889,28 @@
                                                                 </div>
                                                             )}
 
-                                                            {/* OBJECTIONS SECTION - Only shows if job NOT sold */}
-                                                            {!call.jobSold && (
+                                                            <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-orange-400">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={call.leftEstimate || false}
+                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'leftEstimate', e.target.checked)}
+                                                                    className="w-5 h-5"
+                                                                />
+                                                                <span className="font-bold">📋 Left Estimate</span>
+                                                            </label>
+
+                                                            {call.leftEstimate && (
+                                                                <input
+                                                                    type="number"
+                                                                    value={call.estimateAmount || ''}
+                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'estimateAmount', parseFloat(e.target.value) || 0)}
+                                                                    className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg"
+                                                                    placeholder="Estimate Amount ($)"
+                                                                />
+                                                            )}
+
+                                                            {/* OBJECTIONS SECTION - Shows when Left Estimate is checked and job NOT sold */}
+                                                            {call.leftEstimate && !call.jobSold && (
                                                                 <div className="border-t-2 pt-3 mt-3 bg-red-50 p-4 rounded-lg">
                                                                     <p className="font-bold text-sm text-red-900 mb-2">❌ Why Was Sale Lost? (Select all that apply)</p>
                                                                     <div className="grid grid-cols-1 gap-2">
@@ -913,26 +933,6 @@
                                                                         ))}
                                                                     </div>
                                                                 </div>
-                                                            )}
-
-                                                            <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-orange-400">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={call.leftEstimate || false}
-                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'leftEstimate', e.target.checked)}
-                                                                    className="w-5 h-5"
-                                                                />
-                                                                <span className="font-bold">📋 Left Estimate</span>
-                                                            </label>
-
-                                                            {call.leftEstimate && (
-                                                                <input
-                                                                    type="number"
-                                                                    value={call.estimateAmount || ''}
-                                                                    onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'estimateAmount', parseFloat(e.target.value) || 0)}
-                                                                    className="w-full px-3 py-2 border-2 border-orange-300 rounded-lg"
-                                                                    placeholder="Estimate Amount ($)"
-                                                                />
                                                             )}
                                                             <div className="border-t-2 pt-3 mt-3">
                                                                 <p className="font-bold text-sm text-gray-700 mb-2">Trade Type</p>
@@ -1139,14 +1139,14 @@
                                         <h2 className="text-2xl font-bold mb-4 text-red-900">
                                             📊 Top Objections Analysis - This Month
                                         </h2>
-                                        <p className="text-sm text-gray-600 mb-4">Understanding why sales are lost helps improve closing rates</p>
+                                        <p className="text-sm text-gray-600 mb-4">Understanding why estimates didn't close helps improve closing rates</p>
                                         <div className="space-y-2">
                                             {Object.entries(monthlyTotals.objectionCounts)
                                                 .filter(([_, count]) => count > 0)
                                                 .sort((a, b) => b[1] - a[1])
                                                 .map(([objection, count], idx) => {
-                                                    const totalLost = monthlyTotals.totalCalls - monthlyTotals.callsSold;
-                                                    const percentage = totalLost > 0 ? ((count / totalLost) * 100).toFixed(1) : 0;
+                                                    const totalEstimatesNotSold = monthlyTotals.estimatesNotSold;
+                                                    const percentage = totalEstimatesNotSold > 0 ? ((count / totalEstimatesNotSold) * 100).toFixed(1) : 0;
                                                     return (
                                                         <div key={idx} className="bg-white p-3 rounded-lg border border-red-200">
                                                             <div className="flex justify-between items-center mb-1">
@@ -1159,7 +1159,7 @@
                                                                     style={{ width: `${percentage}%` }}
                                                                 ></div>
                                                             </div>
-                                                            <p className="text-xs text-gray-500 mt-1">{percentage}% of lost sales</p>
+                                                            <p className="text-xs text-gray-500 mt-1">{percentage}% of unsold estimates</p>
                                                         </div>
                                                     );
                                                 })}
