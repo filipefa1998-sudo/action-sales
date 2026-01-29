@@ -30,6 +30,20 @@
         const database = firebase.database();
         const { useState, useEffect, useMemo, useRef } = React;
 
+        // Objection options
+        const OBJECTIONS = [
+            "Your price is too high/expensive",
+            "I need to talk to my spouse/partner",
+            "I need to get other bids/quotes",
+            "I want to think about it/send me more info",
+            "I don't have the budget right now",
+            "It's not a priority/we can wait",
+            "We already have a contractor/we're good",
+            "I don't see the value/Why does this cost so much?",
+            "The repair/installation seems too simple for that price",
+            "Bad experience with your company/reputation"
+        ];
+
         function App() {
             const [salespeople, setSalespeople] = useState([]);
             const [selectedPerson, setSelectedPerson] = useState(null);
@@ -138,7 +152,7 @@
                     restorationLead: false,
                     turnoverAttempted: false,
                     turnoverAccepted: false,
-                    selfGeneratedLead: false,
+                    doorKnocks: false,
                     stickers: false,
                     maintenancePlanSold: false,
                     upsellCompleted: false,
@@ -157,6 +171,7 @@
                     paymentCash: false,
                     paymentCheck: false,
                     paymentCreditCard: false,
+                    objections: [],
                     timestamp: Date.now()
                 });
             };
@@ -205,7 +220,7 @@
                     amountSold: 0,
                     amountCollected: 0,
                     moneyOwed: 0,
-                    selfGenLeads: 0,
+                    doorKnocks: 0,
                     reviewsCompleted: 0,
                     turnoversAttempted: 0,
                     turnoversAccepted: 0,
@@ -228,8 +243,14 @@
                     checkCount: 0,
                     creditCardCount: 0,
                     dailyBreakdown: {},
-                    outstandingJobs: []
+                    outstandingJobs: [],
+                    objectionCounts: {}
                 };
+                
+                // Initialize objection counts
+                OBJECTIONS.forEach(obj => {
+                    totals.objectionCounts[obj] = 0;
+                });
                 
                 dates.forEach(date => {
                     const calls = getCallLogs(personId, date);
@@ -262,9 +283,18 @@
                                     amountOwed: owed
                                 });
                             }
+                        } else {
+                            // Count objections for non-sold jobs
+                            if (c.objections && Array.isArray(c.objections)) {
+                                c.objections.forEach(objection => {
+                                    if (totals.objectionCounts[objection] !== undefined) {
+                                        totals.objectionCounts[objection]++;
+                                    }
+                                });
+                            }
                         }
                         
-                        if (c.selfGeneratedLead) totals.selfGenLeads++;
+                        if (c.doorKnocks) totals.doorKnocks++;
                         if (c.reviewCompleted) totals.reviewsCompleted++;
                         if (c.turnoverAttempted) totals.turnoversAttempted++;
                         if (c.turnoverAccepted) totals.turnoversAccepted++;
@@ -859,6 +889,32 @@
                                                                 </div>
                                                             )}
 
+                                                            {/* OBJECTIONS SECTION - Only shows if job NOT sold */}
+                                                            {!call.jobSold && (
+                                                                <div className="border-t-2 pt-3 mt-3 bg-red-50 p-4 rounded-lg">
+                                                                    <p className="font-bold text-sm text-red-900 mb-2">❌ Why Was Sale Lost? (Select all that apply)</p>
+                                                                    <div className="grid grid-cols-1 gap-2">
+                                                                        {OBJECTIONS.map((objection, idx) => (
+                                                                            <label key={idx} className="flex items-center gap-2 p-2 bg-white rounded border border-red-200 cursor-pointer hover:bg-red-50">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={(call.objections || []).includes(objection)}
+                                                                                    onChange={(e) => {
+                                                                                        const current = call.objections || [];
+                                                                                        const updated = e.target.checked
+                                                                                            ? [...current, objection]
+                                                                                            : current.filter(o => o !== objection);
+                                                                                        updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'objections', updated);
+                                                                                    }}
+                                                                                    className="w-4 h-4"
+                                                                                />
+                                                                                <span className="text-sm text-gray-800">{idx + 1}. {objection}</span>
+                                                                            </label>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
                                                             <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-orange-400">
                                                                 <input
                                                                     type="checkbox"
@@ -963,11 +1019,11 @@
                                                                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                                                                         <input
                                                                             type="checkbox"
-                                                                            checked={call.selfGeneratedLead || false}
-                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'selfGeneratedLead', e.target.checked)}
+                                                                            checked={call.doorKnocks || false}
+                                                                            onChange={(e) => updateCall(selectedPerson, weekDates.find(d => getDateKey(d) === selectedDate), call.id, 'doorKnocks', e.target.checked)}
                                                                             className="w-4 h-4"
                                                                         />
-                                                                        <span>🎯 Self-Generated Lead</span>
+                                                                        <span>🚪 3 Door Knocks</span>
                                                                     </label>
                                                                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                                                                         <input
@@ -1074,6 +1130,40 @@
                                                 </div>
                                             </div>
                                         )}
+                                    </div>
+                                )}
+
+                                {/* OBJECTIONS ANALYSIS */}
+                                {monthlyTotals && Object.values(monthlyTotals.objectionCounts).some(count => count > 0) && (
+                                    <div className="bg-gradient-to-br from-red-50 to-pink-50 p-6 rounded-lg shadow-lg border-2 border-red-300 mb-6">
+                                        <h2 className="text-2xl font-bold mb-4 text-red-900">
+                                            📊 Top Objections Analysis - This Month
+                                        </h2>
+                                        <p className="text-sm text-gray-600 mb-4">Understanding why sales are lost helps improve closing rates</p>
+                                        <div className="space-y-2">
+                                            {Object.entries(monthlyTotals.objectionCounts)
+                                                .filter(([_, count]) => count > 0)
+                                                .sort((a, b) => b[1] - a[1])
+                                                .map(([objection, count], idx) => {
+                                                    const totalLost = monthlyTotals.totalCalls - monthlyTotals.callsSold;
+                                                    const percentage = totalLost > 0 ? ((count / totalLost) * 100).toFixed(1) : 0;
+                                                    return (
+                                                        <div key={idx} className="bg-white p-3 rounded-lg border border-red-200">
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <span className="font-semibold text-gray-800">{objection}</span>
+                                                                <span className="text-lg font-bold text-red-600">{count}</span>
+                                                            </div>
+                                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                                <div 
+                                                                    className="bg-red-500 h-2 rounded-full"
+                                                                    style={{ width: `${percentage}%` }}
+                                                                ></div>
+                                                            </div>
+                                                            <p className="text-xs text-gray-500 mt-1">{percentage}% of lost sales</p>
+                                                        </div>
+                                                    );
+                                                })}
+                                        </div>
                                     </div>
                                 )}
 
@@ -1370,6 +1460,10 @@
                                                 <div className="flex justify-between">
                                                     <span>Stickers:</span>
                                                     <span className="font-bold">{yearlyTotals?.totalCalls > 0 ? ((yearlyTotals.stickers / yearlyTotals.totalCalls) * 100).toFixed(1) : 0}%</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>3 Door Knocks:</span>
+                                                    <span className="font-bold">{yearlyTotals?.doorKnocks || 0}</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span>Plans Sold:</span>
