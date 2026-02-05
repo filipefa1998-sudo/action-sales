@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Owed - Action Plumbing</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="p-4 max-w-7xl mx-auto">
+        <div class="mb-6 flex items-center justify-between">
+            <h1 class="text-3xl font-bold text-blue-900">💰 Money Owed Tracker</h1>
+            <a href="index.html" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold">← Back to Dashboard</a>
+        </div>
+
+        <div id="personName" class="mb-4 text-xl font-bold text-gray-700"></div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-gradient-to-br from-red-500 to-red-600 text-white p-6 rounded-lg shadow-lg">
+                <p class="text-sm font-semibold opacity-90">Total Money Owed</p>
+                <p id="totalOwed" class="text-4xl font-bold">$0</p>
+                <p class="text-xs opacity-75 mt-1">All outstanding payments</p>
+            </div>
+            <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-lg shadow-lg">
+                <p class="text-sm font-semibold opacity-90">Number of Jobs</p>
+                <p id="jobCount" class="text-4xl font-bold">0</p>
+                <p class="text-xs opacity-75 mt-1">With outstanding balances</p>
+            </div>
+            <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-6 rounded-lg shadow-lg">
+                <p class="text-sm font-semibold opacity-90">Average Owed</p>
+                <p id="avgOwed" class="text-4xl font-bold">$0</p>
+                <p class="text-xs opacity-75 mt-1">Per job</p>
+            </div>
+        </div>
+
+        <!-- Outstanding Jobs List -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold mb-4 text-red-900">📋 Outstanding Payments</h2>
+            <div id="jobsList" class="space-y-4"></div>
+            <div id="emptyMsg" style="display: none;" class="text-center py-12 bg-gray-50 rounded-lg">
+                <p class="text-xl text-gray-500">🎉 No outstanding payments! All caught up!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        firebase.initializeApp({
+            apiKey: "AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",
+            databaseURL: "https://action-sales-tracker-default-rtdb.firebaseio.com",
+            projectId: "action-sales-tracker"
+        });
+
+        const db = firebase.database();
+        const selectedPerson = localStorage.getItem('selectedPerson');
+        if (!selectedPerson) {
+            window.location.href = 'index.html';
+        }
+
+        let personName = '';
+        let allLogs = {};
+
+        db.ref(`salespeople/${selectedPerson}`).once('value', s => {
+            personName = s.val()?.name || 'Unknown';
+            document.getElementById('personName').textContent = `Money Owed for: ${personName}`;
+        });
+
+        db.ref('callLogs').on('value', s => {
+            allLogs = s.val() || {};
+            renderMoneyOwed();
+        });
+
+        function getDateKey(date) {
+            return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+        }
+
+        function renderMoneyOwed() {
+            const jobs = [];
+            let totalOwed = 0;
+
+            // Get all jobs with money owed for this person
+            Object.keys(allLogs).forEach(key => {
+                if (key.startsWith(selectedPerson + '_')) {
+                    const dateStr = key.split('_')[1];
+                    const calls = allLogs[key];
+                    
+                    Object.entries(calls).forEach(([callId, call]) => {
+                        const owed = parseFloat(call.moneyOwed) || 0;
+                        if (owed > 0) {
+                            totalOwed += owed;
+                            jobs.push({
+                                id: callId,
+                                dateKey: key,
+                                date: dateStr,
+                                customerName: call.customerName || 'Unknown Customer',
+                                jobNumber: call.jobNumber || 'N/A',
+                                customerPhone: call.customerPhone || 'N/A',
+                                amountSold: parseFloat(call.amountSold) || 0,
+                                moneyOwed: owed,
+                                followUpPlan: call.followUpPlan || '',
+                                jobComplete: call.jobComplete || false
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Sort by amount owed (highest first)
+            jobs.sort((a, b) => b.moneyOwed - a.moneyOwed);
+
+            // Update summary cards
+            document.getElementById('totalOwed').textContent = `$${totalOwed.toLocaleString()}`;
+            document.getElementById('jobCount').textContent = jobs.length;
+            document.getElementById('avgOwed').textContent = jobs.length > 0 ? `$${(totalOwed / jobs.length).toFixed(0)}` : '$0';
+
+            // Render jobs list
+            if (jobs.length === 0) {
+                document.getElementById('jobsList').style.display = 'none';
+                document.getElementById('emptyMsg').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('jobsList').style.display = 'block';
+            document.getElementById('emptyMsg').style.display = 'none';
+
+            document.getElementById('jobsList').innerHTML = jobs.map(job => {
+                const paidPercent = job.amountSold > 0 ? ((job.amountSold - job.moneyOwed) / job.amountSold) * 100 : 0;
+                const urgencyClass = job.moneyOwed > 1000 ? 'border-red-500' : job.moneyOwed > 500 ? 'border-orange-500' : 'border-yellow-500';
+
+                return `
+                    <div class="p-4 bg-gray-50 rounded-lg border-2 ${urgencyClass}">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900">${job.customerName}</h3>
+                                <p class="text-sm text-gray-600">Job #${job.jobNumber} • ${formatDate(job.date)}</p>
+                                <p class="text-sm text-gray-600">📞 ${job.customerPhone}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm text-gray-600">Amount Owed</p>
+                                <p class="text-3xl font-bold text-red-600">$${job.moneyOwed.toLocaleString()}</p>
+                                ${job.jobComplete ? '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">✔️ Complete</span>' : ''}
+                            </div>
+                        </div>
+
+                        <!-- Payment Progress Bar -->
+                        <div class="mb-3">
+                            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                <span>Payment Progress</span>
+                                <span>${paidPercent.toFixed(0)}% Paid</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-green-500 h-full rounded-full" style="width: ${paidPercent}%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-600 mt-1">
+                                <span>Paid: $${(job.amountSold - job.moneyOwed).toLocaleString()}</span>
+                                <span>Total: $${job.amountSold.toLocaleString()}</span>
+                            </div>
+                        </div>
+
+                        <!-- Follow-up Plan -->
+                        <div>
+                            <label class="text-xs font-bold text-gray-700 block mb-1">Follow-up Plan:</label>
+                            <textarea 
+                                class="w-full px-3 py-2 border-2 rounded-lg text-sm"
+                                rows="2"
+                                placeholder="Add follow-up notes (e.g., 'Call next Tuesday', 'Payment plan setup', etc.)"
+                                onchange="updateFollowUp('${job.dateKey}', '${job.id}', this.value)"
+                            >${job.followUpPlan}</textarea>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="flex gap-2 mt-3">
+                            <button 
+                                onclick="markPaid('${job.dateKey}', '${job.id}')"
+                                class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold text-sm"
+                            >
+                                ✓ Mark as Paid
+                            </button>
+                            <button 
+                                onclick="updateAmount('${job.dateKey}', '${job.id}', ${job.moneyOwed})"
+                                class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm"
+                            >
+                                💵 Update Amount
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatDate(dateStr) {
+            const [year, month, day] = dateStr.split('-');
+            const date = new Date(year, month - 1, day);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        window.updateFollowUp = function(dateKey, callId, value) {
+            db.ref(`callLogs/${dateKey}/${callId}/followUpPlan`).set(value);
+        };
+
+        window.markPaid = function(dateKey, callId) {
+            if (confirm('Mark this job as fully paid?')) {
+                db.ref(`callLogs/${dateKey}/${callId}/moneyOwed`).set(0);
+            }
+        };
+
+        window.updateAmount = function(dateKey, callId, currentAmount) {
+            const newAmount = prompt(`Enter new amount owed (current: $${currentAmount}):`, currentAmount);
+            if (newAmount !== null && !isNaN(newAmount)) {
+                db.ref(`callLogs/${dateKey}/${callId}/moneyOwed`).set(parseFloat(newAmount));
+            }
+        };
+    </script>
+</body>
+</html>
