@@ -7,48 +7,30 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: system-ui, -apple-system, sans-serif; }
-        .card { background: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem; }
-        .btn { padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; border: none; }
-        .btn-blue { background: #2563eb; color: white; }
-        .btn-blue:hover { background: #1d4ed8; }
-        .btn-green { background: #16a34a; color: white; }
-        .btn-green:hover { background: #15803d; }
-        .btn-gray { background: #6b7280; color: white; }
-        .btn-gray:hover { background: #4b5563; }
-        .person-btn { padding: 1.5rem; border-radius: 0.5rem; font-weight: bold; font-size: 1.125rem; cursor: pointer; border: 2px solid #e5e7eb; background: #f9fafb; }
-        .person-btn.selected { background: #2563eb; color: white; border-color: #2563eb; }
-        .person-btn:hover { background: #e5e7eb; }
-        .person-btn.selected:hover { background: #1d4ed8; }
-        .stat-card { padding: 1.5rem; border-radius: 0.5rem; color: white; }
-        .nav-card { padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s; }
-        .nav-card:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
-    </style>
 </head>
 <body class="bg-gray-50">
-    <div id="root" class="p-4" style="max-width: 1280px; margin: 0 auto;">
+    <div class="p-4" style="max-width: 1280px; margin: 0 auto;">
         <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem; color: #1e3a8a;">🔧 Action Plumbing Sales Tracker</h1>
         
         <div id="stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;"></div>
         
-        <div class="card">
+        <div style="background: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <h2 style="font-size: 1.25rem; font-weight: 600;">Select Team Member</h2>
-                <button id="addBtn" class="btn btn-blue">+ Add Person</button>
+                <button id="addBtn" style="padding: 0.75rem 1.5rem; background: #2563eb; color: white; border-radius: 0.5rem; font-weight: 600; cursor: pointer; border: none;">+ Add Person</button>
             </div>
             
             <div id="addForm" style="display: none; margin-bottom: 1rem; padding: 1rem; background: #eff6ff; border-radius: 0.5rem; border: 2px solid #bfdbfe;">
                 <div style="display: flex; gap: 0.5rem;">
-                    <input id="nameInput" type="text" placeholder="Enter name" style="flex: 1; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;" />
-                    <button id="saveBtn" class="btn btn-green">Add</button>
-                    <button id="cancelBtn" class="btn btn-gray">Cancel</button>
+                    <input id="nameInput" type="text" placeholder="Enter name" style="flex: 1; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem;" />
+                    <button id="saveBtn" style="padding: 0.75rem 1.5rem; background: #16a34a; color: white; border-radius: 0.5rem; font-weight: 600; cursor: pointer; border: none;">Add</button>
+                    <button id="cancelBtn" style="padding: 0.75rem 1.5rem; background: #6b7280; color: white; border-radius: 0.5rem; font-weight: 600; cursor: pointer; border: none;">Cancel</button>
                 </div>
             </div>
             
             <div id="peopleList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"></div>
             <div id="emptyMsg" style="display: none; text-align: center; padding: 3rem; background: #f9fafb; border-radius: 0.5rem;">
-                <p style="font-size: 1.25rem; color: #6b7280;">No salespeople added yet</p>
+                <p style="font-size: 1.25rem; color: #6b7280;">Loading salespeople...</p>
             </div>
         </div>
 
@@ -60,10 +42,16 @@
     </div>
 
     <script>
+        console.log('Initializing Firebase...');
+        
         firebase.initializeApp({
             apiKey: "AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",
+            authDomain: "action-sales-tracker.firebaseapp.com",
             databaseURL: "https://action-sales-tracker-default-rtdb.firebaseio.com",
-            projectId: "action-sales-tracker"
+            projectId: "action-sales-tracker",
+            storageBucket: "action-sales-tracker.firebasestorage.app",
+            messagingSenderId: "686455834332",
+            appId: "1:686455834332:web:84e9b843f912522bbdd619"
         });
 
         const db = firebase.database();
@@ -71,40 +59,37 @@
         let selected = localStorage.getItem('selectedPerson') || null;
         let logs = {};
 
-        const statsEl = document.getElementById('stats');
-        const peopleListEl = document.getElementById('peopleList');
-        const emptyMsgEl = document.getElementById('emptyMsg');
-        const addFormEl = document.getElementById('addForm');
-        const nameInputEl = document.getElementById('nameInput');
-        const navigationEl = document.getElementById('navigation');
-        const selectMsgEl = document.getElementById('selectMsg');
+        console.log('Firebase initialized, connecting to database...');
 
         document.getElementById('addBtn').onclick = () => {
-            addFormEl.style.display = 'block';
-            nameInputEl.focus();
+            document.getElementById('addForm').style.display = 'block';
+            document.getElementById('nameInput').focus();
         };
 
         document.getElementById('cancelBtn').onclick = () => {
-            addFormEl.style.display = 'none';
-            nameInputEl.value = '';
+            document.getElementById('addForm').style.display = 'none';
+            document.getElementById('nameInput').value = '';
         };
 
         document.getElementById('saveBtn').onclick = () => {
-            const name = nameInputEl.value.trim();
+            const name = document.getElementById('nameInput').value.trim();
             if (name) {
                 db.ref('salespeople').push().set({ name });
-                nameInputEl.value = '';
-                addFormEl.style.display = 'none';
+                document.getElementById('nameInput').value = '';
+                document.getElementById('addForm').style.display = 'none';
             }
         };
 
-        nameInputEl.onkeypress = (e) => {
+        document.getElementById('nameInput').onkeypress = (e) => {
             if (e.key === 'Enter') document.getElementById('saveBtn').click();
         };
 
         db.ref('salespeople').on('value', snapshot => {
+            console.log('Salespeople data received:', snapshot.val());
             const data = snapshot.val();
             people = data ? Object.keys(data).map(k => ({ id: k, name: data[k].name })) : [];
+            console.log('People array:', people);
+            
             if (!selected && people.length) {
                 selected = people[0].id;
                 localStorage.setItem('selectedPerson', selected);
@@ -133,13 +118,13 @@
                 }
             });
 
-            statsEl.innerHTML = `
-                <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+            document.getElementById('stats').innerHTML = `
+                <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1.5rem; border-radius: 0.5rem; color: white;">
                     <p style="font-size: 0.875rem; opacity: 0.9; font-weight: 600;">Today's Calls</p>
                     <p style="font-size: 2.5rem; font-weight: bold;">${totalCalls}</p>
                     <p style="font-size: 0.75rem; opacity: 0.75; margin-top: 0.25rem;">All team members</p>
                 </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 1.5rem; border-radius: 0.5rem; color: white;">
                     <p style="font-size: 0.875rem; opacity: 0.9; font-weight: 600;">Today's Revenue</p>
                     <p style="font-size: 2.5rem; font-weight: bold;">$${totalRevenue.toLocaleString()}</p>
                     <p style="font-size: 0.75rem; opacity: 0.75; margin-top: 0.25rem;">Team total</p>
@@ -148,25 +133,27 @@
         }
 
         function renderPeople() {
+            console.log('Rendering people, count:', people.length);
+            
             if (people.length === 0) {
-                peopleListEl.style.display = 'none';
-                emptyMsgEl.style.display = 'block';
+                document.getElementById('peopleList').style.display = 'none';
+                document.getElementById('emptyMsg').style.display = 'block';
                 return;
             }
 
-            peopleListEl.style.display = 'grid';
-            emptyMsgEl.style.display = 'none';
+            document.getElementById('peopleList').style.display = 'grid';
+            document.getElementById('emptyMsg').style.display = 'none';
 
-            peopleListEl.innerHTML = people.map(p => `
-                <div style="position: relative;">
-                    <button class="person-btn ${selected === p.id ? 'selected' : ''}" data-id="${p.id}">
+            document.getElementById('peopleList').innerHTML = people.map(p => `
+                <div style="position: relative;" class="person-container">
+                    <button class="person-btn" data-id="${p.id}" style="width: 100%; padding: 1.5rem; border-radius: 0.5rem; font-weight: bold; font-size: 1.125rem; cursor: pointer; border: 2px solid #e5e7eb; background: ${selected === p.id ? '#2563eb' : '#f9fafb'}; color: ${selected === p.id ? 'white' : '#374151'};">
                         ${p.name}
                     </button>
-                    <button style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 0.75rem; border: none; cursor: pointer; opacity: 0; transition: opacity 0.2s;" class="delete-btn" data-id="${p.id}">×</button>
+                    <button class="delete-btn" data-id="${p.id}" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 0.75rem; border: none; cursor: pointer; opacity: 0; transition: opacity 0.2s;">×</button>
                 </div>
             `).join('');
 
-            peopleListEl.querySelectorAll('.person-btn').forEach(btn => {
+            document.querySelectorAll('.person-btn').forEach(btn => {
                 btn.onclick = () => {
                     selected = btn.dataset.id;
                     localStorage.setItem('selectedPerson', selected);
@@ -175,16 +162,16 @@
                 };
             });
 
-            peopleListEl.querySelectorAll('.delete-btn').forEach(btn => {
-                const parent = btn.parentElement;
-                parent.onmouseenter = () => btn.style.opacity = '1';
-                parent.onmouseleave = () => btn.style.opacity = '0';
-                btn.onclick = (e) => {
+            document.querySelectorAll('.person-container').forEach(container => {
+                const deleteBtn = container.querySelector('.delete-btn');
+                container.onmouseenter = () => deleteBtn.style.opacity = '1';
+                container.onmouseleave = () => deleteBtn.style.opacity = '0';
+                deleteBtn.onclick = (e) => {
                     e.stopPropagation();
-                    const p = people.find(x => x.id === btn.dataset.id);
+                    const p = people.find(x => x.id === deleteBtn.dataset.id);
                     if (confirm(`Remove ${p.name}?`)) {
-                        db.ref(`salespeople/${btn.dataset.id}`).remove();
-                        if (selected === btn.dataset.id) {
+                        db.ref(`salespeople/${deleteBtn.dataset.id}`).remove();
+                        if (selected === deleteBtn.dataset.id) {
                             selected = null;
                             localStorage.removeItem('selectedPerson');
                         }
@@ -195,31 +182,31 @@
 
         function renderNavigation() {
             if (!selected) {
-                navigationEl.style.display = 'none';
-                selectMsgEl.style.display = people.length > 0 ? 'block' : 'none';
+                document.getElementById('navigation').style.display = 'none';
+                document.getElementById('selectMsg').style.display = people.length > 0 ? 'block' : 'none';
                 return;
             }
 
-            navigationEl.style.display = 'grid';
-            selectMsgEl.style.display = 'none';
+            document.getElementById('navigation').style.display = 'grid';
+            document.getElementById('selectMsg').style.display = 'none';
 
-            navigationEl.innerHTML = `
-                <a href="calls.html" class="nav-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+            document.getElementById('navigation').innerHTML = `
+                <a href="calls.html" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s;">
                     <div style="font-size: 3rem; margin-bottom: 0.75rem;">📞</div>
                     <h3 style="font-size: 1.5rem; font-weight: bold;">Log Calls</h3>
                     <p style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">Add daily calls and track sales</p>
                 </a>
-                <a href="reports.html" class="nav-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                <a href="reports.html" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s;">
                     <div style="font-size: 3rem; margin-bottom: 0.75rem;">📊</div>
                     <h3 style="font-size: 1.5rem; font-weight: bold;">View Reports</h3>
                     <p style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">Performance metrics & leaderboards</p>
                 </a>
-                <a href="goals.html" class="nav-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <a href="goals.html" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s;">
                     <div style="font-size: 3rem; margin-bottom: 0.75rem;">🎯</div>
                     <h3 style="font-size: 1.5rem; font-weight: bold;">Goals & Estimates</h3>
                     <p style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">Track goals and follow up</p>
                 </a>
-                <a href="money.html" class="nav-card" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                <a href="money.html" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s;">
                     <div style="font-size: 3rem; margin-bottom: 0.75rem;">💰</div>
                     <h3 style="font-size: 1.5rem; font-weight: bold;">Money Owed</h3>
                     <p style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">Track outstanding payments</p>
@@ -227,7 +214,7 @@
             `;
         }
 
-        renderStats();
+        console.log('Script loaded, waiting for Firebase data...');
     </script>
 </body>
 </html>
