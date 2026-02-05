@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goals & Estimates - Action Plumbing</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="p-4 max-w-7xl mx-auto">
+        <div class="mb-6 flex items-center justify-between">
+            <h1 class="text-3xl font-bold text-blue-900">🎯 Goals & Estimates Tracker</h1>
+            <a href="index.html" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold">← Back to Dashboard</a>
+        </div>
+
+        <div id="personName" class="mb-4 text-xl font-bold text-gray-700"></div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-purple-900">🎯 Goals & Estimates Tracker</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Individual Monthly Goal -->
+                <div class="p-4 bg-purple-50 rounded-lg border-2 border-purple-300">
+                    <h3 class="font-bold mb-3">Individual Monthly Goal</h3>
+                    <input id="monthlyGoalInput" type="number" class="w-full px-3 py-2 border-2 rounded-lg mb-2" placeholder="Set Goal ($)" />
+                    <button id="saveMonthlyGoal" class="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold mb-3">Save Goal</button>
+                    <div id="monthlyGoalProgress"></div>
+                </div>
+
+                <!-- Estimates Left This Month -->
+                <div class="p-4 bg-orange-50 rounded-lg border-2 border-orange-300">
+                    <h3 class="font-bold mb-3">📋 Estimates Left This Month</h3>
+                    <div id="estimatesStats" class="space-y-3"></div>
+                </div>
+
+                <!-- Team Monthly Goal -->
+                <div class="p-4 bg-indigo-50 rounded-lg border-2 border-indigo-300">
+                    <h3 class="font-bold mb-3">Team Monthly Goal</h3>
+                    <input id="teamGoalInput" type="number" class="w-full px-3 py-2 border-2 rounded-lg mb-2" placeholder="Set Team Goal ($)" />
+                    <button id="saveTeamGoal" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold mb-3">Save Goal</button>
+                    <div id="teamGoalProgress"></div>
+                </div>
+
+                <!-- Yearly Goal -->
+                <div class="p-4 bg-blue-50 rounded-lg border-2 border-blue-300">
+                    <h3 class="font-bold mb-3">Yearly Goal - <span id="currentYear"></span></h3>
+                    <input id="yearlyGoalInput" type="number" class="w-full px-3 py-2 border-2 rounded-lg mb-2" placeholder="Set Yearly Goal ($)" />
+                    <button id="saveYearlyGoal" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold mb-3">Save Goal</button>
+                    <div id="yearlyGoalProgress"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Commission Calculator -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold mb-4 text-green-900">💰 Commission Calculator</h2>
+            <div class="p-4 bg-gray-50 rounded-lg border">
+                <label class="text-sm font-bold">Commission Rate (%):</label>
+                <div class="flex items-center gap-3 mt-2">
+                    <input id="commissionRate" type="number" step="0.1" class="px-3 py-2 border-2 rounded-lg w-32" placeholder="0" />
+                    <button id="saveCommission" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">Save Rate</button>
+                </div>
+                <div id="commissionDisplay" class="mt-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        firebase.initializeApp({
+            apiKey: "AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",
+            databaseURL: "https://action-sales-tracker-default-rtdb.firebaseio.com",
+            projectId: "action-sales-tracker"
+        });
+
+        const db = firebase.database();
+        const selectedPerson = localStorage.getItem('selectedPerson');
+        if (!selectedPerson) {
+            window.location.href = 'index.html';
+        }
+
+        let personName = '';
+        let allLogs = {};
+        let allPeople = [];
+        let monthlyGoals = {};
+        let yearlyGoals = {};
+        let teamMonthlyGoal = 0;
+        let commissionRate = 0;
+
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const monthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        const yearKey = `${now.getFullYear()}`;
+
+        document.getElementById('currentYear').textContent = currentYear;
+
+        db.ref(`salespeople/${selectedPerson}`).once('value', s => {
+            personName = s.val()?.name || 'Unknown';
+            document.getElementById('personName').textContent = `Goals & Estimates for: ${personName}`;
+        });
+
+        db.ref('salespeople').on('value', s => {
+            const data = s.val();
+            allPeople = data ? Object.keys(data).map(k => ({ id: k, name: data[k].name })) : [];
+            renderTeamGoal();
+        });
+
+        db.ref('callLogs').on('value', s => {
+            allLogs = s.val() || {};
+            renderAllGoals();
+        });
+
+        db.ref('monthlyGoals').on('value', s => {
+            monthlyGoals = s.val() || {};
+            renderMonthlyGoal();
+        });
+
+        db.ref('yearlyGoals').on('value', s => {
+            yearlyGoals = s.val() || {};
+            renderYearlyGoal();
+        });
+
+        db.ref('teamMonthlyGoal').on('value', s => {
+            teamMonthlyGoal = s.val() || 0;
+            document.getElementById('teamGoalInput').value = teamMonthlyGoal || '';
+            renderTeamGoal();
+        });
+
+        db.ref('commissionRate').on('value', s => {
+            commissionRate = s.val() || 0;
+            document.getElementById('commissionRate').value = commissionRate || '';
+            renderCommission();
+        });
+
+        function getMonthDates() {
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const dates = [];
+            const lastDay = new Date(year, month + 1, 0).getDate();
+            for (let day = 1; day <= lastDay; day++) {
+                dates.push(new Date(year, month, day));
+            }
+            return dates;
+        }
+
+        function getYearDates() {
+            const dates = [];
+            for (let month = 0; month < 12; month++) {
+                const lastDay = new Date(currentYear, month + 1, 0).getDate();
+                for (let day = 1; day <= lastDay; day++) {
+                    dates.push(new Date(currentYear, month, day));
+                }
+            }
+            return dates;
+        }
+
+        function getDateKey(date) {
+            return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+        }
+
+        function calculateTotals(personId, dates) {
+            const totals = { amountSold: 0, callsSold: 0, estimatesLeft: 0, estimateValue: 0 };
+            dates.forEach(date => {
+                const key = `${personId}_${getDateKey(date)}`;
+                const calls = allLogs[key];
+                if (calls) {
+                    Object.values(calls).forEach(c => {
+                        if (c.jobSold) {
+                            totals.callsSold++;
+                            totals.amountSold += parseFloat(c.amountSold) || 0;
+                        }
+                        if (c.leftEstimate) {
+                            totals.estimatesLeft++;
+                            totals.estimateValue += parseFloat(c.estimateAmount) || 0;
+                        }
+                    });
+                }
+            });
+            return totals;
+        }
+
+        function renderMonthlyGoal() {
+            const goalKey = `${selectedPerson}_${monthKey}`;
+            const goal = monthlyGoals[goalKey] || 0;
+            document.getElementById('monthlyGoalInput').value = goal || '';
+
+            const monthTotals = calculateTotals(selectedPerson, getMonthDates());
+
+            if (goal > 0) {
+                const progress = (monthTotals.amountSold / goal) * 100;
+                const remaining = Math.max(0, goal - monthTotals.amountSold);
+                const barColor = progress >= 100 ? 'bg-green-600' : progress >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+
+                document.getElementById('monthlyGoalProgress').innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span>Progress:</span>
+                            <span class="font-bold">${progress.toFixed(1)}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-6">
+                            <div class="${barColor} h-full rounded-full flex items-center justify-center text-white text-xs font-bold" style="width: ${Math.min(progress, 100)}%">
+                                ${progress.toFixed(0)}%
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-sm pt-2">
+                            <div><p class="text-xs text-gray-600">Sold</p><p class="font-bold">$${monthTotals.amountSold.toLocaleString()}</p></div>
+                            <div><p class="text-xs text-gray-600">Goal</p><p class="font-bold">$${goal.toLocaleString()}</p></div>
+                            <div><p class="text-xs text-gray-600">Remaining</p><p class="font-bold text-orange-600">$${remaining.toLocaleString()}</p></div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                document.getElementById('monthlyGoalProgress').innerHTML = '<p class="text-sm text-gray-500 italic">Set a goal to track progress</p>';
+            }
+        }
+
+        function renderYearlyGoal() {
+            const goalKey = `${selectedPerson}_${yearKey}`;
+            const goal = yearlyGoals[goalKey] || 0;
+            document.getElementById('yearlyGoalInput').value = goal || '';
+
+            const yearTotals = calculateTotals(selectedPerson, getYearDates());
+
+            if (goal > 0) {
+                const progress = (yearTotals.amountSold / goal) * 100;
+                const remaining = Math.max(0, goal - yearTotals.amountSold);
+                const barColor = progress >= 100 ? 'bg-green-600' : progress >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+
+                document.getElementById('yearlyGoalProgress').innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span>Progress:</span>
+                            <span class="font-bold">${progress.toFixed(1)}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-6">
+                            <div class="${barColor} h-full rounded-full flex items-center justify-center text-white text-xs font-bold" style="width: ${Math.min(progress, 100)}%">
+                                ${progress.toFixed(0)}%
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-sm pt-2">
+                            <div><p class="text-xs text-gray-600">Sold So Far</p><p class="font-bold">$${yearTotals.amountSold.toLocaleString()}</p></div>
+                            <div><p class="text-xs text-gray-600">Goal</p><p class="font-bold">$${goal.toLocaleString()}</p></div>
+                            <div><p class="text-xs text-gray-600">Left</p><p class="font-bold text-orange-600">$${remaining.toLocaleString()}</p></div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                document.getElementById('yearlyGoalProgress').innerHTML = '<p class="text-sm text-gray-500 italic">Set a goal to track progress</p>';
+            }
+        }
+
+        function renderTeamGoal() {
+            if (!teamMonthlyGoal) {
+                document.getElementById('teamGoalProgress').innerHTML = '<p class="text-sm text-gray-500 italic">Set a team goal to track progress</p>';
+                return;
+            }
+
+            let teamTotal = 0;
+            allPeople.forEach(p => {
+                const totals = calculateTotals(p.id, getMonthDates());
+                teamTotal += totals.amountSold;
+            });
+
+            const progress = (teamTotal / teamMonthlyGoal) * 100;
+            const remaining = Math.max(0, teamMonthlyGoal - teamTotal);
+            const barColor = progress >= 100 ? 'bg-green-600' : progress >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+
+            document.getElementById('teamGoalProgress').innerHTML = `
+                <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span>Progress:</span>
+                        <span class="font-bold">${progress.toFixed(1)}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-6">
+                        <div class="${barColor} h-full rounded-full flex items-center justify-center text-white text-xs font-bold" style="width: ${Math.min(progress, 100)}%">
+                            ${progress.toFixed(0)}%
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-sm pt-2">
+                        <div><p class="text-xs text-gray-600">Team Sold</p><p class="font-bold">$${teamTotal.toLocaleString()}</p></div>
+                        <div><p class="text-xs text-gray-600">Goal</p><p class="font-bold">$${teamMonthlyGoal.toLocaleString()}</p></div>
+                        <div><p class="text-xs text-gray-600">Remaining</p><p class="font-bold text-orange-600">$${remaining.toLocaleString()}</p></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAllGoals() {
+            const monthTotals = calculateTotals(selectedPerson, getMonthDates());
+            
+            document.getElementById('estimatesStats').innerHTML = `
+                <div class="p-3 bg-white rounded border-2 border-orange-400">
+                    <p class="text-sm text-gray-600">Total Estimates</p>
+                    <p class="text-4xl font-bold text-orange-900">${monthTotals.estimatesLeft}</p>
+                </div>
+                <div class="p-3 bg-white rounded border-2 border-orange-400">
+                    <p class="text-sm text-gray-600">Potential Revenue</p>
+                    <p class="text-4xl font-bold text-orange-900">$${monthTotals.estimateValue.toLocaleString()}</p>
+                </div>
+                <p class="text-xs text-gray-600 italic">💡 Follow up on these estimates to close more deals!</p>
+            `;
+
+            renderMonthlyGoal();
+            renderYearlyGoal();
+            renderCommission();
+        }
+
+        function renderCommission() {
+            if (!commissionRate) {
+                document.getElementById('commissionDisplay').innerHTML = '<p class="text-sm text-gray-500 italic">Set commission rate to calculate earnings</p>';
+                return;
+            }
+
+            const monthTotals = calculateTotals(selectedPerson, getMonthDates());
+            const commission = (monthTotals.amountSold * (commissionRate / 100)).toFixed(2);
+
+            document.getElementById('commissionDisplay').innerHTML = `
+                <div class="p-4 bg-lime-50 rounded-lg border-2 border-lime-300">
+                    <p class="text-sm font-bold text-lime-700">Monthly Commission Earned</p>
+                    <p class="text-3xl font-bold text-lime-900">$${parseFloat(commission).toLocaleString()}</p>
+                    <p class="text-xs text-gray-600">at ${commissionRate}% rate on $${monthTotals.amountSold.toLocaleString()} revenue</p>
+                </div>
+            `;
+        }
+
+        document.getElementById('saveMonthlyGoal').onclick = () => {
+            const value = parseFloat(document.getElementById('monthlyGoalInput').value) || 0;
+            db.ref(`monthlyGoals/${selectedPerson}_${monthKey}`).set(value);
+        };
+
+        document.getElementById('saveYearlyGoal').onclick = () => {
+            const value = parseFloat(document.getElementById('yearlyGoalInput').value) || 0;
+            db.ref(`yearlyGoals/${selectedPerson}_${yearKey}`).set(value);
+        };
+
+        document.getElementById('saveTeamGoal').onclick = () => {
+            const value = parseFloat(document.getElementById('teamGoalInput').value) || 0;
+            db.ref('teamMonthlyGoal').set(value);
+        };
+
+        document.getElementById('saveCommission').onclick = () => {
+            const value = parseFloat(document.getElementById('commissionRate').value) || 0;
+            db.ref('commissionRate').set(value);
+        };
+    </script>
+</body>
+</html>
