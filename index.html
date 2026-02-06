@@ -3,18 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Action Plumbing Sales Tracker</title>
+    <title>Action Plumbing - Dashboard</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div id="root"></div>
-    <script>
-        const { createElement: e, useState, useEffect, useMemo } = React;
+<body class="bg-gray-50">
+    <div class="p-4" style="max-width: 1280px; margin: 0 auto;">
+        <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem; color: #1e3a8a;">🔧 Action Plumbing Sales Tracker</h1>
+        
+        <div id="stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;"></div>
+        
+        <div style="background: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="font-size: 1.25rem; font-weight: 600;">Select Team Member</h2>
+                <button id="addBtn" style="padding: 0.75rem 1.5rem; background: #2563eb; color: white; border-radius: 0.5rem; font-weight: 600; cursor: pointer; border: none;">+ Add Person</button>
+            </div>
+            
+            <div id="addForm" style="display: none; margin-bottom: 1rem; padding: 1rem; background: #eff6ff; border-radius: 0.5rem; border: 2px solid #bfdbfe;">
+                <div style="display: flex; gap: 0.5rem;">
+                    <input id="nameInput" type="text" placeholder="Enter name" style="flex: 1; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem;" />
+                    <button id="saveBtn" style="padding: 0.75rem 1.5rem; background: #16a34a; color: white; border-radius: 0.5rem; font-weight: 600; cursor: pointer; border: none;">Add</button>
+                    <button id="cancelBtn" style="padding: 0.75rem 1.5rem; background: #6b7280; color: white; border-radius: 0.5rem; font-weight: 600; cursor: pointer; border: none;">Cancel</button>
+                </div>
+            </div>
+            
+            <div id="peopleList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"></div>
+            <div id="emptyMsg" style="display: none; text-align: center; padding: 3rem; background: #f9fafb; border-radius: 0.5rem;">
+                <p style="font-size: 1.25rem; color: #6b7280;">Loading salespeople...</p>
+            </div>
+        </div>
 
+        <div id="navigation" style="display: none; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;"></div>
+        
+        <div id="selectMsg" style="display: none; background: #fef3c7; padding: 1.5rem; border-radius: 0.5rem; border: 2px solid #fbbf24; text-align: center;">
+            <p style="font-size: 1.125rem; font-weight: bold; color: #92400e;">👆 Please select a team member above to continue</p>
+        </div>
+    </div>
+
+    <script>
         firebase.initializeApp({
             apiKey: "AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",
             authDomain: "action-sales-tracker.firebaseapp.com",
@@ -26,839 +53,157 @@
         });
 
         const db = firebase.database();
+        let people = [];
+        let selected = localStorage.getItem('selectedPerson') || null;
+        let logs = {};
 
-        function App() {
-            const [people, setPeople] = useState([]);
-            const [selected, setSelected] = useState(null);
-            const [date, setDate] = useState(new Date());
-            const [logs, setLogs] = useState({});
-            const [selDate, setSelDate] = useState(null);
-            const [newName, setNewName] = useState('');
-            const [showAdd, setShowAdd] = useState(false);
-            const [mGoals, setMGoals] = useState({});
-            const [yGoals, setYGoals] = useState({});
-            const [tmGoal, setTmGoal] = useState(0);
-            const [comm, setComm] = useState(0);
-            const [loading, setLoading] = useState(true);
+        document.getElementById('addBtn').onclick = () => {
+            document.getElementById('addForm').style.display = 'block';
+            document.getElementById('nameInput').focus();
+        };
 
-            useEffect(() => {
-                db.ref('salespeople').on('value', s => {
-                    const d = s.val();
-                    if (d) {
-                        const arr = Object.keys(d).map(k => ({ id: k, name: d[k].name }));
-                        setPeople(arr);
-                        if (!selected && arr.length) setSelected(arr[0].id);
-                    }
-                    setLoading(false);
-                });
-                db.ref('callLogs').on('value', s => setLogs(s.val() || {}));
-                db.ref('monthlyGoals').on('value', s => setMGoals(s.val() || {}));
-                db.ref('yearlyGoals').on('value', s => setYGoals(s.val() || {}));
-                db.ref('teamMonthlyGoal').on('value', s => setTmGoal(s.val() || 0));
-                db.ref('commissionRate').on('value', s => setComm(s.val() || 0));
-                return () => {
-                    db.ref('salespeople').off();
-                    db.ref('callLogs').off();
-                    db.ref('monthlyGoals').off();
-                    db.ref('yearlyGoals').off();
-                    db.ref('teamMonthlyGoal').off();
-                    db.ref('commissionRate').off();
-                };
-            }, []);
+        document.getElementById('cancelBtn').onclick = () => {
+            document.getElementById('addForm').style.display = 'none';
+            document.getElementById('nameInput').value = '';
+        };
 
-            const getWeek = d => {
-                const day = d.getDay();
-                const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-                const mon = new Date(d);
-                mon.setDate(diff);
-                const w = [];
-                for (let i = 0; i < 7; i++) {
-                    const nd = new Date(mon);
-                    nd.setDate(mon.getDate() + i);
-                    w.push(nd);
-                }
-                return w;
-            };
-
-            const dk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            const dataKey = (pid, d) => `${pid}_${dk(d)}`;
-            const mk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-            const yk = d => `${d.getFullYear()}`;
-            
-            const week = useMemo(() => getWeek(date), [date]);
-
-            const addP = () => {
-                if (newName.trim()) {
-                    db.ref('salespeople').push().set({ name: newName.trim() });
-                    setNewName('');
-                    setShowAdd(false);
-                }
-            };
-
-            const removeP = id => {
-                const p = people.find(x => x.id === id);
-                if (confirm(`Remove ${p.name}?`)) {
-                    db.ref(`salespeople/${id}`).remove();
-                    if (selected === id) setSelected(null);
-                }
-            };
-
-            const addCall = (pid, d) => {
-                const k = dataKey(pid, d);
-                db.ref(`callLogs/${k}`).push().set({
-                    customerName: '', jobNumber: '', customerPhone: '',
-                    reviewCompleted: false, restorationLead: false,
-                    turnoverAttempted: false, turnoverAccepted: false,
-                    selfGeneratedLead: false, rillaCompliant: false,
-                    maintenancePlanSold: false, upsellCompleted: false,
-                    upsellAmount: 0, jobComplete: false, jobSold: false,
-                    amountSold: 0, moneyOwed: 0, followUpPlan: '',
-                    leftEstimate: false, estimateAmount: 0,
-                    jobCancelled: false, cancelReason: '',
-                    tradePlumbing: false, tradeHVAC: false,
-                    tradeElectrical: false, tradeCameras: false,
-                    timestamp: Date.now(), timeOfDay: new Date().getHours()
-                });
-            };
-
-            const upCall = (pid, d, cid, f, v) => {
-                db.ref(`callLogs/${dataKey(pid,d)}/${cid}/${f}`).set(v);
-            };
-
-            const delCall = (pid, d, cid) => {
-                if (confirm('Delete?')) db.ref(`callLogs/${dataKey(pid,d)}/${cid}`).remove();
-            };
-
-            const getCalls = (pid, d) => {
-                const k = dataKey(pid, d);
-                const l = logs[k];
-                if (!l) return [];
-                return Object.keys(l).map(id => ({ id, ...l[id] }));
-            };
-
-            const getMDates = d => {
-                const y = d.getFullYear();
-                const m = d.getMonth();
-                const arr = [];
-                const last = new Date(y, m+1, 0).getDate();
-                for (let day = 1; day <= last; day++) arr.push(new Date(y, m, day));
-                return arr;
-            };
-
-            const getYDates = y => {
-                const arr = [];
-                for (let m = 0; m < 12; m++) {
-                    arr.push(...getMDates(new Date(y, m, 1)));
-                }
-                return arr;
-            };
-
-            const calc = (pid, dates) => {
-                const t = {
-                    totalCalls: 0, callsSold: 0, amountSold: 0, moneyOwed: 0,
-                    selfGenLeads: 0, companyLeads: 0, selfGenSales: 0, companySales: 0,
-                    reviewsCompleted: 0, turnoversAttempted: 0, turnoversAccepted: 0,
-                    rillaCompliant: 0, restorationLeads: 0, plansSold: 0,
-                    upsellsCompleted: 0, estimatesLeft: 0, estimateValue: 0,
-                    tradePlumbing: 0, tradeHVAC: 0, tradeElectrical: 0, tradeCameras: 0,
-                    jobsComplete: 0
-                };
-                dates.forEach(d => {
-                    const calls = getCalls(pid, d);
-                    calls.forEach(c => {
-                        t.totalCalls++;
-                        if (c.selfGeneratedLead) {
-                            t.selfGenLeads++;
-                            if (c.jobSold) t.selfGenSales++;
-                        } else {
-                            t.companyLeads++;
-                            if (c.jobSold) t.companySales++;
-                        }
-                        if (c.jobSold) {
-                            t.callsSold++;
-                            const amt = parseFloat(c.amountSold) || 0;
-                            t.amountSold += amt;
-                        }
-                        t.moneyOwed += parseFloat(c.moneyOwed) || 0;
-                        if (c.reviewCompleted) t.reviewsCompleted++;
-                        if (c.turnoverAttempted) t.turnoversAttempted++;
-                        if (c.turnoverAccepted) t.turnoversAccepted++;
-                        if (c.rillaCompliant) t.rillaCompliant++;
-                        if (c.restorationLead) t.restorationLeads++;
-                        if (c.maintenancePlanSold) t.plansSold++;
-                        if (c.upsellCompleted) t.upsellsCompleted++;
-                        if (c.leftEstimate) {
-                            t.estimatesLeft++;
-                            t.estimateValue += parseFloat(c.estimateAmount) || 0;
-                        }
-                        if (c.tradePlumbing) t.tradePlumbing++;
-                        if (c.tradeHVAC) t.tradeHVAC++;
-                        if (c.tradeElectrical) t.tradeElectrical++;
-                        if (c.tradeCameras) t.tradeCameras++;
-                        if (c.jobComplete) t.jobsComplete++;
-                    });
-                });
-                return t;
-            };
-
-            const getToday = () => {
-                const today = new Date();
-                let tc = 0, tr = 0;
-                people.forEach(p => {
-                    const c = getCalls(p.id, today);
-                    tc += c.length;
-                    tr += c.reduce((s, x) => s + (parseFloat(x.amountSold) || 0), 0);
-                });
-                return { totalCalls: tc, totalRevenue: tr };
-            };
-
-            const getStreak = pid => {
-                let s = 0;
-                const today = new Date();
-                for (let i = 0; i < 30; i++) {
-                    const d = new Date(today);
-                    d.setDate(today.getDate() - i);
-                    const c = getCalls(pid, d);
-                    const has = c.some(x => x.jobSold);
-                    if (has) s++;
-                    else if (i > 0) break;
-                }
-                return s;
-            };
-
-            const getDays = pid => {
-                const today = new Date();
-                for (let i = 0; i < 90; i++) {
-                    const d = new Date(today);
-                    d.setDate(today.getDate() - i);
-                    if (getCalls(pid, d).some(x => x.jobSold)) return i;
-                }
-                return 90;
-            };
-
-            const wTot = useMemo(() => selected ? calc(selected, week) : null, [selected, week, logs]);
-            const mTot = useMemo(() => selected ? calc(selected, getMDates(date)) : null, [selected, date, logs]);
-            const yTot = useMemo(() => selected ? calc(selected, getYDates(date.getFullYear())) : null, [selected, date, logs]);
-
-            const allStats = useMemo(() => {
-                return people.map(p => {
-                    const m = calc(p.id, getMDates(date));
-                    const w = calc(p.id, week);
-                    const y = calc(p.id, getYDates(date.getFullYear()));
-                    const s = getStreak(p.id);
-                    const d = getDays(p.id);
-                    return { ...p, ...m, weekRevenue: w.amountSold, yearRevenue: y.amountSold, streak: s, daysSinceSale: d };
-                }).sort((a,b) => b.amountSold - a.amountSold);
-            }, [people, date, week, logs]);
-
-            const twTotal = useMemo(() => allStats.reduce((s,m) => s + m.weekRevenue, 0), [allStats]);
-            const tmTotal = useMemo(() => allStats.reduce((s,m) => s + m.amountSold, 0), [allStats]);
-            const todayS = useMemo(() => getToday(), [people, logs]);
-            const topW = useMemo(() => [...allStats].sort((a,b) => b.weekRevenue - a.weekRevenue)[0], [allStats]);
-
-            const upMG = (pid, v) => db.ref(`monthlyGoals/${pid}_${mk(date)}`).set(parseFloat(v) || 0);
-            const upYG = (pid, v) => db.ref(`yearlyGoals/${pid}_${yk(date)}`).set(parseFloat(v) || 0);
-            const getMG = pid => mGoals[`${pid}_${mk(date)}`] || 0;
-            const getYG = pid => yGoals[`${pid}_${yk(date)}`] || 0;
-            const upTMG = v => db.ref('teamMonthlyGoal').set(parseFloat(v) || 0);
-            const upComm = v => db.ref('commissionRate').set(parseFloat(v) || 0);
-            const calcComm = amt => (amt * (comm / 100)).toFixed(2);
-
-            if (loading) {
-                return e('div', { className: 'min-h-screen bg-gray-50 flex items-center justify-center' },
-                    e('div', { className: 'text-2xl font-bold text-blue-600' }, 'Loading...')
-                );
+        document.getElementById('saveBtn').onclick = () => {
+            const name = document.getElementById('nameInput').value.trim();
+            if (name) {
+                db.ref('salespeople').push().set({ name });
+                document.getElementById('nameInput').value = '';
+                document.getElementById('addForm').style.display = 'none';
             }
-            return e('div', { className: 'min-h-screen bg-gray-50 p-4' },
-                e('div', { className: 'max-w-7xl mx-auto' },
-                    e('h1', { className: 'text-3xl font-bold mb-6 text-blue-900' }, '🔧 Action Plumbing Sales Tracker'),
+        };
 
-                    e('div', { className: 'grid grid-cols-1 md:grid-cols-4 gap-4 mb-6' },
-                        e('div', { className: 'bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-lg shadow-lg' },
-                            e('p', { className: 'text-sm font-semibold opacity-90' }, 'Today\'s Calls'),
-                            e('p', { className: 'text-4xl font-bold' }, todayS.totalCalls),
-                            e('p', { className: 'text-xs opacity-75 mt-1' }, 'All team members')
-                        ),
-                        e('div', { className: 'bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-lg shadow-lg' },
-                            e('p', { className: 'text-sm font-semibold opacity-90' }, 'Today\'s Revenue'),
-                            e('p', { className: 'text-4xl font-bold' }, `$${todayS.totalRevenue.toLocaleString()}`),
-                            e('p', { className: 'text-xs opacity-75 mt-1' }, 'Team total')
-                        ),
-                        e('div', { className: 'bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-lg shadow-lg' },
-                            e('p', { className: 'text-sm font-semibold opacity-90' }, 'Week\'s Revenue'),
-                            e('p', { className: 'text-4xl font-bold' }, `$${twTotal.toLocaleString()}`),
-                            e('p', { className: 'text-xs opacity-75 mt-1' }, 'Last 7 days')
-                        ),
-                        e('div', { className: 'bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-lg shadow-lg' },
-                            e('p', { className: 'text-sm font-semibold opacity-90' }, 'Top Performer'),
-                            e('p', { className: 'text-2xl font-bold' }, topW?.name || 'N/A'),
-                            e('p', { className: 'text-xs opacity-75 mt-1' }, `$${(topW?.weekRevenue || 0).toLocaleString()} this week`)
-                        )
-                    ),
+        document.getElementById('nameInput').onkeypress = (e) => {
+            if (e.key === 'Enter') document.getElementById('saveBtn').click();
+        };
 
-                    e('div', { className: 'bg-white p-6 rounded-lg shadow-lg mb-6' },
-                        e('div', { className: 'flex items-center justify-between mb-4' },
-                            e('h2', { className: 'text-xl font-semibold' }, 'Sales Team'),
-                            !showAdd && e('button', {
-                                onClick: () => setShowAdd(true),
-                                className: 'px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold'
-                            }, '+ Add Person')
-                        ),
-                        showAdd && e('div', { className: 'mb-4 p-4 bg-blue-50 rounded-lg border-2 border-blue-200' },
-                            e('div', { className: 'flex gap-2' },
-                                e('input', {
-                                    type: 'text',
-                                    value: newName,
-                                    onChange: ev => setNewName(ev.target.value),
-                                    onKeyPress: ev => ev.key === 'Enter' && addP(),
-                                    placeholder: 'Enter salesperson name',
-                                    className: 'flex-1 px-4 py-2 border-2 rounded-lg',
-                                    autoFocus: true
-                                }),
-                                e('button', { onClick: addP, className: 'px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold' }, 'Add'),
-                                e('button', {
-                                    onClick: () => { setShowAdd(false); setNewName(''); },
-                                    className: 'px-6 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 font-semibold'
-                                }, 'Cancel')
-                            )
-                        ),
-                        people.length === 0 ? e('div', { className: 'text-center py-12 bg-gray-50 rounded-lg' },
-                            e('p', { className: 'text-xl text-gray-500' }, 'No salespeople added yet')
-                        ) : e('div', { className: 'flex flex-wrap gap-3' },
-                            people.map(person => {
-                                const personStats = allStats.find(m => m.id === person.id);
-                                const streak = personStats?.streak || 0;
-                                const daysSinceSale = personStats?.daysSinceSale || 0;
-                                return e('div', { key: person.id, className: 'relative group' },
-                                    e('button', {
-                                        onClick: () => setSelected(person.id),
-                                        className: `px-6 py-3 rounded-lg font-bold text-lg transition-all ${
-                                            selected === person.id
-                                                ? 'bg-blue-600 text-white shadow-lg'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                        }`
-                                    }, person.name + (streak >= 3 ? ' 🔥' : '') + (daysSinceSale > 7 ? ' ❄️' : '')),
-                                    e('button', {
-                                        onClick: () => removeP(person.id),
-                                        className: 'absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs opacity-0 group-hover:opacity-100'
-                                    }, '×')
-                                );
-                            })
-                        )
-                    ),
+        db.ref('salespeople').on('value', snapshot => {
+            const data = snapshot.val();
+            people = data ? Object.keys(data).map(k => ({ id: k, name: data[k].name })) : [];
+            if (!selected && people.length) {
+                selected = people[0].id;
+                localStorage.setItem('selectedPerson', selected);
+            }
+            renderPeople();
+            renderNavigation();
+        });
 
-                    selected && e('div', null,
-                        e('div', { className: 'bg-white p-6 rounded-lg shadow-lg mb-6' },
-                            e('h2', { className: 'text-2xl font-bold mb-4 text-blue-900' },
-                                `📊 Monthly Performance Metrics - ${date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
-                            ),
-                            e('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-4 mb-4' },
-                                e('div', { className: 'p-4 bg-blue-50 rounded-lg border-2 border-blue-300' },
-                                    e('p', { className: 'text-sm font-bold text-blue-700' }, 'Closing Rate'),
-                                    e('p', { className: 'text-3xl font-bold text-blue-900' },
-                                        `${mTot?.totalCalls > 0 ? ((mTot.callsSold / mTot.totalCalls) * 100).toFixed(1) : 0}%`
-                                    ),
-                                    e('p', { className: 'text-xs text-gray-600' }, `${mTot?.callsSold} / ${mTot?.totalCalls} calls`)
-                                ),
-                                e('div', { className: 'p-4 bg-green-50 rounded-lg border-2 border-green-300' },
-                                    e('p', { className: 'text-sm font-bold text-green-700' }, 'Call Average'),
-                                    e('p', { className: 'text-3xl font-bold text-green-900' },
-                                        `$${mTot?.callsSold > 0 ? (mTot.amountSold / mTot.callsSold).toFixed(0) : 0}`
-                                    ),
-                                    e('p', { className: 'text-xs text-gray-600' }, 'per sale')
-                                ),
-                                e('div', { className: 'p-4 bg-purple-50 rounded-lg border-2 border-purple-300' },
-                                    e('p', { className: 'text-sm font-bold text-purple-700' }, 'Review Rate'),
-                                    e('p', { className: 'text-3xl font-bold text-purple-900' },
-                                        `${mTot?.totalCalls > 0 ? ((mTot.reviewsCompleted / mTot.totalCalls) * 100).toFixed(1) : 0}%`
-                                    ),
-                                    e('p', { className: 'text-xs text-gray-600' }, `${mTot?.reviewsCompleted} reviews`)
-                                ),
-                                e('div', { className: 'p-4 bg-orange-50 rounded-lg border-2 border-orange-300' },
-                                    e('p', { className: 'text-sm font-bold text-orange-700' }, 'Turnover Rate'),
-                                    e('p', { className: 'text-3xl font-bold text-orange-900' },
-                                        `${mTot?.turnoversAttempted > 0 ? ((mTot.turnoversAccepted / mTot.turnoversAttempted) * 100).toFixed(1) : 0}%`
-                                    ),
-                                    e('p', { className: 'text-xs text-gray-600' }, `${mTot?.turnoversAccepted} / ${mTot?.turnoversAttempted}`)
-                                ),
-                                e('div', { className: 'p-4 bg-indigo-50 rounded-lg border-2 border-indigo-300' },
-                                    e('p', { className: 'text-sm font-bold text-indigo-700' }, 'Rilla Compliance'),
-                                    e('p', { className: 'text-3xl font-bold text-indigo-900' },
-                                        `${mTot?.totalCalls > 0 ? ((mTot.rillaCompliant / mTot.totalCalls) * 100).toFixed(1) : 0}%`
-                                    ),
-                                    e('p', { className: 'text-xs text-gray-600' }, `${mTot?.rillaCompliant} compliant`)
-                                ),
-                                e('div', { className: 'p-4 bg-pink-50 rounded-lg border-2 border-pink-300' },
-                                    e('p', { className: 'text-sm font-bold text-pink-700' }, 'Restoration Leads'),
-                                    e('p', { className: 'text-3xl font-bold text-pink-900' }, mTot?.restorationLeads || 0),
-                                    e('p', { className: 'text-xs text-gray-600' }, 'this month')
-                                ),
-                                e('div', { className: 'p-4 bg-yellow-50 rounded-lg border-2 border-yellow-300' },
-                                    e('p', { className: 'text-sm font-bold text-yellow-700' }, 'Plans Sold'),
-                                    e('p', { className: 'text-3xl font-bold text-yellow-900' }, mTot?.plansSold || 0),
-                                    e('p', { className: 'text-xs text-gray-600' }, 'maintenance plans')
-                                ),
-                                e('div', { className: 'p-4 bg-teal-50 rounded-lg border-2 border-teal-300' },
-                                    e('p', { className: 'text-sm font-bold text-teal-700' }, 'Membership Rate'),
-                                    e('p', { className: 'text-3xl font-bold text-teal-900' },
-                                        `${mTot?.callsSold > 0 ? ((mTot.plansSold / mTot.callsSold) * 100).toFixed(1) : 0}%`
-                                    ),
-                                    e('p', { className: 'text-xs text-gray-600' }, 'of sales')
-                                ),
-                                e('div', { className: 'p-4 bg-red-50 rounded-lg border-2 border-red-300' },
-                                    e('p', { className: 'text-sm font-bold text-red-700' }, 'Upsell Rate'),
-                                    e('p', { className: 'text-3xl font-bold text-red-900' },
-                                        `${mTot?.callsSold > 0 ? ((mTot.upsellsCompleted / mTot.callsSold) * 100).toFixed(1) : 0}%`
-                                    ),
-                                    e('p', { className: 'text-xs text-gray-600' }, `${mTot?.upsellsCompleted} upsells`)
-                                ),
-                                e('div', { className: 'p-4 bg-cyan-50 rounded-lg border-2 border-cyan-300 col-span-2' },
-                                    e('p', { className: 'text-sm font-bold text-cyan-700' }, 'Year Total Revenue'),
-                                    e('p', { className: 'text-4xl font-bold text-cyan-900' }, `$${(yTot?.amountSold || 0).toLocaleString()}`),
-                                    e('p', { className: 'text-xs text-gray-600' }, `${yTot?.callsSold || 0} sales in ${date.getFullYear()}`)
-                                ),
-                                e('div', { className: 'p-4 bg-lime-50 rounded-lg border-2 border-lime-300' },
-                                    e('p', { className: 'text-sm font-bold text-lime-700' }, 'Commission Earned'),
-                                    e('p', { className: 'text-3xl font-bold text-lime-900' },
-                                        `$${comm > 0 ? calcComm(mTot?.amountSold || 0) : '0'}`
-                                    ),
-                                    e('p', { className: 'text-xs text-gray-600' }, `at ${comm}% rate`)
-                                ),
-                                e('div', { className: 'p-4 bg-orange-50 rounded-lg border-2 border-orange-300' },
-                                    e('p', { className: 'text-sm font-bold text-orange-700' }, 'Estimates Left'),
-                                    e('p', { className: 'text-3xl font-bold text-orange-900' }, mTot?.estimatesLeft || 0),
-                                    e('p', { className: 'text-xs text-gray-600' }, `$${(mTot?.estimateValue || 0).toLocaleString()} potential`)
-                                )
-                            ),
-                            e('div', { className: 'mt-4 p-4 bg-gray-50 rounded-lg border' },
-                                e('h3', { className: 'font-bold mb-2' }, 'Commission Settings'),
-                                e('div', { className: 'flex items-center gap-3' },
-                                    e('label', { className: 'text-sm font-bold' }, 'Commission Rate (%):'),
-                                    e('input', {
-                                        type: 'number',
-                                        value: comm || '',
-                                        onChange: ev => upComm(ev.target.value),
-                                        className: 'px-3 py-2 border-2 rounded-lg w-24',
-                                        placeholder: '0',
-                                        step: '0.1'
-                                    }),
-                                    e('span', { className: 'text-sm text-gray-600' },
-                                        `Monthly Commission: $${comm > 0 ? calcComm(mTot?.amountSold || 0) : '0'}`
-                                    )
-                                )
-                            )
-                        ),
+        db.ref('callLogs').on('value', snapshot => {
+            logs = snapshot.val() || {};
+            renderStats();
+        });
 
-                        e('div', { className: 'bg-white p-6 rounded-lg shadow-lg mb-6' },
-                            e('h2', { className: 'text-2xl font-bold mb-4 text-purple-900' }, '🎯 Goals Tracker'),
-                            e('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-6' },
-                                e('div', { className: 'p-4 bg-purple-50 rounded-lg border-2 border-purple-300' },
-                                    e('h3', { className: 'font-bold mb-3' }, 'Individual Monthly Goal'),
-                                    e('input', {
-                                        type: 'number',
-                                        value: getMG(selected) || '',
-                                        onChange: ev => upMG(selected, ev.target.value),
-                                        className: 'w-full px-3 py-2 border-2 rounded-lg mb-2',
-                                        placeholder: 'Set Goal ($)'
-                                    }),
-                                    getMG(selected) > 0 && e('div', { className: 'space-y-2' },
-                                        e('div', { className: 'flex justify-between text-sm' },
-                                            e('span', null, 'Progress:'),
-                                            e('span', { className: 'font-bold' }, `${((mTot?.amountSold / getMG(selected)) * 100).toFixed(1)}%`)
-                                        ),
-                                        e('div', { className: 'w-full bg-gray-200 rounded-full h-6' },
-                                            e('div', {
-                                                className: `h-full rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                                                    (mTot?.amountSold / getMG(selected)) >= 1 ? 'bg-green-600' :
-                                                    (mTot?.amountSold / getMG(selected)) >= 0.5 ? 'bg-yellow-500' : 'bg-red-500'
-                                                }`,
-                                                style: { width: `${Math.min((mTot?.amountSold / getMG(selected)) * 100, 100)}%` }
-                                            }, `${((mTot?.amountSold / getMG(selected)) * 100).toFixed(0)}%`)
-                                        )
-                                    )
-                                ),
-                                e('div', { className: 'p-4 bg-indigo-50 rounded-lg border-2 border-indigo-300' },
-                                    e('h3', { className: 'font-bold mb-3' }, 'Team Monthly Goal'),
-                                    e('input', {
-                                        type: 'number',
-                                        value: tmGoal || '',
-                                        onChange: ev => upTMG(ev.target.value),
-                                        className: 'w-full px-3 py-2 border-2 rounded-lg mb-2',
-                                        placeholder: 'Set Team Goal ($)'
-                                    }),
-                                    tmGoal > 0 && e('div', { className: 'space-y-2' },
-                                        e('div', { className: 'flex justify-between text-sm' },
-                                            e('span', null, 'Progress:'),
-                                            e('span', { className: 'font-bold' }, `${((tmTotal / tmGoal) * 100).toFixed(1)}%`)
-                                        ),
-                                        e('div', { className: 'w-full bg-gray-200 rounded-full h-6' },
-                                            e('div', {
-                                                className: `h-full rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                                                    (tmTotal / tmGoal) >= 1 ? 'bg-green-600' :
-                                                    (tmTotal / tmGoal) >= 0.5 ? 'bg-yellow-500' : 'bg-red-500'
-                                                }`,
-                                                style: { width: `${Math.min((tmTotal / tmGoal) * 100, 100)}%` }
-                                            }, `${((tmTotal / tmGoal) * 100).toFixed(0)}%`)
-                                        )
-                                    )
-                                )
-                            )
-                        ),
-                                  e('div', { className: 'bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow-lg border-2 border-blue-300 mb-6' },
-                            e('div', { className: 'flex items-center justify-between mb-6' },
-                                e('button', {
-                                    onClick: () => setDate(new Date(date.getTime() - 7*24*60*60*1000)),
-                                    className: 'p-3 bg-white rounded-full hover:bg-blue-100 shadow font-bold text-xl'
-                                }, '←'),
-                                e('h2', { className: 'text-xl font-bold text-blue-900' },
-                                    `${week[0].toLocaleDateString('en-US', {month:'short',day:'numeric'})} - ${week[6].toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'})}`
-                                ),
-                                e('button', {
-                                    onClick: () => setDate(new Date(date.getTime() + 7*24*60*60*1000)),
-                                    className: 'p-3 bg-white rounded-full hover:bg-blue-100 shadow font-bold text-xl'
-                                }, '→')
-                            ),
-                            e('div', { className: 'grid grid-cols-7 gap-3' },
-                                ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(day =>
-                                    e('div', { key: day, className: 'text-center text-sm font-bold text-blue-700 mb-2' }, day)
-                                ),
-                                week.map((d, idx) => {
-                                    const calls = getCalls(selected, d);
-                                    const sold = calls.filter(c => c.jobSold);
-                                    const total = calls.reduce((sum, c) => sum + (parseFloat(c.amountSold) || 0), 0);
-                                    const dateKey = dk(d);
-                                    const isToday = dk(new Date()) === dateKey;
-                                    return e('button', {
-                                        key: idx,
-                                        onClick: () => setSelDate(selDate === dateKey ? null : dateKey),
-                                        className: `p-4 rounded-xl border-2 transition-all ${
-                                            selDate === dateKey
-                                                ? 'border-blue-600 bg-blue-100 shadow-lg'
-                                                : calls.length > 0
-                                                    ? 'border-green-400 bg-green-50 hover:shadow-md'
-                                                    : isToday
-                                                        ? 'border-blue-300 bg-white shadow-md'
-                                                        : 'border-gray-200 bg-white hover:border-gray-300'
-                                        }`
-                                    },
-                                        e('div', { className: 'text-xl font-bold' }, d.getDate()),
-                                        calls.length > 0 && e('div', { className: 'mt-2' },
-                                            e('div', { className: 'text-xs font-bold text-green-700' }, `${sold.length} sold`),
-                                            e('div', { className: 'text-xs font-bold text-green-700' }, `$${total.toLocaleString()}`)
-                                        )
-                                    );
-                                })
-                            )
-                        ),
+        function renderStats() {
+            const today = new Date();
+            const dk = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+            let totalCalls = 0, totalRevenue = 0;
+            
+            people.forEach(p => {
+                const key = `${p.id}_${dk}`;
+                const calls = logs[key];
+                if (calls) {
+                    const arr = Object.values(calls);
+                    totalCalls += arr.length;
+                    totalRevenue += arr.reduce((s, x) => s + (parseFloat(x.amountSold) || 0), 0);
+                }
+            });
 
-                        selDate && e('div', { className: 'bg-white p-6 rounded-lg shadow-lg mb-6' },
-                            e('div', { className: 'flex items-center justify-between mb-4' },
-                                e('h3', { className: 'text-2xl font-bold text-blue-900' }, '📞 Call Logs'),
-                                e('button', {
-                                    onClick: () => addCall(selected, week.find(d => dk(d) === selDate)),
-                                    className: 'px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold'
-                                }, '+ Add Call')
-                            ),
-                            e('div', { className: 'space-y-4 max-h-[600px] overflow-y-auto' },
-                                getCalls(selected, week.find(d => dk(d) === selDate)).length === 0
-                                    ? e('p', { className: 'text-center text-gray-500 py-8' }, 'No calls logged for this day')
-                                    : getCalls(selected, week.find(d => dk(d) === selDate)).map(call =>
-                                        e('div', { key: call.id, className: 'p-4 bg-gray-50 rounded-lg border-2 border-gray-200' },
-                                            e('div', { className: 'flex justify-between mb-3' },
-                                                e('span', { className: 'text-sm font-bold text-gray-600' }, 'Call Entry'),
-                                                e('button', {
-                                                    onClick: () => delCall(selected, week.find(d => dk(d) === selDate), call.id),
-                                                    className: 'text-red-600 font-bold hover:text-red-800'
-                                                }, '🗑️ Delete')
-                                            ),
-                                            e('div', { className: 'space-y-3' },
-                                                e('input', {
-                                                    type: 'text',
-                                                    value: call.customerName || '',
-                                                    onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'customerName', ev.target.value),
-                                                    className: 'w-full px-3 py-2 border-2 rounded-lg',
-                                                    placeholder: 'Customer Name'
-                                                }),
-                                                e('input', {
-                                                    type: 'text',
-                                                    value: call.jobNumber || '',
-                                                    onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'jobNumber', ev.target.value),
-                                                    className: 'w-full px-3 py-2 border-2 rounded-lg',
-                                                    placeholder: 'Job Number'
-                                                }),
-                                                e('input', {
-                                                    type: 'tel',
-                                                    value: call.customerPhone || '',
-                                                    onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'customerPhone', ev.target.value),
-                                                    className: 'w-full px-3 py-2 border-2 rounded-lg',
-                                                    placeholder: 'Customer Phone'
-                                                }),
-                                                e('label', { className: 'flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-green-400' },
-                                                    e('input', {
-                                                        type: 'checkbox',
-                                                        checked: call.jobSold || false,
-                                                        onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'jobSold', ev.target.checked),
-                                                        className: 'w-5 h-5'
-                                                    }),
-                                                    e('span', { className: 'font-bold text-lg' }, '💰 Job Sold')
-                                                ),
-                                                call.jobSold && e('div', { className: 'space-y-2' },
-                                                    e('input', {
-                                                        type: 'number',
-                                                        value: call.amountSold || '',
-                                                        onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'amountSold', parseFloat(ev.target.value) || 0),
-                                                        className: 'w-full px-3 py-2 border-2 border-green-300 rounded-lg text-lg font-bold',
-                                                        placeholder: 'Amount Sold ($)'
-                                                    }),
-                                                    e('input', {
-                                                        type: 'number',
-                                                        value: call.moneyOwed || '',
-                                                        onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'moneyOwed', parseFloat(ev.target.value) || 0),
-                                                        className: 'w-full px-3 py-2 border-2 border-orange-300 rounded-lg font-bold',
-                                                        placeholder: 'Money Owed ($)'
-                                                    })
-                                                ),
-                                                e('label', { className: 'flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-red-400' },
-                                                    e('input', {
-                                                        type: 'checkbox',
-                                                        checked: call.jobCancelled || false,
-                                                        onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'jobCancelled', ev.target.checked),
-                                                        className: 'w-5 h-5'
-                                                    }),
-                                                    e('span', { className: 'font-bold text-lg' }, '❌ Job Cancelled')
-                                                ),
-                                                call.jobCancelled && e('textarea', {
-                                                    value: call.cancelReason || '',
-                                                    onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'cancelReason', ev.target.value),
-                                                    className: 'w-full px-3 py-2 border-2 border-red-300 rounded-lg',
-                                                    placeholder: 'Reason for cancellation...',
-                                                    rows: 3
-                                                }),
-                                                e('label', { className: 'flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-orange-400' },
-                                                    e('input', {
-                                                        type: 'checkbox',
-                                                        checked: call.leftEstimate || false,
-                                                        onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'leftEstimate', ev.target.checked),
-                                                        className: 'w-5 h-5'
-                                                    }),
-                                                    e('span', { className: 'font-bold' }, '📋 Left Estimate')
-                                                ),
-                                                call.leftEstimate && e('input', {
-                                                    type: 'number',
-                                                    value: call.estimateAmount || '',
-                                                    onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'estimateAmount', parseFloat(ev.target.value) || 0),
-                                                    className: 'w-full px-3 py-2 border-2 border-orange-300 rounded-lg',
-                                                    placeholder: 'Estimate Amount ($)'
-                                                }),
-                                                e('div', { className: 'border-t-2 pt-3 mt-3' },
-                                                    e('p', { className: 'font-bold text-sm text-gray-700 mb-2' }, 'Trade Type'),
-                                                    e('div', { className: 'grid grid-cols-2 gap-2' },
-                                                        e('label', { className: 'flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-300 cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.tradePlumbing || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'tradePlumbing', ev.target.checked),
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', { className: 'text-sm font-bold text-blue-700' }, '🔧 Plumbing')
-                                                        ),
-                                                        e('label', { className: 'flex items-center gap-2 p-2 bg-yellow-50 rounded border border-yellow-300 cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.tradeElectrical || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'tradeElectrical', ev.target.checked),
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', { className: 'text-sm font-bold text-yellow-700' }, '⚡ Electrical')
-                                                        ),
-                                                        e('label', { className: 'flex items-center gap-2 p-2 bg-red-50 rounded border border-red-300 cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.tradeHVAC || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'tradeHVAC', ev.target.checked),
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', { className: 'text-sm font-bold text-red-700' }, '🌡️ HVAC')
-                                                        ),
-                                                        e('label', { className: 'flex items-center gap-2 p-2 bg-purple-50 rounded border border-purple-300 cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.tradeCameras || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'tradeCameras', ev.target.checked),
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', { className: 'text-sm font-bold text-purple-700' }, '📹 Cameras')
-                                                        )
-                                                    )
-                                                ),
-                                                e('div', { className: 'border-t-2 pt-3 mt-3' },
-                                                    e('p', { className: 'font-bold text-sm text-gray-700 mb-2' }, 'Performance Metrics'),
-                                                    e('div', { className: 'grid grid-cols-2 gap-2' },
-                                                        e('label', { className: 'flex items-center gap-2 text-sm cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.reviewCompleted || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'reviewCompleted', ev.target.checked),
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', null, '✅ Review')
-                                                        ),
-                                                        e('label', { className: 'flex items-center gap-2 text-sm cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.restorationLead || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'restorationLead', ev.target.checked),
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', null, '🏠 Restoration')
-                                                        ),
-                                                        e('label', { className: 'flex items-center gap-2 text-sm cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.turnoverAttempted || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'turnoverAttempted', ev.target.checked),
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', null, '🔄 Turnover Attempt')
-                                                        ),
-                                                        e('label', { className: 'flex items-center gap-2 text-sm cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.turnoverAccepted || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'turnoverAccepted', ev.target.checked),
-                                                                disabled: !call.turnoverAttempted,
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', null, '✔️ Turnover Accept')
-                                                        ),
-                                                        e('label', { className: 'flex items-center gap-2 text-sm cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.selfGeneratedLead || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'selfGeneratedLead', ev.target.checked),
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', null, '🎯 Self-Gen')
-                                                        ),
-                                                        e('label', { className: 'flex items-center gap-2 text-sm cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.rillaCompliant || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'rillaCompliant', ev.target.checked),
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', null, '🎙️ Rilla')
-                                                        ),
-                                                        e('label', { className: 'flex items-center gap-2 text-sm cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.maintenancePlanSold || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'maintenancePlanSold', ev.target.checked),
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', null, '🛡️ Plan')
-                                                        ),
-                                                        e('label', { className: 'flex items-center gap-2 text-sm cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.upsellCompleted || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'upsellCompleted', ev.target.checked),
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', null, '⬆️ Upsell')
-                                                        ),
-                                                        e('label', { className: 'flex items-center gap-2 text-sm cursor-pointer' },
-                                                            e('input', {
-                                                                type: 'checkbox',
-                                                                checked: call.jobComplete || false,
-                                                                onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'jobComplete', ev.target.checked),
-                                                                className: 'w-4 h-4'
-                                                            }),
-                                                            e('span', null, '✔️ Complete')
-                                                        )
-                                                    ),
-                                                    call.upsellCompleted && e('input', {
-                                                        type: 'number',
-                                                        value: call.upsellAmount || '',
-                                                        onChange: ev => upCall(selected, week.find(d => dk(d) === selDate), call.id, 'upsellAmount', parseFloat(ev.target.value) || 0),
-                                                        className: 'w-full px-3 py-2 border-2 rounded-lg mt-2',
-                                                        placeholder: 'Upsell Amount ($)'
-                                                    })
-                                                )
-                                            )
-                                        )
-                                    )
-                            )
-                        ),
-                                  e('div', { className: 'bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-lg shadow-lg border-2 border-green-400' },
-                            e('h2', { className: 'text-2xl font-bold mb-4 text-green-900' },
-                                `🏅 Monthly Leaderboard - ${date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
-                            ),
-                            e('div', { className: 'space-y-3' },
-                                allStats.map((person, idx) => {
-                                    const closeRate = person.totalCalls > 0 ? (person.callsSold / person.totalCalls) * 100 : 0;
-                                    const medals = ['🥇', '🥈', '🥉'];
-                                    const titles = ['👑 Month Leader', '⭐ Runner Up', '🎯 Bronze'];
-                                    const streak = person.streak;
-                                    const goal = getMG(person.id);
-                                    const goalProgress = goal > 0 ? (person.amountSold / goal) * 100 : 0;
-
-                                    return e('div', {
-                                        key: person.id,
-                                        className: `p-4 rounded-lg border-2 ${
-                                            idx === 0 ? 'bg-green-100 border-green-400' :
-                                            idx === 1 ? 'bg-gray-100 border-gray-400' :
-                                            idx === 2 ? 'bg-orange-100 border-orange-400' :
-                                            'bg-white border-gray-300'
-                                        }`
-                                    },
-                                        e('div', { className: 'flex items-center justify-between mb-2' },
-                                            e('div', { className: 'flex items-center gap-3' },
-                                                e('span', { className: 'text-2xl' }, idx < 3 ? medals[idx] : `#${idx + 1}`),
-                                                e('div', null,
-                                                    e('p', { className: 'font-bold text-lg' },
-                                                        person.name + (streak >= 3 ? ' 🔥' : '')
-                                                    ),
-                                                    idx < 3 && e('p', { className: 'text-xs text-gray-600' }, titles[idx])
-                                                )
-                                            ),
-                                            e('div', { className: 'text-right' },
-                                                e('p', { className: 'text-sm text-gray-600' }, 'Month Total'),
-                                                e('p', { className: 'font-bold text-xl' }, `$${person.amountSold.toLocaleString()}`),
-                                                e('p', { className: 'text-xs text-gray-600' },
-                                                    `${person.callsSold} sales • ${closeRate.toFixed(1)}% close`
-                                                )
-                                            )
-                                        ),
-                                        goal > 0 && e('div', { className: 'mt-2' },
-                                            e('div', { className: 'flex justify-between text-xs mb-1' },
-                                                e('span', null, 'Goal Progress:'),
-                                                e('span', { className: 'font-bold' },
-                                                    `${goalProgress.toFixed(0)}% of $${goal.toLocaleString()}`
-                                                )
-                                            ),
-                                            e('div', { className: 'w-full bg-gray-200 rounded-full h-2' },
-                                                e('div', {
-                                                    className: `h-full rounded-full ${
-                                                        goalProgress >= 100 ? 'bg-green-600' :
-                                                        goalProgress >= 50 ? 'bg-yellow-500' :
-                                                        'bg-red-500'
-                                                    }`,
-                                                    style: { width: `${Math.min(goalProgress, 100)}%` }
-                                                })
-                                            )
-                                        )
-                                    );
-                                })
-                            )
-                        )
-                    )
-                )
-            );
+            document.getElementById('stats').innerHTML = `
+                <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1.5rem; border-radius: 0.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <p style="font-size: 0.875rem; opacity: 0.9; font-weight: 600;">Today's Calls</p>
+                    <p style="font-size: 2.5rem; font-weight: bold;">${totalCalls}</p>
+                    <p style="font-size: 0.75rem; opacity: 0.75; margin-top: 0.25rem;">All team members</p>
+                </div>
+                <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 1.5rem; border-radius: 0.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <p style="font-size: 0.875rem; opacity: 0.9; font-weight: 600;">Today's Revenue</p>
+                    <p style="font-size: 2.5rem; font-weight: bold;">$${totalRevenue.toLocaleString()}</p>
+                    <p style="font-size: 0.75rem; opacity: 0.75; margin-top: 0.25rem;">Team total</p>
+                </div>
+            `;
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(e(App));
+        function renderPeople() {
+            if (people.length === 0) {
+                document.getElementById('peopleList').style.display = 'none';
+                document.getElementById('emptyMsg').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('peopleList').style.display = 'grid';
+            document.getElementById('emptyMsg').style.display = 'none';
+
+            document.getElementById('peopleList').innerHTML = people.map(p => `
+                <div style="position: relative;" class="person-container">
+                    <button class="person-btn" data-id="${p.id}" style="width: 100%; padding: 1.5rem; border-radius: 0.5rem; font-weight: bold; font-size: 1.125rem; cursor: pointer; border: 2px solid ${selected === p.id ? '#2563eb' : '#e5e7eb'}; background: ${selected === p.id ? '#2563eb' : '#f9fafb'}; color: ${selected === p.id ? 'white' : '#374151'}; transition: all 0.2s;">
+                        ${p.name}
+                    </button>
+                    <button class="delete-btn" data-id="${p.id}" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 0.75rem; border: none; cursor: pointer; opacity: 0; transition: opacity 0.2s;">×</button>
+                </div>
+            `).join('');
+
+            document.querySelectorAll('.person-btn').forEach(btn => {
+                btn.onclick = () => {
+                    selected = btn.dataset.id;
+                    localStorage.setItem('selectedPerson', selected);
+                    renderPeople();
+                    renderNavigation();
+                };
+            });
+
+            document.querySelectorAll('.person-container').forEach(container => {
+                const deleteBtn = container.querySelector('.delete-btn');
+                container.onmouseenter = () => deleteBtn.style.opacity = '1';
+                container.onmouseleave = () => deleteBtn.style.opacity = '0';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    const p = people.find(x => x.id === deleteBtn.dataset.id);
+                    if (confirm(`Remove ${p.name}?`)) {
+                        db.ref(`salespeople/${deleteBtn.dataset.id}`).remove();
+                        if (selected === deleteBtn.dataset.id) {
+                            selected = null;
+                            localStorage.removeItem('selectedPerson');
+                        }
+                    }
+                };
+            });
+        }
+
+        function renderNavigation() {
+            if (!selected) {
+                document.getElementById('navigation').style.display = 'none';
+                document.getElementById('selectMsg').style.display = people.length > 0 ? 'block' : 'none';
+                return;
+            }
+
+            document.getElementById('navigation').style.display = 'grid';
+            document.getElementById('selectMsg').style.display = 'none';
+
+            document.getElementById('navigation').innerHTML = `
+                <a href="calls.html" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <div style="font-size: 3rem; margin-bottom: 0.75rem;">📞</div>
+                    <h3 style="font-size: 1.5rem; font-weight: bold;">Log Calls</h3>
+                    <p style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">Add daily calls and track sales</p>
+                </a>
+                <a href="reports.html" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <div style="font-size: 3rem; margin-bottom: 0.75rem;">📊</div>
+                    <h3 style="font-size: 1.5rem; font-weight: bold;">View Reports</h3>
+                    <p style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">Performance metrics & leaderboards</p>
+                </a>
+                <a href="goals.html" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <div style="font-size: 3rem; margin-bottom: 0.75rem;">🎯</div>
+                    <h3 style="font-size: 1.5rem; font-weight: bold;">Goals & Estimates</h3>
+                    <p style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">Track goals and follow up</p>
+                </a>
+                <a href="money.html" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <div style="font-size: 3rem; margin-bottom: 0.75rem;">💰</div>
+                    <h3 style="font-size: 1.5rem; font-weight: bold;">Money Owed</h3>
+                    <p style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">Track outstanding payments</p>
+                </a>
+            `;
+        }
     </script>
 </body>
 </html>
