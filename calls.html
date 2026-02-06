@@ -23,16 +23,7 @@
                 <h2 id="weekRange" class="text-xl font-bold text-blue-900"></h2>
                 <button id="nextWeek" class="p-3 bg-white rounded-full hover:bg-blue-100 shadow font-bold text-xl">→</button>
             </div>
-            <div class="grid grid-cols-7 gap-3">
-                <div class="text-center text-sm font-bold text-blue-700 mb-2">Mon</div>
-                <div class="text-center text-sm font-bold text-blue-700 mb-2">Tue</div>
-                <div class="text-center text-sm font-bold text-blue-700 mb-2">Wed</div>
-                <div class="text-center text-sm font-bold text-blue-700 mb-2">Thu</div>
-                <div class="text-center text-sm font-bold text-blue-700 mb-2">Fri</div>
-                <div class="text-center text-sm font-bold text-blue-700 mb-2">Sat</div>
-                <div class="text-center text-sm font-bold text-blue-700 mb-2">Sun</div>
-                <div id="calendarDays"></div>
-            </div>
+            <div id="calendarContainer"></div>
         </div>
 
         <div id="callsSection" style="display: none;" class="bg-white p-6 rounded-lg shadow-lg">
@@ -96,10 +87,19 @@
             document.getElementById('weekRange').textContent = 
                 `${week[0].toLocaleDateString('en-US', {month:'short',day:'numeric'})} - ${week[6].toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'})}`;
 
-            const container = document.getElementById('calendarDays');
-            container.innerHTML = '';
+            const container = document.getElementById('calendarContainer');
+            container.innerHTML = `
+                <div class="grid grid-cols-7 gap-3">
+                    ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(day => 
+                        `<div class="text-center text-sm font-bold text-blue-700 mb-2">${day}</div>`
+                    ).join('')}
+                </div>
+                <div id="calendarDays" class="grid grid-cols-7 gap-3 mt-2"></div>
+            `;
             
-            week.forEach(d => {
+            const daysContainer = document.getElementById('calendarDays');
+            
+            week.forEach((d, idx) => {
                 db.ref(`callLogs/${dataKey(d)}`).once('value', snapshot => {
                     const calls = snapshot.val();
                     const callsArray = calls ? Object.values(calls) : [];
@@ -132,7 +132,7 @@
                             </div>
                         ` : ''}
                     `;
-                    container.appendChild(dayDiv);
+                    daysContainer.appendChild(dayDiv);
                 });
             });
         }
@@ -232,16 +232,12 @@
                                             <span>✔️ Turnover Accept</span>
                                         </label>
                                         <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                            <input type="checkbox" ${call.selfGeneratedLead ? 'checked' : ''} onchange="updateCall('${call.id}', 'selfGeneratedLead', this.checked)" class="w-4 h-4" />
-                                            <span>🎯 Self-Gen</span>
+                                            <input type="checkbox" ${call.threeDoorKnocks ? 'checked' : ''} onchange="updateCall('${call.id}', 'threeDoorKnocks', this.checked)" class="w-4 h-4" />
+                                            <span>🚪 3 Door Knocks</span>
                                         </label>
                                         <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                            <input type="checkbox" ${call.rillaCompliant ? 'checked' : ''} onchange="updateCall('${call.id}', 'rillaCompliant', this.checked)" class="w-4 h-4" />
-                                            <span>🎙️ Rilla</span>
-                                        </label>
-                                        <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                            <input type="checkbox" ${call.maintenancePlanSold ? 'checked' : ''} onchange="updateCall('${call.id}', 'maintenancePlanSold', this.checked)" class="w-4 h-4" />
-                                            <span>🛡️ Plan</span>
+                                            <input type="checkbox" ${call.membershipPlanSold ? 'checked' : ''} onchange="updateCall('${call.id}', 'membershipPlanSold', this.checked)" class="w-4 h-4" />
+                                            <span>🛡️ Membership Plan</span>
                                         </label>
                                         <label class="flex items-center gap-2 text-sm cursor-pointer">
                                             <input type="checkbox" ${call.upsellCompleted ? 'checked' : ''} onchange="updateCall('${call.id}', 'upsellCompleted', this.checked)" class="w-4 h-4" />
@@ -256,6 +252,20 @@
                                         <input type="number" value="${call.upsellAmount || ''}" onchange="updateCall('${call.id}', 'upsellAmount', parseFloat(this.value) || 0)" class="w-full px-3 py-2 border-2 rounded-lg mt-2" placeholder="Upsell Amount ($)" />
                                     ` : ''}
                                 </div>
+
+                                <div class="border-t-2 pt-3 mt-3">
+                                    <p class="font-bold text-sm text-gray-700 mb-2">🚫 Objection (if any)</p>
+                                    <select onchange="updateCall('${call.id}', 'objection', this.value)" class="w-full px-3 py-2 border-2 rounded-lg">
+                                        <option value="">No objection</option>
+                                        <option value="price" ${call.objection === 'price' ? 'selected' : ''}>💰 Price too high</option>
+                                        <option value="think" ${call.objection === 'think' ? 'selected' : ''}>🤔 Need to think about it</option>
+                                        <option value="spouse" ${call.objection === 'spouse' ? 'selected' : ''}>💑 Need spouse approval</option>
+                                        <option value="someone" ${call.objection === 'someone' ? 'selected' : ''}>👷 Already have someone</option>
+                                        <option value="quotes" ${call.objection === 'quotes' ? 'selected' : ''}>📋 Want multiple quotes</option>
+                                        <option value="timing" ${call.objection === 'timing' ? 'selected' : ''}>⏰ Not now / timing</option>
+                                        <option value="trust" ${call.objection === 'trust' ? 'selected' : ''}>⚠️ Trust/Bad Reviews/Bad Experience</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     `).join('');
@@ -267,14 +277,15 @@
                     customerName: '', jobNumber: '', customerPhone: '',
                     reviewCompleted: false, restorationLead: false,
                     turnoverAttempted: false, turnoverAccepted: false,
-                    selfGeneratedLead: false, rillaCompliant: false,
-                    maintenancePlanSold: false, upsellCompleted: false,
-                    upsellAmount: 0, jobComplete: false, jobSold: false,
-                    amountSold: 0, moneyOwed: 0, followUpPlan: '',
+                    threeDoorKnocks: false, membershipPlanSold: false,
+                    upsellCompleted: false, upsellAmount: 0, 
+                    jobComplete: false, jobSold: false,
+                    amountSold: 0, moneyOwed: 0,
                     leftEstimate: false, estimateAmount: 0,
                     jobCancelled: false, cancelReason: '',
                     tradePlumbing: false, tradeHVAC: false,
                     tradeElectrical: false, tradeCameras: false,
+                    objection: '',
                     timestamp: Date.now(), timeOfDay: new Date().getHours()
                 });
             };
