@@ -7,31 +7,56 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .calendar-day {
+            transition: all 0.3s ease;
+        }
+        .calendar-day:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        }
+        .call-card {
+            transition: all 0.2s ease;
+        }
+        .call-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+    </style>
 </head>
-<body class="bg-gray-50">
-    <div class="p-4" style="max-width: 1280px; margin: 0 auto;">
-        <div class="flex items-center justify-between mb-6">
-            <h1 class="text-3xl font-bold text-blue-900">📞 Log Calls</h1>
-            <a href="index.html" class="px-4 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700">← Back to Dashboard</a>
+<body class="bg-gradient-to-br from-gray-50 to-green-50 min-h-screen">
+    <div class="p-6" style="max-width: 1400px; margin: 0 auto;">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-700 text-white p-6 rounded-2xl shadow-2xl mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-4xl font-black mb-1">📞 Log Calls</h1>
+                    <p class="text-lg opacity-90" id="personName"></p>
+                </div>
+                <a href="index.html" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-xl font-bold transition-all backdrop-blur-sm">
+                    ← Back to Dashboard
+                </a>
+            </div>
         </div>
 
-        <div id="personName" class="text-xl font-bold text-gray-700 mb-4"></div>
-
-        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow-lg border-2 border-blue-300 mb-6">
+        <!-- Calendar Widget -->
+        <div class="bg-white p-6 rounded-2xl shadow-xl mb-6">
             <div class="flex items-center justify-between mb-6">
-                <button id="prevWeek" class="p-3 bg-white rounded-full hover:bg-blue-100 shadow font-bold text-xl">←</button>
-                <h2 id="weekRange" class="text-xl font-bold text-blue-900"></h2>
-                <button id="nextWeek" class="p-3 bg-white rounded-full hover:bg-blue-100 shadow font-bold text-xl">→</button>
+                <button id="prevWeek" class="p-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 font-bold text-2xl shadow-lg transition-all">←</button>
+                <h2 id="weekRange" class="text-2xl font-bold text-gray-800"></h2>
+                <button id="nextWeek" class="p-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 font-bold text-2xl shadow-lg transition-all">→</button>
             </div>
             <div id="calendarContainer"></div>
         </div>
 
-        <div id="callsSection" style="display: none;" class="bg-white p-6 rounded-lg shadow-lg">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-2xl font-bold text-blue-900">Call Logs</h3>
-                <button id="addCallBtn" class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold">+ Add Call</button>
+        <!-- Call Logs Section -->
+        <div id="callsSection" style="display: none;" class="bg-white p-6 rounded-2xl shadow-xl">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-3xl font-bold text-gray-800">Call Logs</h3>
+                <button id="addCallBtn" class="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 font-bold shadow-lg transition-all">
+                    + Add Call
+                </button>
             </div>
-            <div id="callsList" class="space-y-4 max-h-[600px] overflow-y-auto"></div>
+            <div id="callsList" class="space-y-4 max-h-[800px] overflow-y-auto"></div>
         </div>
     </div>
 
@@ -89,12 +114,12 @@
 
             const container = document.getElementById('calendarContainer');
             container.innerHTML = `
-                <div class="grid grid-cols-7 gap-3">
+                <div class="grid grid-cols-7 gap-3 mb-3">
                     ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(day => 
-                        `<div class="text-center text-sm font-bold text-blue-700 mb-2">${day}</div>`
+                        `<div class="text-center text-sm font-bold text-gray-600">${day}</div>`
                     ).join('')}
                 </div>
-                <div id="calendarDays" class="grid grid-cols-7 gap-3 mt-2"></div>
+                <div id="calendarDays" class="grid grid-cols-7 gap-3"></div>
             `;
             
             const daysContainer = document.getElementById('calendarDays');
@@ -110,9 +135,9 @@
                     const isSelected = selectedDate === dateKey;
 
                     const dayDiv = document.createElement('button');
-                    dayDiv.className = `p-4 rounded-xl border-2 transition-all ${
-                        isSelected ? 'border-blue-600 bg-blue-100 shadow-lg' :
-                        callsArray.length > 0 ? 'border-green-400 bg-green-50 hover:shadow-md' :
+                    dayDiv.className = `calendar-day p-4 rounded-xl border-2 ${
+                        isSelected ? 'border-blue-600 bg-gradient-to-br from-blue-100 to-indigo-100 shadow-xl' :
+                        callsArray.length > 0 ? 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 hover:shadow-lg' :
                         isToday ? 'border-blue-300 bg-white shadow-md' :
                         'border-gray-200 bg-white hover:border-gray-300'
                     }`;
@@ -124,17 +149,23 @@
                     };
 
                     dayDiv.innerHTML = `
-                        <div class="text-xl font-bold">${d.getDate()}</div>
+                        <div class="text-2xl font-black text-gray-800">${d.getDate()}</div>
                         ${callsArray.length > 0 ? `
-                            <div class="mt-2">
+                            <div class="mt-2 space-y-1">
                                 <div class="text-xs font-bold text-green-700">${sold.length} sold</div>
                                 <div class="text-xs font-bold text-green-700">$${total.toLocaleString()}</div>
                             </div>
-                        ` : ''}
+                        ` : '<div class="text-xs text-gray-400 mt-2">No calls</div>'}
                     `;
                     daysContainer.appendChild(dayDiv);
                 });
             });
+        }
+
+        function calculateMoneyOwed(amountSold, amountCollected) {
+            const sold = parseFloat(amountSold) || 0;
+            const collected = parseFloat(amountCollected) || 0;
+            return Math.max(0, sold - collected);
         }
 
         function renderCalls(date) {
@@ -147,115 +178,128 @@
 
                 const container = document.getElementById('callsList');
                 if (callsArray.length === 0) {
-                    container.innerHTML = '<p class="text-center text-gray-500 py-8">No calls logged for this day</p>';
+                    container.innerHTML = '<p class="text-center text-gray-500 py-12 text-lg">No calls logged for this day</p>';
                 } else {
                     container.innerHTML = callsArray.map(call => `
-                        <div class="p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
-                            <div class="flex justify-between mb-3">
-                                <span class="text-sm font-bold text-gray-600">Call Entry</span>
-                                <button onclick="deleteCall('${call.id}')" class="text-red-600 font-bold hover:text-red-800">🗑️ Delete</button>
+                        <div class="call-card p-6 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl border-2 border-gray-200">
+                            <div class="flex justify-between mb-4">
+                                <span class="text-sm font-bold text-gray-600 bg-white px-3 py-1 rounded-full">Call Entry</span>
+                                <button onclick="deleteCall('${call.id}')" class="text-red-600 font-bold hover:text-red-800 bg-red-50 px-4 py-1 rounded-full transition-all hover:bg-red-100">
+                                    🗑️ Delete
+                                </button>
                             </div>
-                            <div class="space-y-3">
-                                <input type="text" value="${call.customerName || ''}" onchange="updateCall('${call.id}', 'customerName', this.value)" class="w-full px-3 py-2 border-2 rounded-lg" placeholder="Customer Name" />
-                                <input type="text" value="${call.jobNumber || ''}" onchange="updateCall('${call.id}', 'jobNumber', this.value)" class="w-full px-3 py-2 border-2 rounded-lg" placeholder="Job Number" />
-                                <input type="tel" value="${call.customerPhone || ''}" onchange="updateCall('${call.id}', 'customerPhone', this.value)" class="w-full px-3 py-2 border-2 rounded-lg" placeholder="Customer Phone" />
+                            <div class="space-y-4">
+                                <input type="text" value="${call.customerName || ''}" onchange="updateCall('${call.id}', 'customerName', this.value)" class="w-full px-4 py-3 border-2 rounded-xl font-semibold text-lg focus:border-blue-500 focus:outline-none" placeholder="Customer Name" />
+                                <input type="text" value="${call.jobNumber || ''}" onchange="updateCall('${call.id}', 'jobNumber', this.value)" class="w-full px-4 py-3 border-2 rounded-xl focus:border-blue-500 focus:outline-none" placeholder="Job Number" />
+                                <input type="tel" value="${call.customerPhone || ''}" onchange="updateCall('${call.id}', 'customerPhone', this.value)" class="w-full px-4 py-3 border-2 rounded-xl focus:border-blue-500 focus:outline-none" placeholder="Customer Phone" />
                                 
-                                <label class="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-green-400">
-                                    <input type="checkbox" ${call.jobSold ? 'checked' : ''} onchange="updateCall('${call.id}', 'jobSold', this.checked)" class="w-5 h-5" />
-                                    <span class="font-bold text-lg">💰 Job Sold</span>
+                                <label class="flex items-center gap-3 p-4 bg-white rounded-xl border-2 border-gray-300 cursor-pointer hover:border-green-400 transition-all">
+                                    <input type="checkbox" ${call.jobSold ? 'checked' : ''} onchange="updateCall('${call.id}', 'jobSold', this.checked)" class="w-6 h-6" />
+                                    <span class="font-bold text-xl">💰 Job Sold</span>
                                 </label>
                                 
                                 ${call.jobSold ? `
-                                    <div class="space-y-2">
-                                        <input type="number" value="${call.amountSold || ''}" onchange="updateCall('${call.id}', 'amountSold', parseFloat(this.value) || 0)" class="w-full px-3 py-2 border-2 border-green-300 rounded-lg text-lg font-bold" placeholder="Amount Sold ($)" />
-                                        <input type="number" value="${call.moneyOwed || ''}" onchange="updateCall('${call.id}', 'moneyOwed', parseFloat(this.value) || 0)" class="w-full px-3 py-2 border-2 border-orange-300 rounded-lg font-bold" placeholder="Money Owed ($)" />
+                                    <div class="space-y-3 p-4 bg-green-50 rounded-xl border-2 border-green-300">
+                                        <div>
+                                            <label class="text-sm font-bold text-gray-700 block mb-1">Total Amount Sold ($)</label>
+                                            <input id="amountSold_${call.id}" type="number" value="${call.amountSold || ''}" onchange="handleAmountChange('${call.id}')" class="w-full px-4 py-3 border-2 border-green-400 rounded-xl text-xl font-bold focus:outline-none focus:border-green-500" placeholder="0.00" />
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-bold text-gray-700 block mb-1">Amount Collected ($)</label>
+                                            <input id="amountCollected_${call.id}" type="number" value="${call.amountCollected || ''}" onchange="handleAmountChange('${call.id}')" class="w-full px-4 py-3 border-2 border-blue-400 rounded-xl text-xl font-bold focus:outline-none focus:border-blue-500" placeholder="0.00" />
+                                        </div>
+                                        <div class="p-4 bg-gradient-to-r from-orange-100 to-red-100 rounded-xl border-2 border-orange-400">
+                                            <label class="text-sm font-bold text-orange-800 block mb-1">💵 Money Still Owed</label>
+                                            <p id="moneyOwed_${call.id}" class="text-3xl font-black text-orange-900">$${calculateMoneyOwed(call.amountSold, call.amountCollected).toLocaleString()}</p>
+                                            <p class="text-xs text-gray-600 mt-1">Auto-calculated: Sold - Collected</p>
+                                        </div>
                                     </div>
                                 ` : ''}
 
-                                <label class="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-red-400">
-                                    <input type="checkbox" ${call.jobCancelled ? 'checked' : ''} onchange="updateCall('${call.id}', 'jobCancelled', this.checked)" class="w-5 h-5" />
-                                    <span class="font-bold text-lg">❌ Job Cancelled</span>
+                                <label class="flex items-center gap-3 p-4 bg-white rounded-xl border-2 border-gray-300 cursor-pointer hover:border-red-400 transition-all">
+                                    <input type="checkbox" ${call.jobCancelled ? 'checked' : ''} onchange="updateCall('${call.id}', 'jobCancelled', this.checked)" class="w-6 h-6" />
+                                    <span class="font-bold text-xl">❌ Job Cancelled</span>
                                 </label>
                                 
                                 ${call.jobCancelled ? `
-                                    <textarea onchange="updateCall('${call.id}', 'cancelReason', this.value)" class="w-full px-3 py-2 border-2 border-red-300 rounded-lg" placeholder="Reason for cancellation..." rows="3">${call.cancelReason || ''}</textarea>
+                                    <textarea onchange="updateCall('${call.id}', 'cancelReason', this.value)" class="w-full px-4 py-3 border-2 border-red-300 rounded-xl focus:outline-none focus:border-red-500" placeholder="Reason for cancellation..." rows="3">${call.cancelReason || ''}</textarea>
                                 ` : ''}
 
-                                <label class="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 cursor-pointer hover:border-orange-400">
-                                    <input type="checkbox" ${call.leftEstimate ? 'checked' : ''} onchange="updateCall('${call.id}', 'leftEstimate', this.checked)" class="w-5 h-5" />
-                                    <span class="font-bold">📋 Left Estimate</span>
+                                <label class="flex items-center gap-3 p-4 bg-white rounded-xl border-2 border-gray-300 cursor-pointer hover:border-orange-400 transition-all">
+                                    <input type="checkbox" ${call.leftEstimate ? 'checked' : ''} onchange="updateCall('${call.id}', 'leftEstimate', this.checked)" class="w-6 h-6" />
+                                    <span class="font-bold text-lg">📋 Left Estimate</span>
                                 </label>
                                 
                                 ${call.leftEstimate ? `
-                                    <input type="number" value="${call.estimateAmount || ''}" onchange="updateCall('${call.id}', 'estimateAmount', parseFloat(this.value) || 0)" class="w-full px-3 py-2 border-2 border-orange-300 rounded-lg" placeholder="Estimate Amount ($)" />
+                                    <input type="number" value="${call.estimateAmount || ''}" onchange="updateCall('${call.id}', 'estimateAmount', parseFloat(this.value) || 0)" class="w-full px-4 py-3 border-2 border-orange-300 rounded-xl focus:outline-none focus:border-orange-500" placeholder="Estimate Amount ($)" />
                                 ` : ''}
 
-                                <div class="border-t-2 pt-3 mt-3">
-                                    <p class="font-bold text-sm text-gray-700 mb-2">Trade Type</p>
+                                <div class="border-t-2 pt-4 mt-4">
+                                    <p class="font-bold text-sm text-gray-700 mb-3">Trade Type</p>
                                     <div class="grid grid-cols-2 gap-2">
-                                        <label class="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-300 cursor-pointer">
-                                            <input type="checkbox" ${call.tradePlumbing ? 'checked' : ''} onchange="updateCall('${call.id}', 'tradePlumbing', this.checked)" class="w-4 h-4" />
+                                        <label class="flex items-center gap-2 p-3 bg-blue-50 rounded-xl border-2 border-blue-300 cursor-pointer hover:bg-blue-100 transition-all">
+                                            <input type="checkbox" ${call.tradePlumbing ? 'checked' : ''} onchange="updateCall('${call.id}', 'tradePlumbing', this.checked)" class="w-5 h-5" />
                                             <span class="text-sm font-bold text-blue-700">🔧 Plumbing</span>
                                         </label>
-                                        <label class="flex items-center gap-2 p-2 bg-yellow-50 rounded border border-yellow-300 cursor-pointer">
-                                            <input type="checkbox" ${call.tradeElectrical ? 'checked' : ''} onchange="updateCall('${call.id}', 'tradeElectrical', this.checked)" class="w-4 h-4" />
+                                        <label class="flex items-center gap-2 p-3 bg-yellow-50 rounded-xl border-2 border-yellow-300 cursor-pointer hover:bg-yellow-100 transition-all">
+                                            <input type="checkbox" ${call.tradeElectrical ? 'checked' : ''} onchange="updateCall('${call.id}', 'tradeElectrical', this.checked)" class="w-5 h-5" />
                                             <span class="text-sm font-bold text-yellow-700">⚡ Electrical</span>
                                         </label>
-                                        <label class="flex items-center gap-2 p-2 bg-red-50 rounded border border-red-300 cursor-pointer">
-                                            <input type="checkbox" ${call.tradeHVAC ? 'checked' : ''} onchange="updateCall('${call.id}', 'tradeHVAC', this.checked)" class="w-4 h-4" />
+                                        <label class="flex items-center gap-2 p-3 bg-red-50 rounded-xl border-2 border-red-300 cursor-pointer hover:bg-red-100 transition-all">
+                                            <input type="checkbox" ${call.tradeHVAC ? 'checked' : ''} onchange="updateCall('${call.id}', 'tradeHVAC', this.checked)" class="w-5 h-5" />
                                             <span class="text-sm font-bold text-red-700">🌡️ HVAC</span>
                                         </label>
-                                        <label class="flex items-center gap-2 p-2 bg-purple-50 rounded border border-purple-300 cursor-pointer">
-                                            <input type="checkbox" ${call.tradeCameras ? 'checked' : ''} onchange="updateCall('${call.id}', 'tradeCameras', this.checked)" class="w-4 h-4" />
+                                        <label class="flex items-center gap-2 p-3 bg-purple-50 rounded-xl border-2 border-purple-300 cursor-pointer hover:bg-purple-100 transition-all">
+                                            <input type="checkbox" ${call.tradeCameras ? 'checked' : ''} onchange="updateCall('${call.id}', 'tradeCameras', this.checked)" class="w-5 h-5" />
                                             <span class="text-sm font-bold text-purple-700">📹 Cameras</span>
                                         </label>
                                     </div>
                                 </div>
 
-                                <div class="border-t-2 pt-3 mt-3">
-                                    <p class="font-bold text-sm text-gray-700 mb-2">Performance Metrics</p>
+                                <div class="border-t-2 pt-4 mt-4">
+                                    <p class="font-bold text-sm text-gray-700 mb-3">Performance Metrics</p>
                                     <div class="grid grid-cols-2 gap-2">
-                                        <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-all">
                                             <input type="checkbox" ${call.reviewCompleted ? 'checked' : ''} onchange="updateCall('${call.id}', 'reviewCompleted', this.checked)" class="w-4 h-4" />
                                             <span>✅ Review</span>
                                         </label>
-                                        <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-all">
                                             <input type="checkbox" ${call.restorationLead ? 'checked' : ''} onchange="updateCall('${call.id}', 'restorationLead', this.checked)" class="w-4 h-4" />
                                             <span>🏠 Restoration</span>
                                         </label>
-                                        <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-all">
                                             <input type="checkbox" ${call.turnoverAttempted ? 'checked' : ''} onchange="updateCall('${call.id}', 'turnoverAttempted', this.checked)" class="w-4 h-4" />
                                             <span>🔄 Turnover Attempt</span>
                                         </label>
-                                        <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-all">
                                             <input type="checkbox" ${call.turnoverAccepted ? 'checked' : ''} onchange="updateCall('${call.id}', 'turnoverAccepted', this.checked)" ${!call.turnoverAttempted ? 'disabled' : ''} class="w-4 h-4" />
                                             <span>✔️ Turnover Accept</span>
                                         </label>
-                                        <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-all">
                                             <input type="checkbox" ${call.threeDoorKnocks ? 'checked' : ''} onchange="updateCall('${call.id}', 'threeDoorKnocks', this.checked)" class="w-4 h-4" />
                                             <span>🚪 3 Door Knocks</span>
                                         </label>
-                                        <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-all">
                                             <input type="checkbox" ${call.membershipPlanSold ? 'checked' : ''} onchange="updateCall('${call.id}', 'membershipPlanSold', this.checked)" class="w-4 h-4" />
                                             <span>🛡️ Membership Plan</span>
                                         </label>
-                                        <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-all">
                                             <input type="checkbox" ${call.upsellCompleted ? 'checked' : ''} onchange="updateCall('${call.id}', 'upsellCompleted', this.checked)" class="w-4 h-4" />
                                             <span>⬆️ Upsell</span>
                                         </label>
-                                        <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-all">
                                             <input type="checkbox" ${call.jobComplete ? 'checked' : ''} onchange="updateCall('${call.id}', 'jobComplete', this.checked)" class="w-4 h-4" />
                                             <span>✔️ Complete</span>
                                         </label>
                                     </div>
                                     ${call.upsellCompleted ? `
-                                        <input type="number" value="${call.upsellAmount || ''}" onchange="updateCall('${call.id}', 'upsellAmount', parseFloat(this.value) || 0)" class="w-full px-3 py-2 border-2 rounded-lg mt-2" placeholder="Upsell Amount ($)" />
+                                        <input type="number" value="${call.upsellAmount || ''}" onchange="updateCall('${call.id}', 'upsellAmount', parseFloat(this.value) || 0)" class="w-full px-4 py-3 border-2 rounded-xl mt-3 focus:outline-none focus:border-blue-500" placeholder="Upsell Amount ($)" />
                                     ` : ''}
                                 </div>
 
-                                <div class="border-t-2 pt-3 mt-3">
+                                <div class="border-t-2 pt-4 mt-4">
                                     <p class="font-bold text-sm text-gray-700 mb-2">🚫 Objection (if any)</p>
-                                    <select onchange="updateCall('${call.id}', 'objection', this.value)" class="w-full px-3 py-2 border-2 rounded-lg">
+                                    <select onchange="updateCall('${call.id}', 'objection', this.value)" class="w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:border-blue-500">
                                         <option value="">No objection</option>
                                         <option value="price" ${call.objection === 'price' ? 'selected' : ''}>💰 Price too high</option>
                                         <option value="think" ${call.objection === 'think' ? 'selected' : ''}>🤔 Need to think about it</option>
@@ -280,7 +324,7 @@
                     threeDoorKnocks: false, membershipPlanSold: false,
                     upsellCompleted: false, upsellAmount: 0, 
                     jobComplete: false, jobSold: false,
-                    amountSold: 0, moneyOwed: 0,
+                    amountSold: 0, amountCollected: 0, moneyOwed: 0,
                     leftEstimate: false, estimateAmount: 0,
                     jobCancelled: false, cancelReason: '',
                     tradePlumbing: false, tradeHVAC: false,
@@ -289,6 +333,21 @@
                     timestamp: Date.now(), timeOfDay: new Date().getHours()
                 });
             };
+        }
+
+        function handleAmountChange(callId) {
+            const key = dataKey(getWeek(currentDate).find(d => dk(d) === selectedDate));
+            const amountSold = parseFloat(document.getElementById(`amountSold_${callId}`).value) || 0;
+            const amountCollected = parseFloat(document.getElementById(`amountCollected_${callId}`).value) || 0;
+            const moneyOwed = calculateMoneyOwed(amountSold, amountCollected);
+
+            db.ref(`callLogs/${key}/${callId}`).update({
+                amountSold: amountSold,
+                amountCollected: amountCollected,
+                moneyOwed: moneyOwed
+            });
+
+            document.getElementById(`moneyOwed_${callId}`).textContent = `$${moneyOwed.toLocaleString()}`;
         }
 
         function updateCall(callId, field, value) {
