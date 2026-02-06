@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Owed - Action Plumbing</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="p-4" style="max-width: 1280px; margin: 0 auto;">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-3xl font-bold text-blue-900">💰 Money Owed Tracker</h1>
+            <a href="index.html" class="px-4 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700">← Back to Dashboard</a>
+        </div>
+
+        <div id="personName" class="text-xl font-bold text-gray-700 mb-4"></div>
+
+        <div class="bg-gradient-to-br from-red-50 to-orange-50 p-6 rounded-lg shadow-lg border-2 border-red-300 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-white rounded-lg border-2 border-red-400">
+                    <p class="text-sm font-bold text-red-700">Total Outstanding</p>
+                    <p id="totalOwed" class="text-4xl font-bold text-red-900">$0</p>
+                    <p id="totalJobs" class="text-xs text-gray-600">0 jobs</p>
+                </div>
+                <div class="p-4 bg-white rounded-lg border-2 border-orange-400">
+                    <p class="text-sm font-bold text-orange-700">This Month</p>
+                    <p id="monthOwed" class="text-4xl font-bold text-orange-900">$0</p>
+                    <p id="monthJobs" class="text-xs text-gray-600">0 jobs</p>
+                </div>
+                <div class="p-4 bg-white rounded-lg border-2 border-yellow-400">
+                    <p class="text-sm font-bold text-yellow-700">Oldest Outstanding</p>
+                    <p id="oldestDate" class="text-2xl font-bold text-yellow-900">-</p>
+                    <p class="text-xs text-gray-600">days ago</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-bold text-red-900">Outstanding Payments</h2>
+                <div class="flex gap-2">
+                    <button id="showAll" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700">All Time</button>
+                    <button id="showMonth" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400">This Month</button>
+                </div>
+            </div>
+            <div id="owedList" class="space-y-3"></div>
+            <div id="emptyMsg" style="display: none;" class="text-center py-12 bg-gray-50 rounded-lg">
+                <p class="text-xl text-gray-500">No outstanding payments! 🎉</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        firebase.initializeApp({
+            apiKey: "AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",
+            authDomain: "action-sales-tracker.firebaseapp.com",
+            databaseURL: "https://action-sales-tracker-default-rtdb.firebaseio.com",
+            projectId: "action-sales-tracker",
+            storageBucket: "action-sales-tracker.firebasestorage.app",
+            messagingSenderId: "686455834332",
+            appId: "1:686455834332:web:84e9b843f912522bbdd619"
+        });
+
+        const db = firebase.database();
+        const selected = localStorage.getItem('selectedPerson');
+        let people = [];
+        let logs = {};
+        let showMonthOnly = false;
+
+        if (!selected) {
+            window.location.href = 'index.html';
+        }
+
+        db.ref('salespeople').once('value', snapshot => {
+            const data = snapshot.val();
+            people = data ? Object.keys(data).map(k => ({ id: k, name: data[k].name })) : [];
+            const person = people.find(p => p.id === selected);
+            if (person) {
+                document.getElementById('personName').textContent = `Money Owed for: ${person.name}`;
+            }
+        });
+
+        db.ref('callLogs').on('value', snapshot => {
+            logs = snapshot.val() || {};
+            renderAll();
+        });
+
+        const dk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+        function getAllOwedCalls() {
+            const allCalls = [];
+            Object.keys(logs).forEach(dateKey => {
+                if (dateKey.startsWith(selected + '_')) {
+                    const dateStr = dateKey.split('_')[1];
+                    const callsObj = logs[dateKey];
+                    Object.keys(callsObj).forEach(callId => {
+                        const call = callsObj[callId];
+                        if (call.moneyOwed && parseFloat(call.moneyOwed) > 0) {
+                            allCalls.push({
+                                ...call,
+                                date: dateStr,
+                                dateKey: dateKey,
+                                callId: callId
+                            });
+                        }
+                    });
+                }
+            });
+            return allCalls.sort((a, b) => a.date.localeCompare(b.date));
+        }
+
+        function renderAll() {
+            const allOwed = getAllOwedCalls();
+            const today = new Date();
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            const monthKey = dk(monthStart).substring(0, 7); // YYYY-MM
+
+            const monthOwed = allOwed.filter(call => call.date.startsWith(monthKey));
+            const displayOwed = showMonthOnly ? monthOwed : allOwed;
+
+            // Calculate totals
+            const totalAmount = allOwed.reduce((sum, call) => sum + (parseFloat(call.moneyOwed) || 0), 0);
+            const monthAmount = monthOwed.reduce((sum, call) => sum + (parseFloat(call.moneyOwed) || 0), 0);
+
+            document.getElementById('totalOwed').textContent = `$${totalAmount.toLocaleString()}`;
+            document.getElementById('totalJobs').textContent = `${allOwed.length} jobs`;
+            document.getElementById('monthOwed').textContent = `$${monthAmount.toLocaleString()}`;
+            document.getElementById('monthJobs').textContent = `${monthOwed.length} jobs`;
+
+            // Calculate oldest
+            if (allOwed.length > 0) {
+                const oldestDateStr = allOwed[0].date;
+                const oldestDate = new Date(oldestDateStr);
+                const daysDiff = Math.floor((today - oldestDate) / (1000 * 60 * 60 * 24));
+                document.getElementById('oldestDate').textContent = `${daysDiff} days`;
+            } else {
+                document.getElementById('oldestDate').textContent = '-';
+            }
+
+            // Render list
+            const container = document.getElementById('owedList');
+            const emptyMsg = document.getElementById('emptyMsg');
+
+            if (displayOwed.length === 0) {
+                container.style.display = 'none';
+                emptyMsg.style.display = 'block';
+            } else {
+                container.style.display = 'block';
+                emptyMsg.style.display = 'none';
+
+                container.innerHTML = displayOwed.map(call => {
+                    const callDate = new Date(call.date);
+                    const daysSince = Math.floor((today - callDate) / (1000 * 60 * 60 * 24));
+                    const urgency = daysSince > 30 ? 'red' : daysSince > 14 ? 'orange' : 'yellow';
+
+                    return `
+                        <div class="p-4 bg-${urgency}-50 rounded-lg border-2 border-${urgency}-300">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <p class="font-bold text-lg">${call.customerName || 'Unnamed Customer'}</p>
+                                    <p class="text-sm text-gray-600">Job #${call.jobNumber || 'N/A'}</p>
+                                    <p class="text-sm text-gray-600">${call.customerPhone || 'No phone'}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-2xl font-bold text-${urgency}-900">$${parseFloat(call.moneyOwed).toLocaleString()}</p>
+                                    <p class="text-xs text-gray-600">${daysSince} days ago</p>
+                                    <p class="text-xs text-gray-500">${new Date(call.date).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+                            ${call.amountSold ? `
+                                <div class="text-sm text-gray-600 mb-2">
+                                    Total Sale: $${parseFloat(call.amountSold).toLocaleString()}
+                                </div>
+                            ` : ''}
+                            <div class="flex gap-2">
+                                <button onclick="markPaid('${call.dateKey}', '${call.callId}')" class="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 text-sm">✓ Mark as Paid</button>
+                                <button onclick="updateAmount('${call.dateKey}', '${call.callId}', ${call.moneyOwed})" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 text-sm">Edit Amount</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function markPaid(dateKey, callId) {
+            if (confirm('Mark this payment as received?')) {
+                db.ref(`callLogs/${dateKey}/${callId}/moneyOwed`).set(0);
+            }
+        }
+
+        function updateAmount(dateKey, callId, currentAmount) {
+            const newAmount = prompt('Enter new amount owed:', currentAmount);
+            if (newAmount !== null) {
+                const amount = parseFloat(newAmount) || 0;
+                db.ref(`callLogs/${dateKey}/${callId}/moneyOwed`).set(amount);
+            }
+        }
+
+        document.getElementById('showAll').onclick = () => {
+            showMonthOnly = false;
+            document.getElementById('showAll').className = 'px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700';
+            document.getElementById('showMonth').className = 'px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400';
+            renderAll();
+        };
+
+        document.getElementById('showMonth').onclick = () => {
+            showMonthOnly = true;
+            document.getElementById('showMonth').className = 'px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700';
+            document.getElementById('showAll').className = 'px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400';
+            renderAll();
+        };
+
+        renderAll();
+    </script>
+</body>
+</html>
