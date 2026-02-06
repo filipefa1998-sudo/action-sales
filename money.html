@@ -3,50 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Money Owed - Action Plumbing</title>
+    <title>Money Owed & Estimates - Action Plumbing</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50">
-    <div class="p-4" style="max-width: 1280px; margin: 0 auto;">
+    <div class="p-4" style="max-width: 1400px; margin: 0 auto;">
         <div class="flex items-center justify-between mb-6">
-            <h1 class="text-3xl font-bold text-blue-900">💰 Money Owed Tracker</h1>
+            <h1 class="text-3xl font-bold text-blue-900">💰 Money Owed & Estimates Tracker</h1>
             <a href="index.html" class="px-4 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700">← Back to Dashboard</a>
         </div>
 
         <div id="personName" class="text-xl font-bold text-gray-700 mb-4"></div>
 
-        <div class="bg-gradient-to-br from-red-50 to-orange-50 p-6 rounded-lg shadow-lg border-2 border-red-300 mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="p-4 bg-white rounded-lg border-2 border-red-400">
-                    <p class="text-sm font-bold text-red-700">Total Outstanding</p>
-                    <p id="totalOwed" class="text-4xl font-bold text-red-900">$0</p>
-                    <p id="totalJobs" class="text-xs text-gray-600">0 jobs</p>
-                </div>
-                <div class="p-4 bg-white rounded-lg border-2 border-orange-400">
-                    <p class="text-sm font-bold text-orange-700">This Month</p>
-                    <p id="monthOwed" class="text-4xl font-bold text-orange-900">$0</p>
-                    <p id="monthJobs" class="text-xs text-gray-600">0 jobs</p>
-                </div>
-                <div class="p-4 bg-white rounded-lg border-2 border-yellow-400">
-                    <p class="text-sm font-bold text-yellow-700">Oldest Outstanding</p>
-                    <p id="oldestDate" class="text-2xl font-bold text-yellow-900">-</p>
-                    <p class="text-xs text-gray-600">days ago</p>
-                </div>
+        <!-- Summary Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="p-4 bg-gradient-to-br from-red-50 to-orange-50 rounded-lg border-2 border-red-300 shadow-lg">
+                <p class="text-sm font-bold text-red-700">Total Money Owed</p>
+                <p id="totalOwed" class="text-4xl font-bold text-red-900">$0</p>
+                <p id="totalOwedJobs" class="text-xs text-gray-600">0 jobs</p>
+            </div>
+            <div class="p-4 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-lg border-2 border-orange-300 shadow-lg">
+                <p class="text-sm font-bold text-orange-700">Active Estimates</p>
+                <p id="totalEstimates" class="text-4xl font-bold text-orange-900">0</p>
+                <p id="totalEstimatesValue" class="text-xs text-gray-600">$0 potential</p>
+            </div>
+            <div class="p-4 bg-gradient-to-br from-yellow-50 to-lime-50 rounded-lg border-2 border-yellow-300 shadow-lg">
+                <p class="text-sm font-bold text-yellow-700">Needs Follow-up</p>
+                <p id="needsFollowup" class="text-4xl font-bold text-yellow-900">0</p>
+                <p class="text-xs text-gray-600">< 3 attempts</p>
+            </div>
+            <div class="p-4 bg-gradient-to-br from-gray-50 to-slate-50 rounded-lg border-2 border-gray-300 shadow-lg">
+                <p class="text-sm font-bold text-gray-700">Oldest Outstanding</p>
+                <p id="oldestDate" class="text-3xl font-bold text-gray-900">-</p>
+                <p class="text-xs text-gray-600">days ago</p>
             </div>
         </div>
 
+        <!-- Estimates Section -->
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-bold text-orange-900">📋 Active Estimates</h2>
+                <div class="flex gap-2">
+                    <button id="showAllEstimates" class="px-4 py-2 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700">All Time</button>
+                    <button id="showMonthEstimates" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400">This Month</button>
+                </div>
+            </div>
+            <div id="estimatesList" class="space-y-4"></div>
+            <div id="estimatesEmptyMsg" style="display: none;" class="text-center py-12 bg-gray-50 rounded-lg">
+                <p class="text-xl text-gray-500">No active estimates! 🎉</p>
+            </div>
+        </div>
+
+        <!-- Money Owed Section -->
         <div class="bg-white p-6 rounded-lg shadow-lg">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-2xl font-bold text-red-900">Outstanding Payments</h2>
+                <h2 class="text-2xl font-bold text-red-900">💸 Outstanding Payments</h2>
                 <div class="flex gap-2">
-                    <button id="showAll" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700">All Time</button>
-                    <button id="showMonth" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400">This Month</button>
+                    <button id="showAllOwed" class="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700">All Time</button>
+                    <button id="showMonthOwed" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400">This Month</button>
                 </div>
             </div>
             <div id="owedList" class="space-y-3"></div>
-            <div id="emptyMsg" style="display: none;" class="text-center py-12 bg-gray-50 rounded-lg">
+            <div id="owedEmptyMsg" style="display: none;" class="text-center py-12 bg-gray-50 rounded-lg">
                 <p class="text-xl text-gray-500">No outstanding payments! 🎉</p>
             </div>
         </div>
@@ -67,7 +87,8 @@
         const selected = localStorage.getItem('selectedPerson');
         let people = [];
         let logs = {};
-        let showMonthOnly = false;
+        let showMonthOnlyOwed = false;
+        let showMonthOnlyEstimates = false;
 
         if (!selected) {
             window.location.href = 'index.html';
@@ -78,7 +99,7 @@
             people = data ? Object.keys(data).map(k => ({ id: k, name: data[k].name })) : [];
             const person = people.find(p => p.id === selected);
             if (person) {
-                document.getElementById('personName').textContent = `Money Owed for: ${person.name}`;
+                document.getElementById('personName').textContent = `Tracking for: ${person.name}`;
             }
         });
 
@@ -89,8 +110,32 @@
 
         const dk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-        function getAllOwedCalls() {
-            const allCalls = [];
+        function getAllEstimates() {
+            const allEstimates = [];
+            Object.keys(logs).forEach(dateKey => {
+                if (dateKey.startsWith(selected + '_')) {
+                    const dateStr = dateKey.split('_')[1];
+                    const callsObj = logs[dateKey];
+                    Object.keys(callsObj).forEach(callId => {
+                        const call = callsObj[callId];
+                        if (call.leftEstimate && parseFloat(call.estimateAmount) > 0 && !call.jobSold && !call.estimateLost) {
+                            allEstimates.push({
+                                ...call,
+                                date: dateStr,
+                                dateKey: dateKey,
+                                callId: callId,
+                                followUpAttempts: call.followUpAttempts || 0,
+                                followUpPlan: call.followUpPlan || ''
+                            });
+                        }
+                    });
+                }
+            });
+            return allEstimates.sort((a, b) => a.date.localeCompare(b.date));
+        }
+
+        function getAllOwed() {
+            const allOwed = [];
             Object.keys(logs).forEach(dateKey => {
                 if (dateKey.startsWith(selected + '_')) {
                     const dateStr = dateKey.split('_')[1];
@@ -98,7 +143,7 @@
                     Object.keys(callsObj).forEach(callId => {
                         const call = callsObj[callId];
                         if (call.moneyOwed && parseFloat(call.moneyOwed) > 0) {
-                            allCalls.push({
+                            allOwed.push({
                                 ...call,
                                 date: dateStr,
                                 dateKey: dateKey,
@@ -108,49 +153,138 @@
                     });
                 }
             });
-            return allCalls.sort((a, b) => a.date.localeCompare(b.date));
+            return allOwed.sort((a, b) => a.date.localeCompare(b.date));
         }
 
         function renderAll() {
-            const allOwed = getAllOwedCalls();
             const today = new Date();
             const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-            const monthKey = dk(monthStart).substring(0, 7); // YYYY-MM
+            const monthKey = dk(monthStart).substring(0, 7);
 
-            const monthOwed = allOwed.filter(call => call.date.startsWith(monthKey));
-            const displayOwed = showMonthOnly ? monthOwed : allOwed;
+            const allEstimates = getAllEstimates();
+            const allOwed = getAllOwed();
 
-            // Calculate totals
-            const totalAmount = allOwed.reduce((sum, call) => sum + (parseFloat(call.moneyOwed) || 0), 0);
-            const monthAmount = monthOwed.reduce((sum, call) => sum + (parseFloat(call.moneyOwed) || 0), 0);
+            const monthEstimates = allEstimates.filter(e => e.date.startsWith(monthKey));
+            const monthOwed = allOwed.filter(e => e.date.startsWith(monthKey));
 
-            document.getElementById('totalOwed').textContent = `$${totalAmount.toLocaleString()}`;
-            document.getElementById('totalJobs').textContent = `${allOwed.length} jobs`;
-            document.getElementById('monthOwed').textContent = `$${monthAmount.toLocaleString()}`;
-            document.getElementById('monthJobs').textContent = `${monthOwed.length} jobs`;
+            const displayEstimates = showMonthOnlyEstimates ? monthEstimates : allEstimates;
+            const displayOwed = showMonthOnlyOwed ? monthOwed : allOwed;
 
-            // Calculate oldest
-            if (allOwed.length > 0) {
-                const oldestDateStr = allOwed[0].date;
-                const oldestDate = new Date(oldestDateStr);
+            // Summary Stats
+            const totalOwedAmount = allOwed.reduce((sum, e) => sum + (parseFloat(e.moneyOwed) || 0), 0);
+            const totalEstimatesAmount = allEstimates.reduce((sum, e) => sum + (parseFloat(e.estimateAmount) || 0), 0);
+            const needsFollowup = allEstimates.filter(e => (e.followUpAttempts || 0) < 3).length;
+
+            document.getElementById('totalOwed').textContent = `$${totalOwedAmount.toLocaleString()}`;
+            document.getElementById('totalOwedJobs').textContent = `${allOwed.length} jobs`;
+            document.getElementById('totalEstimates').textContent = allEstimates.length;
+            document.getElementById('totalEstimatesValue').textContent = `$${totalEstimatesAmount.toLocaleString()} potential`;
+            document.getElementById('needsFollowup').textContent = needsFollowup;
+
+            // Oldest Outstanding
+            if (allOwed.length > 0 || allEstimates.length > 0) {
+                const oldestOwed = allOwed.length > 0 ? new Date(allOwed[0].date) : null;
+                const oldestEstimate = allEstimates.length > 0 ? new Date(allEstimates[0].date) : null;
+                let oldestDate = oldestOwed;
+                if (oldestEstimate && (!oldestOwed || oldestEstimate < oldestOwed)) {
+                    oldestDate = oldestEstimate;
+                }
                 const daysDiff = Math.floor((today - oldestDate) / (1000 * 60 * 60 * 24));
                 document.getElementById('oldestDate').textContent = `${daysDiff} days`;
             } else {
                 document.getElementById('oldestDate').textContent = '-';
             }
 
-            // Render list
-            const container = document.getElementById('owedList');
-            const emptyMsg = document.getElementById('emptyMsg');
+            // Render Estimates
+            renderEstimates(displayEstimates);
 
-            if (displayOwed.length === 0) {
+            // Render Owed
+            renderOwed(displayOwed);
+        }
+
+        function renderEstimates(estimates) {
+            const container = document.getElementById('estimatesList');
+            const emptyMsg = document.getElementById('estimatesEmptyMsg');
+
+            if (estimates.length === 0) {
                 container.style.display = 'none';
                 emptyMsg.style.display = 'block';
             } else {
                 container.style.display = 'block';
                 emptyMsg.style.display = 'none';
 
-                container.innerHTML = displayOwed.map(call => {
+                const today = new Date();
+                container.innerHTML = estimates.map(est => {
+                    const estDate = new Date(est.date);
+                    const daysSince = Math.floor((today - estDate) / (1000 * 60 * 60 * 24));
+                    const attempts = est.followUpAttempts || 0;
+                    const urgency = daysSince > 14 ? 'red' : daysSince > 7 ? 'orange' : 'yellow';
+
+                    return `
+                        <div class="p-4 bg-${urgency}-50 rounded-lg border-2 border-${urgency}-300">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <p class="font-bold text-lg">${est.customerName || 'Unnamed Customer'}</p>
+                                    <p class="text-sm text-gray-600">Job #${est.jobNumber || 'N/A'}</p>
+                                    <p class="text-sm text-gray-600">${est.customerPhone || 'No phone'}</p>
+                                    <p class="text-xs text-gray-500 mt-1">${daysSince} days ago • ${new Date(est.date).toLocaleDateString()}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-3xl font-bold text-${urgency}-900">$${parseFloat(est.estimateAmount).toLocaleString()}</p>
+                                    <p class="text-sm font-bold mt-1 ${attempts >= 3 ? 'text-red-600' : 'text-gray-700'}">
+                                        Follow-ups: ${attempts}/3
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Follow-up Plan -->
+                            <div class="mb-3">
+                                <label class="text-xs font-bold text-gray-700 block mb-1">Follow-up Plan:</label>
+                                <textarea 
+                                    onchange="updateEstimate('${est.dateKey}', '${est.callId}', 'followUpPlan', this.value)" 
+                                    class="w-full px-3 py-2 border-2 border-${urgency}-300 rounded-lg text-sm" 
+                                    rows="2" 
+                                    placeholder="Add follow-up notes...">${est.followUpPlan || ''}</textarea>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="flex gap-2 flex-wrap">
+                                ${attempts < 3 ? `
+                                    <button onclick="incrementAttempt('${est.dateKey}', '${est.callId}', ${attempts})" 
+                                        class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 text-sm">
+                                        📞 Mark Attempted (${attempts + 1}/3)
+                                    </button>
+                                ` : ''}
+                                <button onclick="convertToSale('${est.dateKey}', '${est.callId}')" 
+                                    class="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 text-sm">
+                                    ✓ Converted to Sale
+                                </button>
+                                ${attempts >= 3 ? `
+                                    <button onclick="markLost('${est.dateKey}', '${est.callId}')" 
+                                        class="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 text-sm">
+                                        ✗ Mark as Lost
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function renderOwed(owed) {
+            const container = document.getElementById('owedList');
+            const emptyMsg = document.getElementById('owedEmptyMsg');
+
+            if (owed.length === 0) {
+                container.style.display = 'none';
+                emptyMsg.style.display = 'block';
+            } else {
+                container.style.display = 'block';
+                emptyMsg.style.display = 'none';
+
+                const today = new Date();
+                container.innerHTML = owed.map(call => {
                     const callDate = new Date(call.date);
                     const daysSince = Math.floor((today - callDate) / (1000 * 60 * 60 * 24));
                     const urgency = daysSince > 30 ? 'red' : daysSince > 14 ? 'orange' : 'yellow';
@@ -175,12 +309,42 @@
                                 </div>
                             ` : ''}
                             <div class="flex gap-2">
-                                <button onclick="markPaid('${call.dateKey}', '${call.callId}')" class="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 text-sm">✓ Mark as Paid</button>
-                                <button onclick="updateAmount('${call.dateKey}', '${call.callId}', ${call.moneyOwed})" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 text-sm">Edit Amount</button>
+                                <button onclick="markPaid('${call.dateKey}', '${call.callId}')" 
+                                    class="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 text-sm">
+                                    ✓ Mark as Paid
+                                </button>
+                                <button onclick="updateOwedAmount('${call.dateKey}', '${call.callId}', ${call.moneyOwed})" 
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 text-sm">
+                                    Edit Amount
+                                </button>
                             </div>
                         </div>
                     `;
                 }).join('');
+            }
+        }
+
+        function updateEstimate(dateKey, callId, field, value) {
+            db.ref(`callLogs/${dateKey}/${callId}/${field}`).set(value);
+        }
+
+        function incrementAttempt(dateKey, callId, currentAttempts) {
+            db.ref(`callLogs/${dateKey}/${callId}/followUpAttempts`).set(currentAttempts + 1);
+        }
+
+        function convertToSale(dateKey, callId) {
+            if (confirm('Mark this estimate as converted to a sale?')) {
+                db.ref(`callLogs/${dateKey}/${callId}`).update({
+                    jobSold: true,
+                    leftEstimate: false
+                });
+                alert('Estimate converted! Remember to enter the sale amount in the call log.');
+            }
+        }
+
+        function markLost(dateKey, callId) {
+            if (confirm('Mark this estimate as lost? It will be removed from the active list.')) {
+                db.ref(`callLogs/${dateKey}/${callId}/estimateLost`).set(true);
             }
         }
 
@@ -190,7 +354,7 @@
             }
         }
 
-        function updateAmount(dateKey, callId, currentAmount) {
+        function updateOwedAmount(dateKey, callId, currentAmount) {
             const newAmount = prompt('Enter new amount owed:', currentAmount);
             if (newAmount !== null) {
                 const amount = parseFloat(newAmount) || 0;
@@ -198,17 +362,32 @@
             }
         }
 
-        document.getElementById('showAll').onclick = () => {
-            showMonthOnly = false;
-            document.getElementById('showAll').className = 'px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700';
-            document.getElementById('showMonth').className = 'px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400';
+        // Filter buttons
+        document.getElementById('showAllEstimates').onclick = () => {
+            showMonthOnlyEstimates = false;
+            document.getElementById('showAllEstimates').className = 'px-4 py-2 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700';
+            document.getElementById('showMonthEstimates').className = 'px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400';
             renderAll();
         };
 
-        document.getElementById('showMonth').onclick = () => {
-            showMonthOnly = true;
-            document.getElementById('showMonth').className = 'px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700';
-            document.getElementById('showAll').className = 'px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400';
+        document.getElementById('showMonthEstimates').onclick = () => {
+            showMonthOnlyEstimates = true;
+            document.getElementById('showMonthEstimates').className = 'px-4 py-2 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700';
+            document.getElementById('showAllEstimates').className = 'px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400';
+            renderAll();
+        };
+
+        document.getElementById('showAllOwed').onclick = () => {
+            showMonthOnlyOwed = false;
+            document.getElementById('showAllOwed').className = 'px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700';
+            document.getElementById('showMonthOwed').className = 'px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400';
+            renderAll();
+        };
+
+        document.getElementById('showMonthOwed').onclick = () => {
+            showMonthOnlyOwed = true;
+            document.getElementById('showMonthOwed').className = 'px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700';
+            document.getElementById('showAllOwed').className = 'px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400';
             renderAll();
         };
 
