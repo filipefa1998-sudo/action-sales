@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goals & Estimates - Action Plumbing</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="p-4" style="max-width: 1280px; margin: 0 auto;">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-3xl font-bold text-blue-900">🎯 Goals & Estimates Tracker</h1>
+            <a href="index.html" class="px-4 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700">← Back to Dashboard</a>
+        </div>
+
+        <div id="personName" class="text-xl font-bold text-gray-700 mb-4"></div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <button id="prevMonth" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700">← Previous</button>
+                <h2 id="monthYear" class="text-2xl font-bold text-blue-900"></h2>
+                <button id="nextMonth" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700">Next →</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="p-4 bg-purple-50 rounded-lg border-2 border-purple-300">
+                    <h3 class="font-bold mb-3">Individual Monthly Goal</h3>
+                    <input id="monthlyGoal" type="number" class="w-full px-3 py-2 border-2 rounded-lg mb-2" placeholder="Set Goal ($)" />
+                    <div id="monthlyProgress"></div>
+                </div>
+
+                <div class="p-4 bg-indigo-50 rounded-lg border-2 border-indigo-300">
+                    <h3 class="font-bold mb-3">Team Monthly Goal</h3>
+                    <input id="teamGoal" type="number" class="w-full px-3 py-2 border-2 rounded-lg mb-2" placeholder="Set Team Goal ($)" />
+                    <div id="teamProgress"></div>
+                </div>
+
+                <div class="p-4 bg-orange-50 rounded-lg border-2 border-orange-300">
+                    <h3 class="font-bold mb-3">📋 Estimates Left This Month</h3>
+                    <div class="space-y-3">
+                        <div class="p-3 bg-white rounded border-2 border-orange-400">
+                            <p class="text-sm text-gray-600">Total Estimates</p>
+                            <p id="estimatesCount" class="text-4xl font-bold text-orange-900">0</p>
+                        </div>
+                        <div class="p-3 bg-white rounded border-2 border-orange-400">
+                            <p class="text-sm text-gray-600">Potential Revenue</p>
+                            <p id="estimatesValue" class="text-4xl font-bold text-orange-900">$0</p>
+                        </div>
+                        <p class="text-xs text-gray-600 italic">💡 Follow up on these estimates to close more deals!</p>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-lime-50 rounded-lg border-2 border-lime-300">
+                    <h3 class="font-bold mb-3">💰 Commission Calculator</h3>
+                    <label class="text-sm font-bold mb-2 block">Commission Rate (%):</label>
+                    <input id="commRate" type="number" step="0.1" class="w-full px-3 py-2 border-2 rounded-lg mb-3" placeholder="0" />
+                    <div class="p-3 bg-white rounded border-2 border-lime-400">
+                        <p class="text-sm text-gray-600">Monthly Commission</p>
+                        <p id="commissionAmount" class="text-3xl font-bold text-lime-900">$0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold mb-4 text-blue-900">📈 Yearly Goal - <span id="yearDisplay"></span></h2>
+            <div class="p-4 bg-blue-50 rounded-lg border-2 border-blue-300">
+                <input id="yearlyGoal" type="number" class="w-full px-3 py-2 border-2 rounded-lg mb-2" placeholder="Set Yearly Goal ($)" />
+                <div id="yearlyProgress"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        firebase.initializeApp({
+            apiKey: "AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",
+            authDomain: "action-sales-tracker.firebaseapp.com",
+            databaseURL: "https://action-sales-tracker-default-rtdb.firebaseio.com",
+            projectId: "action-sales-tracker",
+            storageBucket: "action-sales-tracker.firebasestorage.app",
+            messagingSenderId: "686455834332",
+            appId: "1:686455834332:web:84e9b843f912522bbdd619"
+        });
+
+        const db = firebase.database();
+        const selected = localStorage.getItem('selectedPerson');
+        let currentDate = new Date();
+        let people = [];
+        let logs = {};
+        let mGoals = {};
+        let yGoals = {};
+        let tmGoal = 0;
+        let comm = 0;
+
+        if (!selected) {
+            window.location.href = 'index.html';
+        }
+
+        db.ref('salespeople').on('value', snapshot => {
+            const data = snapshot.val();
+            people = data ? Object.keys(data).map(k => ({ id: k, name: data[k].name })) : [];
+            const person = people.find(p => p.id === selected);
+            if (person) {
+                document.getElementById('personName').textContent = `Goals & Estimates for: ${person.name}`;
+            }
+            renderAll();
+        });
+
+        db.ref('callLogs').on('value', snapshot => {
+            logs = snapshot.val() || {};
+            renderAll();
+        });
+
+        db.ref('monthlyGoals').on('value', snapshot => {
+            mGoals = snapshot.val() || {};
+            renderAll();
+        });
+
+        db.ref('yearlyGoals').on('value', snapshot => {
+            yGoals = snapshot.val() || {};
+            renderAll();
+        });
+
+        db.ref('teamMonthlyGoal').on('value', snapshot => {
+            tmGoal = snapshot.val() || 0;
+            renderAll();
+        });
+
+        db.ref('commissionRate').on('value', snapshot => {
+            comm = snapshot.val() || 0;
+            document.getElementById('commRate').value = comm || '';
+            renderAll();
+        });
+
+        const dk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const mk = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const yk = d => `${d.getFullYear()}`;
+
+        function getMDates(date) {
+            const y = date.getFullYear();
+            const m = date.getMonth();
+            const arr = [];
+            const last = new Date(y, m+1, 0).getDate();
+            for (let day = 1; day <= last; day++) arr.push(new Date(y, m, day));
+            return arr;
+        }
+
+        function getYDates(year) {
+            const arr = [];
+            for (let m = 0; m < 12; m++) {
+                arr.push(...getMDates(new Date(year, m, 1)));
+            }
+            return arr;
+        }
+
+        function getCalls(pid, d) {
+            const key = `${pid}_${dk(d)}`;
+            const l = logs[key];
+            if (!l) return [];
+            return Object.values(l);
+        }
+
+        function calc(pid, dates) {
+            const t = {
+                totalCalls: 0, callsSold: 0, amountSold: 0,
+                estimatesLeft: 0, estimateValue: 0
+            };
+            dates.forEach(d => {
+                const calls = getCalls(pid, d);
+                calls.forEach(c => {
+                    t.totalCalls++;
+                    if (c.jobSold) {
+                        t.callsSold++;
+                        t.amountSold += parseFloat(c.amountSold) || 0;
+                    }
+                    if (c.leftEstimate) {
+                        t.estimatesLeft++;
+                        t.estimateValue += parseFloat(c.estimateAmount) || 0;
+                    }
+                });
+            });
+            return t;
+        }
+
+        function renderAll() {
+            const monthKey = mk(currentDate);
+            const yearKey = yk(currentDate);
+            
+            document.getElementById('monthYear').textContent = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            document.getElementById('yearDisplay').textContent = currentDate.getFullYear();
+
+            const mDates = getMDates(currentDate);
+            const yDates = getYDates(currentDate.getFullYear());
+            const mStats = calc(selected, mDates);
+            const yStats = calc(selected, yDates);
+
+            // Monthly Goal
+            const monthlyGoal = mGoals[`${selected}_${monthKey}`] || 0;
+            document.getElementById('monthlyGoal').value = monthlyGoal || '';
+            
+            if (monthlyGoal > 0) {
+                const progress = (mStats.amountSold / monthlyGoal) * 100;
+                document.getElementById('monthlyProgress').innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span>Progress:</span>
+                            <span class="font-bold">${progress.toFixed(1)}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-6">
+                            <div class="${
+                                progress >= 100 ? 'bg-green-600' :
+                                progress >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                            } h-full rounded-full flex items-center justify-center text-white text-xs font-bold" style="width: ${Math.min(progress, 100)}%">
+                                ${progress.toFixed(0)}%
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-sm pt-2">
+                            <div>
+                                <p class="text-xs text-gray-600">Sold</p>
+                                <p class="font-bold">$${mStats.amountSold.toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-600">Goal</p>
+                                <p class="font-bold">$${monthlyGoal.toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-600">Remaining</p>
+                                <p class="font-bold text-orange-600">$${Math.max(0, monthlyGoal - mStats.amountSold).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                document.getElementById('monthlyProgress').innerHTML = '';
+            }
+
+            // Team Goal
+            document.getElementById('teamGoal').value = tmGoal || '';
+            
+            const tmTotal = people.reduce((sum, p) => {
+                const pStats = calc(p.id, mDates);
+                return sum + pStats.amountSold;
+            }, 0);
+
+            if (tmGoal > 0) {
+                const progress = (tmTotal / tmGoal) * 100;
+                document.getElementById('teamProgress').innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span>Progress:</span>
+                            <span class="font-bold">${progress.toFixed(1)}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-6">
+                            <div class="${
+                                progress >= 100 ? 'bg-green-600' :
+                                progress >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                            } h-full rounded-full flex items-center justify-center text-white text-xs font-bold" style="width: ${Math.min(progress, 100)}%">
+                                ${progress.toFixed(0)}%
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-sm pt-2">
+                            <div>
+                                <p class="text-xs text-gray-600">Team Sold</p>
+                                <p class="font-bold">$${tmTotal.toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-600">Goal</p>
+                                <p class="font-bold">$${tmGoal.toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-600">Remaining</p>
+                                <p class="font-bold text-orange-600">$${Math.max(0, tmGoal - tmTotal).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                document.getElementById('teamProgress').innerHTML = '';
+            }
+
+            // Estimates
+            document.getElementById('estimatesCount').textContent = mStats.estimatesLeft;
+            document.getElementById('estimatesValue').textContent = `$${mStats.estimateValue.toLocaleString()}`;
+
+            // Commission
+            const commissionAmount = (mStats.amountSold * (comm / 100)).toFixed(2);
+            document.getElementById('commissionAmount').textContent = `$${parseFloat(commissionAmount).toLocaleString()}`;
+
+            // Yearly Goal
+            const yearlyGoal = yGoals[`${selected}_${yearKey}`] || 0;
+            document.getElementById('yearlyGoal').value = yearlyGoal || '';
+
+            if (yearlyGoal > 0) {
+                const progress = (yStats.amountSold / yearlyGoal) * 100;
+                document.getElementById('yearlyProgress').innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span>Progress:</span>
+                            <span class="font-bold">${progress.toFixed(1)}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-6">
+                            <div class="${
+                                progress >= 100 ? 'bg-green-600' :
+                                progress >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                            } h-full rounded-full flex items-center justify-center text-white text-xs font-bold" style="width: ${Math.min(progress, 100)}%">
+                                ${progress.toFixed(0)}%
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-sm pt-2">
+                            <div>
+                                <p class="text-xs text-gray-600">Sold So Far</p>
+                                <p class="font-bold">$${yStats.amountSold.toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-600">Goal</p>
+                                <p class="font-bold">$${yearlyGoal.toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-600">Left</p>
+                                <p class="font-bold text-orange-600">$${Math.max(0, yearlyGoal - yStats.amountSold).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                document.getElementById('yearlyProgress').innerHTML = '';
+            }
+        }
+
+        document.getElementById('monthlyGoal').onchange = (e) => {
+            const val = parseFloat(e.target.value) || 0;
+            db.ref(`monthlyGoals/${selected}_${mk(currentDate)}`).set(val);
+        };
+
+        document.getElementById('teamGoal').onchange = (e) => {
+            const val = parseFloat(e.target.value) || 0;
+            db.ref('teamMonthlyGoal').set(val);
+        };
+
+        document.getElementById('yearlyGoal').onchange = (e) => {
+            const val = parseFloat(e.target.value) || 0;
+            db.ref(`yearlyGoals/${selected}_${yk(currentDate)}`).set(val);
+        };
+
+        document.getElementById('commRate').onchange = (e) => {
+            const val = parseFloat(e.target.value) || 0;
+            db.ref('commissionRate').set(val);
+        };
+
+        document.getElementById('prevMonth').onclick = () => {
+            currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+            renderAll();
+        };
+
+        document.getElementById('nextMonth').onclick = () => {
+            currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+            renderAll();
+        };
+
+        renderAll();
+    </script>
+</body>
+</html>
