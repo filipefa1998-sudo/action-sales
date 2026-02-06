@@ -3,41 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Action Plumbing - Dashboard</title>
+    <title>Action Plumbing - Sales Tracker</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .nav-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .nav-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        .person-card {
+            transition: all 0.2s ease;
+        }
+        .person-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .stat-card {
+            transition: all 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: scale(1.05);
+        }
+    </style>
 </head>
-<body class="bg-gray-50">
-    <div class="p-4" style="max-width: 1280px; margin: 0 auto;">
-        <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem; color: #1e3a8a;">🔧 Action Plumbing Sales Tracker</h1>
-        
-        <div id="stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;"></div>
-        
-        <div style="background: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h2 style="font-size: 1.25rem; font-weight: 600;">Select Team Member</h2>
-                <button id="addBtn" style="padding: 0.75rem 1.5rem; background: #2563eb; color: white; border-radius: 0.5rem; font-weight: 600; cursor: pointer; border: none;">+ Add Person</button>
-            </div>
-            
-            <div id="addForm" style="display: none; margin-bottom: 1rem; padding: 1rem; background: #eff6ff; border-radius: 0.5rem; border: 2px solid #bfdbfe;">
-                <div style="display: flex; gap: 0.5rem;">
-                    <input id="nameInput" type="text" placeholder="Enter name" style="flex: 1; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem;" />
-                    <button id="saveBtn" style="padding: 0.75rem 1.5rem; background: #16a34a; color: white; border-radius: 0.5rem; font-weight: 600; cursor: pointer; border: none;">Add</button>
-                    <button id="cancelBtn" style="padding: 0.75rem 1.5rem; background: #6b7280; color: white; border-radius: 0.5rem; font-weight: 600; cursor: pointer; border: none;">Cancel</button>
+<body class="bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
+    <div class="p-6" style="max-width: 1400px; margin: 0 auto;">
+        <!-- Header Banner -->
+        <div class="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white p-8 rounded-2xl shadow-2xl mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-5xl font-black mb-2">🔧 Action Plumbing</h1>
+                    <p class="text-xl opacity-90 font-semibold">Sales Performance Tracker</p>
                 </div>
-            </div>
-            
-            <div id="peopleList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"></div>
-            <div id="emptyMsg" style="display: none; text-align: center; padding: 3rem; background: #f9fafb; border-radius: 0.5rem;">
-                <p style="font-size: 1.25rem; color: #6b7280;">Loading salespeople...</p>
+                <div class="text-right">
+                    <p class="text-sm opacity-75">Today's Date</p>
+                    <p id="currentDate" class="text-2xl font-bold"></p>
+                </div>
             </div>
         </div>
 
-        <div id="navigation" style="display: none; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;"></div>
+        <!-- Today's Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="stat-card bg-gradient-to-br from-green-400 to-emerald-600 text-white p-8 rounded-2xl shadow-xl">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-lg font-semibold opacity-90 mb-2">📞 Today's Calls</p>
+                        <p id="todayCalls" class="text-6xl font-black">0</p>
+                        <p class="text-sm opacity-75 mt-2">All team members</p>
+                    </div>
+                    <div class="text-8xl opacity-20">📞</div>
+                </div>
+            </div>
+            <div class="stat-card bg-gradient-to-br from-purple-400 to-pink-600 text-white p-8 rounded-2xl shadow-xl">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-lg font-semibold opacity-90 mb-2">💰 Today's Revenue</p>
+                        <p id="todayRevenue" class="text-6xl font-black">$0</p>
+                        <p class="text-sm opacity-75 mt-2">Team total</p>
+                    </div>
+                    <div class="text-8xl opacity-20">💰</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Select Team Member -->
+        <div class="bg-white p-8 rounded-2xl shadow-xl mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-3xl font-bold text-gray-800">👥 Select Team Member</h2>
+                <button id="addBtn" class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:from-blue-700 hover:to-indigo-700 shadow-lg transition-all hover:shadow-xl">
+                    + Add Person
+                </button>
+            </div>
+            
+            <div id="addForm" style="display: none;" class="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-300">
+                <div class="flex gap-3">
+                    <input id="nameInput" type="text" placeholder="Enter salesperson name" class="flex-1 px-4 py-3 border-2 border-blue-300 rounded-xl text-lg font-semibold focus:outline-none focus:border-blue-500" />
+                    <button id="saveBtn" class="px-8 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg">Add</button>
+                    <button id="cancelBtn" class="px-8 py-3 bg-gray-400 text-white rounded-xl font-bold hover:bg-gray-500 shadow-lg">Cancel</button>
+                </div>
+            </div>
+            
+            <div id="peopleList" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+            <div id="emptyMsg" style="display: none;" class="text-center py-16 bg-gray-50 rounded-xl">
+                <p class="text-2xl text-gray-400 font-semibold">Loading team members...</p>
+            </div>
+        </div>
+
+        <!-- Navigation Cards -->
+        <div id="navigation" style="display: none;">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">🚀 Quick Actions</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Log Calls -->
+                <a href="calls.html" class="nav-card bg-gradient-to-br from-green-400 to-emerald-600 text-white p-8 rounded-2xl shadow-xl block">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-3xl font-black">📞 Log Calls</h3>
+                        <div class="text-6xl opacity-30">📞</div>
+                    </div>
+                    <p class="text-lg opacity-90 mb-4">Add daily calls and track sales</p>
+                    <div class="flex items-center text-sm opacity-75">
+                        <span class="mr-2">✓</span> Quick entry
+                        <span class="mx-2">•</span>
+                        <span class="mr-2">✓</span> Calendar view
+                    </div>
+                </a>
+
+                <!-- Individual Report -->
+                <a href="goals.html" class="nav-card bg-gradient-to-br from-blue-400 to-cyan-600 text-white p-8 rounded-2xl shadow-xl block">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-3xl font-black">🎯 Individual Report</h3>
+                        <div class="text-6xl opacity-30">🎯</div>
+                    </div>
+                    <p class="text-lg opacity-90 mb-4">Your personal performance metrics</p>
+                    <div class="flex items-center text-sm opacity-75">
+                        <span class="mr-2">✓</span> Goals tracking
+                        <span class="mx-2">•</span>
+                        <span class="mr-2">✓</span> Forecasts
+                    </div>
+                </a>
+
+                <!-- Team Report -->
+                <a href="reports.html" class="nav-card bg-gradient-to-br from-purple-400 to-indigo-600 text-white p-8 rounded-2xl shadow-xl block">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-3xl font-black">📊 Team Report</h3>
+                        <div class="text-6xl opacity-30">📊</div>
+                    </div>
+                    <p class="text-lg opacity-90 mb-4">Team metrics & leaderboards</p>
+                    <div class="flex items-center text-sm opacity-75">
+                        <span class="mr-2">✓</span> Leaderboard
+                        <span class="mx-2">•</span>
+                        <span class="mr-2">✓</span> Team goals
+                    </div>
+                </a>
+
+                <!-- Money Owed -->
+                <a href="money.html" class="nav-card bg-gradient-to-br from-red-400 to-orange-600 text-white p-8 rounded-2xl shadow-xl block">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-3xl font-black">💰 Money Owed</h3>
+                        <div class="text-6xl opacity-30">💰</div>
+                    </div>
+                    <p class="text-lg opacity-90 mb-4">Track outstanding payments</p>
+                    <div class="flex items-center text-sm opacity-75">
+                        <span class="mr-2">✓</span> Payment tracker
+                        <span class="mx-2">•</span>
+                        <span class="mr-2">✓</span> Follow-ups
+                    </div>
+                </a>
+            </div>
+        </div>
         
-        <div id="selectMsg" style="display: none; background: #fef3c7; padding: 1.5rem; border-radius: 0.5rem; border: 2px solid #fbbf24; text-align: center;">
-            <p style="font-size: 1.125rem; font-weight: bold; color: #92400e;">👆 Please select a team member above to continue</p>
+        <div id="selectMsg" style="display: none;" class="bg-gradient-to-r from-yellow-50 to-orange-50 p-8 rounded-2xl border-2 border-yellow-400 text-center shadow-xl">
+            <p class="text-2xl font-bold text-orange-800">👆 Please select a team member above to continue</p>
         </div>
     </div>
 
@@ -56,6 +176,10 @@
         let people = [];
         let selected = localStorage.getItem('selectedPerson') || null;
         let logs = {};
+
+        // Set current date
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', options);
 
         document.getElementById('addBtn').onclick = () => {
             document.getElementById('addForm').style.display = 'block';
@@ -111,18 +235,8 @@
                 }
             });
 
-            document.getElementById('stats').innerHTML = `
-                <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1.5rem; border-radius: 0.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <p style="font-size: 0.875rem; opacity: 0.9; font-weight: 600;">Today's Calls</p>
-                    <p style="font-size: 2.5rem; font-weight: bold;">${totalCalls}</p>
-                    <p style="font-size: 0.75rem; opacity: 0.75; margin-top: 0.25rem;">All team members</p>
-                </div>
-                <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 1.5rem; border-radius: 0.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <p style="font-size: 0.875rem; opacity: 0.9; font-weight: 600;">Today's Revenue</p>
-                    <p style="font-size: 2.5rem; font-weight: bold;">$${totalRevenue.toLocaleString()}</p>
-                    <p style="font-size: 0.75rem; opacity: 0.75; margin-top: 0.25rem;">Team total</p>
-                </div>
-            `;
+            document.getElementById('todayCalls').textContent = totalCalls;
+            document.getElementById('todayRevenue').textContent = `$${totalRevenue.toLocaleString()}`;
         }
 
         function renderPeople() {
@@ -137,10 +251,11 @@
 
             document.getElementById('peopleList').innerHTML = people.map(p => `
                 <div style="position: relative;" class="person-container">
-                    <button class="person-btn" data-id="${p.id}" style="width: 100%; padding: 1.5rem; border-radius: 0.5rem; font-weight: bold; font-size: 1.125rem; cursor: pointer; border: 2px solid ${selected === p.id ? '#2563eb' : '#e5e7eb'}; background: ${selected === p.id ? '#2563eb' : '#f9fafb'}; color: ${selected === p.id ? 'white' : '#374151'}; transition: all 0.2s;">
+                    <button class="person-btn person-card" data-id="${p.id}" style="width: 100%; padding: 1.5rem; border-radius: 1rem; font-weight: bold; font-size: 1.25rem; cursor: pointer; border: 3px solid ${selected === p.id ? '#2563eb' : '#e5e7eb'}; background: ${selected === p.id ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'white'}; color: ${selected === p.id ? 'white' : '#374151'}; transition: all 0.2s; box-shadow: ${selected === p.id ? '0 8px 16px rgba(37, 99, 235, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)'};">
                         ${p.name}
+                        ${selected === p.id ? '<div style="margin-top: 0.5rem; font-size: 0.875rem; opacity: 0.9;">✓ Selected</div>' : ''}
                     </button>
-                    <button class="delete-btn" data-id="${p.id}" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 0.75rem; border: none; cursor: pointer; opacity: 0; transition: opacity 0.2s;">×</button>
+                    <button class="delete-btn" data-id="${p.id}" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; width: 32px; height: 32px; font-size: 1rem; border: 2px solid white; cursor: pointer; opacity: 0; transition: opacity 0.2s; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">×</button>
                 </div>
             `).join('');
 
@@ -160,7 +275,7 @@
                 deleteBtn.onclick = (e) => {
                     e.stopPropagation();
                     const p = people.find(x => x.id === deleteBtn.dataset.id);
-                    if (confirm(`Remove ${p.name}?`)) {
+                    if (confirm(`Remove ${p.name} from the team?`)) {
                         db.ref(`salespeople/${deleteBtn.dataset.id}`).remove();
                         if (selected === deleteBtn.dataset.id) {
                             selected = null;
@@ -178,31 +293,8 @@
                 return;
             }
 
-            document.getElementById('navigation').style.display = 'grid';
+            document.getElementById('navigation').style.display = 'block';
             document.getElementById('selectMsg').style.display = 'none';
-
-            document.getElementById('navigation').innerHTML = `
-                <a href="calls.html" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <div style="font-size: 3rem; margin-bottom: 0.75rem;">📞</div>
-                    <h3 style="font-size: 1.5rem; font-weight: bold;">Log Calls</h3>
-                    <p style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">Add daily calls and track sales</p>
-                </a>
-                <a href="reports.html" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <div style="font-size: 3rem; margin-bottom: 0.75rem;">📊</div>
-                    <h3 style="font-size: 1.5rem; font-weight: bold;">View Reports</h3>
-                    <p style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">Performance metrics & leaderboards</p>
-                </a>
-                <a href="goals.html" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <div style="font-size: 3rem; margin-bottom: 0.75rem;">🎯</div>
-                    <h3 style="font-size: 1.5rem; font-weight: bold;">Goals & Estimates</h3>
-                    <p style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">Track goals and follow up</p>
-                </a>
-                <a href="money.html" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 2rem; border-radius: 0.5rem; color: white; text-align: center; text-decoration: none; display: block; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <div style="font-size: 3rem; margin-bottom: 0.75rem;">💰</div>
-                    <h3 style="font-size: 1.5rem; font-weight: bold;">Money Owed</h3>
-                    <p style="font-size: 0.875rem; opacity: 0.9; margin-top: 0.5rem;">Track outstanding payments</p>
-                </a>
-            `;
         }
     </script>
 </body>
