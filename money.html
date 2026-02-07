@@ -7,67 +7,138 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .stat-card {
+            transition: all 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: scale(1.05);
+        }
+        .item-card {
+            transition: all 0.2s ease;
+        }
+        .item-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+    </style>
 </head>
-<body class="bg-gray-50">
-    <div class="p-4" style="max-width: 1400px; margin: 0 auto;">
-        <div class="flex items-center justify-between mb-6">
-            <h1 class="text-3xl font-bold text-blue-900">💰 Money Owed & Estimates Tracker</h1>
-            <a href="index.html" class="px-4 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700">← Back to Dashboard</a>
+<body class="bg-gradient-to-br from-gray-50 to-orange-50 min-h-screen">
+    <div class="p-6" style="max-width: 1400px; margin: 0 auto;">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-orange-600 via-red-600 to-pink-700 text-white p-6 rounded-2xl shadow-2xl mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-4xl font-black mb-1">💰 Money Owed & Estimates</h1>
+                    <p class="text-lg opacity-90" id="personName"></p>
+                </div>
+                <a href="index.html" class="px-6 py-3 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-xl font-bold transition-all backdrop-blur-sm">
+                    ← Back to Dashboard
+                </a>
+            </div>
         </div>
 
-        <div id="personName" class="text-xl font-bold text-gray-700 mb-4"></div>
-
         <!-- Summary Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="p-4 bg-gradient-to-br from-red-50 to-orange-50 rounded-lg border-2 border-red-300 shadow-lg">
-                <p class="text-sm font-bold text-red-700">Total Money Owed</p>
-                <p id="totalOwed" class="text-4xl font-bold text-red-900">$0</p>
-                <p id="totalOwedJobs" class="text-xs text-gray-600">0 jobs</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Total Money Owed -->
+            <div class="stat-card bg-gradient-to-br from-red-400 to-orange-600 text-white p-6 rounded-2xl shadow-xl">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-sm font-semibold opacity-90">💸 Total Money Owed</p>
+                    <div class="text-4xl opacity-30">💸</div>
+                </div>
+                <p id="totalOwed" class="text-5xl font-black">$0</p>
+                <p id="totalOwedJobs" class="text-sm opacity-75 mt-2">0 jobs</p>
             </div>
-            <div class="p-4 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-lg border-2 border-orange-300 shadow-lg">
-                <p class="text-sm font-bold text-orange-700">Active Estimates</p>
-                <p id="totalEstimates" class="text-4xl font-bold text-orange-900">0</p>
-                <p id="totalEstimatesValue" class="text-xs text-gray-600">$0 potential</p>
+
+            <!-- Month Money Owed -->
+            <div class="stat-card bg-gradient-to-br from-orange-400 to-yellow-600 text-white p-6 rounded-2xl shadow-xl">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-sm font-semibold opacity-90">📅 This Month Owed</p>
+                    <div class="text-4xl opacity-30">📅</div>
+                </div>
+                <p id="monthOwed" class="text-5xl font-black">$0</p>
+                <p id="monthOwedJobs" class="text-sm opacity-75 mt-2">0 jobs</p>
             </div>
-            <div class="p-4 bg-gradient-to-br from-yellow-50 to-lime-50 rounded-lg border-2 border-yellow-300 shadow-lg">
-                <p class="text-sm font-bold text-yellow-700">Needs Follow-up</p>
-                <p id="needsFollowup" class="text-4xl font-bold text-yellow-900">0</p>
-                <p class="text-xs text-gray-600">< 3 attempts</p>
+
+            <!-- Total Estimates -->
+            <div class="stat-card bg-gradient-to-br from-blue-400 to-cyan-600 text-white p-6 rounded-2xl shadow-xl">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-sm font-semibold opacity-90">📋 Total Estimates</p>
+                    <div class="text-4xl opacity-30">📋</div>
+                </div>
+                <p id="totalEstimates" class="text-5xl font-black">$0</p>
+                <p id="totalEstimatesCount" class="text-sm opacity-75 mt-2">0 estimates</p>
             </div>
-            <div class="p-4 bg-gradient-to-br from-gray-50 to-slate-50 rounded-lg border-2 border-gray-300 shadow-lg">
-                <p class="text-sm font-bold text-gray-700">Oldest Outstanding</p>
-                <p id="oldestDate" class="text-3xl font-bold text-gray-900">-</p>
-                <p class="text-xs text-gray-600">days ago</p>
+
+            <!-- Month Estimates -->
+            <div class="stat-card bg-gradient-to-br from-purple-400 to-indigo-600 text-white p-6 rounded-2xl shadow-xl">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-sm font-semibold opacity-90">🗓️ This Month Estimates</p>
+                    <div class="text-4xl opacity-30">🗓️</div>
+                </div>
+                <p id="monthEstimates" class="text-5xl font-black">$0</p>
+                <p id="monthEstimatesCount" class="text-sm opacity-75 mt-2">0 estimates</p>
+            </div>
+        </div>
+
+        <!-- Additional Stats Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="stat-card bg-gradient-to-br from-yellow-400 to-lime-600 text-white p-6 rounded-2xl shadow-xl">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold opacity-90 mb-2">⚠️ Needs Follow-up</p>
+                        <p id="needsFollowup" class="text-5xl font-black">0</p>
+                        <p class="text-sm opacity-75 mt-2">Estimates with < 3 attempts</p>
+                    </div>
+                    <div class="text-6xl opacity-20">⚠️</div>
+                </div>
+            </div>
+            <div class="stat-card bg-gradient-to-br from-gray-400 to-slate-600 text-white p-6 rounded-2xl shadow-xl">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold opacity-90 mb-2">⏰ Oldest Outstanding</p>
+                        <p id="oldestDate" class="text-5xl font-black">-</p>
+                        <p class="text-sm opacity-75 mt-2">days ago</p>
+                    </div>
+                    <div class="text-6xl opacity-20">⏰</div>
+                </div>
             </div>
         </div>
 
         <!-- Estimates Section -->
-        <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-2xl font-bold text-orange-900">📋 Active Estimates</h2>
-                <div class="flex gap-2">
-                    <button id="showAllEstimates" class="px-4 py-2 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700">All Time</button>
-                    <button id="showMonthEstimates" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400">This Month</button>
+        <div class="bg-white p-8 rounded-2xl shadow-xl mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-3xl font-black text-gray-800">📋 Active Estimates</h2>
+                <div class="flex gap-3">
+                    <button id="showAllEstimates" class="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-bold hover:from-orange-600 hover:to-red-700 shadow-lg transition-all">
+                        All Time
+                    </button>
+                    <button id="showMonthEstimates" class="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-400 shadow-lg transition-all">
+                        This Month
+                    </button>
                 </div>
             </div>
             <div id="estimatesList" class="space-y-4"></div>
-            <div id="estimatesEmptyMsg" style="display: none;" class="text-center py-12 bg-gray-50 rounded-lg">
-                <p class="text-xl text-gray-500">No active estimates! 🎉</p>
+            <div id="estimatesEmptyMsg" style="display: none;" class="text-center py-16 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl">
+                <p class="text-2xl text-gray-400 font-semibold">No active estimates! 🎉</p>
             </div>
         </div>
 
         <!-- Money Owed Section -->
-        <div class="bg-white p-6 rounded-lg shadow-lg">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-2xl font-bold text-red-900">💸 Outstanding Payments</h2>
-                <div class="flex gap-2">
-                    <button id="showAllOwed" class="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700">All Time</button>
-                    <button id="showMonthOwed" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400">This Month</button>
+        <div class="bg-white p-8 rounded-2xl shadow-xl">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-3xl font-black text-gray-800">💸 Outstanding Payments</h2>
+                <div class="flex gap-3">
+                    <button id="showAllOwed" class="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl font-bold hover:from-red-600 hover:to-pink-700 shadow-lg transition-all">
+                        All Time
+                    </button>
+                    <button id="showMonthOwed" class="px-6 py-3 bg-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-400 shadow-lg transition-all">
+                        This Month
+                    </button>
                 </div>
             </div>
-            <div id="owedList" class="space-y-3"></div>
-            <div id="owedEmptyMsg" style="display: none;" class="text-center py-12 bg-gray-50 rounded-lg">
-                <p class="text-xl text-gray-500">No outstanding payments! 🎉</p>
+            <div id="owedList" class="space-y-4"></div>
+            <div id="owedEmptyMsg" style="display: none;" class="text-center py-16 bg-gradient-to-br from-gray-50 to-green-50 rounded-xl">
+                <p class="text-2xl text-gray-400 font-semibold">No outstanding payments! 🎉</p>
             </div>
         </div>
     </div>
@@ -173,12 +244,22 @@
             // Summary Stats
             const totalOwedAmount = allOwed.reduce((sum, e) => sum + (parseFloat(e.moneyOwed) || 0), 0);
             const totalEstimatesAmount = allEstimates.reduce((sum, e) => sum + (parseFloat(e.estimateAmount) || 0), 0);
+            const monthOwedAmount = monthOwed.reduce((sum, e) => sum + (parseFloat(e.moneyOwed) || 0), 0);
+            const monthEstimatesAmount = monthEstimates.reduce((sum, e) => sum + (parseFloat(e.estimateAmount) || 0), 0);
             const needsFollowup = allEstimates.filter(e => (e.followUpAttempts || 0) < 3).length;
 
             document.getElementById('totalOwed').textContent = `$${totalOwedAmount.toLocaleString()}`;
             document.getElementById('totalOwedJobs').textContent = `${allOwed.length} jobs`;
-            document.getElementById('totalEstimates').textContent = allEstimates.length;
-            document.getElementById('totalEstimatesValue').textContent = `$${totalEstimatesAmount.toLocaleString()} potential`;
+            
+            document.getElementById('monthOwed').textContent = `$${monthOwedAmount.toLocaleString()}`;
+            document.getElementById('monthOwedJobs').textContent = `${monthOwed.length} jobs`;
+            
+            document.getElementById('totalEstimates').textContent = `$${totalEstimatesAmount.toLocaleString()}`;
+            document.getElementById('totalEstimatesCount').textContent = `${allEstimates.length} estimates`;
+            
+            document.getElementById('monthEstimates').textContent = `$${monthEstimatesAmount.toLocaleString()}`;
+            document.getElementById('monthEstimatesCount').textContent = `${monthEstimates.length} estimates`;
+            
             document.getElementById('needsFollowup').textContent = needsFollowup;
 
             // Oldest Outstanding
@@ -190,7 +271,7 @@
                     oldestDate = oldestEstimate;
                 }
                 const daysDiff = Math.floor((today - oldestDate) / (1000 * 60 * 60 * 24));
-                document.getElementById('oldestDate').textContent = `${daysDiff} days`;
+                document.getElementById('oldestDate').textContent = `${daysDiff}`;
             } else {
                 document.getElementById('oldestDate').textContent = '-';
             }
@@ -221,47 +302,47 @@
                     const urgency = daysSince > 14 ? 'red' : daysSince > 7 ? 'orange' : 'yellow';
 
                     return `
-                        <div class="p-4 bg-${urgency}-50 rounded-lg border-2 border-${urgency}-300">
-                            <div class="flex justify-between items-start mb-3">
+                        <div class="item-card p-6 bg-gradient-to-br from-${urgency}-50 to-${urgency}-100 rounded-2xl border-2 border-${urgency}-300 shadow-lg">
+                            <div class="flex justify-between items-start mb-4">
                                 <div>
-                                    <p class="font-bold text-lg">${est.customerName || 'Unnamed Customer'}</p>
-                                    <p class="text-sm text-gray-600">Job #${est.jobNumber || 'N/A'}</p>
+                                    <p class="font-black text-2xl text-gray-800">${est.customerName || 'Unnamed Customer'}</p>
+                                    <p class="text-sm font-semibold text-gray-600 mt-1">Job #${est.jobNumber || 'N/A'}</p>
                                     <p class="text-sm text-gray-600">${est.customerPhone || 'No phone'}</p>
-                                    <p class="text-xs text-gray-500 mt-1">${daysSince} days ago • ${new Date(est.date).toLocaleDateString()}</p>
+                                    <p class="text-xs text-gray-500 mt-2 bg-white px-3 py-1 rounded-full inline-block">${daysSince} days ago • ${new Date(est.date).toLocaleDateString()}</p>
                                 </div>
                                 <div class="text-right">
-                                    <p class="text-3xl font-bold text-${urgency}-900">$${parseFloat(est.estimateAmount).toLocaleString()}</p>
-                                    <p class="text-sm font-bold mt-1 ${attempts >= 3 ? 'text-red-600' : 'text-gray-700'}">
+                                    <p class="text-4xl font-black text-${urgency}-900">$${parseFloat(est.estimateAmount).toLocaleString()}</p>
+                                    <p class="text-sm font-bold mt-2 ${attempts >= 3 ? 'text-red-600' : 'text-gray-700'} bg-white px-3 py-1 rounded-full">
                                         Follow-ups: ${attempts}/3
                                     </p>
                                 </div>
                             </div>
 
                             <!-- Follow-up Plan -->
-                            <div class="mb-3">
-                                <label class="text-xs font-bold text-gray-700 block mb-1">Follow-up Plan:</label>
+                            <div class="mb-4">
+                                <label class="text-xs font-bold text-gray-700 block mb-2">📝 Follow-up Plan:</label>
                                 <textarea 
                                     onchange="updateEstimate('${est.dateKey}', '${est.callId}', 'followUpPlan', this.value)" 
-                                    class="w-full px-3 py-2 border-2 border-${urgency}-300 rounded-lg text-sm" 
+                                    class="w-full px-4 py-3 border-2 border-${urgency}-300 rounded-xl text-sm focus:outline-none focus:border-${urgency}-500" 
                                     rows="2" 
                                     placeholder="Add follow-up notes...">${est.followUpPlan || ''}</textarea>
                             </div>
 
                             <!-- Action Buttons -->
-                            <div class="flex gap-2 flex-wrap">
+                            <div class="flex gap-3 flex-wrap">
                                 ${attempts < 3 ? `
                                     <button onclick="incrementAttempt('${est.dateKey}', '${est.callId}', ${attempts})" 
-                                        class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 text-sm">
+                                        class="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-bold hover:from-blue-600 hover:to-indigo-700 shadow-lg transition-all">
                                         📞 Mark Attempted (${attempts + 1}/3)
                                     </button>
                                 ` : ''}
                                 <button onclick="convertToSale('${est.dateKey}', '${est.callId}')" 
-                                    class="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 text-sm">
+                                    class="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 shadow-lg transition-all">
                                     ✓ Converted to Sale
                                 </button>
                                 ${attempts >= 3 ? `
                                     <button onclick="markLost('${est.dateKey}', '${est.callId}')" 
-                                        class="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 text-sm">
+                                        class="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl font-bold hover:from-red-600 hover:to-pink-700 shadow-lg transition-all">
                                         ✗ Mark as Lost
                                     </button>
                                 ` : ''}
@@ -290,31 +371,29 @@
                     const urgency = daysSince > 30 ? 'red' : daysSince > 14 ? 'orange' : 'yellow';
 
                     return `
-                        <div class="p-4 bg-${urgency}-50 rounded-lg border-2 border-${urgency}-300">
-                            <div class="flex justify-between items-start mb-2">
+                        <div class="item-card p-6 bg-gradient-to-br from-${urgency}-50 to-${urgency}-100 rounded-2xl border-2 border-${urgency}-300 shadow-lg">
+                            <div class="flex justify-between items-start mb-3">
                                 <div>
-                                    <p class="font-bold text-lg">${call.customerName || 'Unnamed Customer'}</p>
-                                    <p class="text-sm text-gray-600">Job #${call.jobNumber || 'N/A'}</p>
+                                    <p class="font-black text-2xl text-gray-800">${call.customerName || 'Unnamed Customer'}</p>
+                                    <p class="text-sm font-semibold text-gray-600 mt-1">Job #${call.jobNumber || 'N/A'}</p>
                                     <p class="text-sm text-gray-600">${call.customerPhone || 'No phone'}</p>
+                                    ${call.amountSold ? `
+                                        <p class="text-sm text-gray-700 mt-2 bg-white px-3 py-1 rounded-full inline-block">Total Sale: $${parseFloat(call.amountSold).toLocaleString()}</p>
+                                    ` : ''}
                                 </div>
                                 <div class="text-right">
-                                    <p class="text-2xl font-bold text-${urgency}-900">$${parseFloat(call.moneyOwed).toLocaleString()}</p>
-                                    <p class="text-xs text-gray-600">${daysSince} days ago</p>
-                                    <p class="text-xs text-gray-500">${new Date(call.date).toLocaleDateString()}</p>
+                                    <p class="text-4xl font-black text-${urgency}-900">$${parseFloat(call.moneyOwed).toLocaleString()}</p>
+                                    <p class="text-xs text-gray-600 mt-2 bg-white px-3 py-1 rounded-full">${daysSince} days ago</p>
+                                    <p class="text-xs text-gray-500 mt-1">${new Date(call.date).toLocaleDateString()}</p>
                                 </div>
                             </div>
-                            ${call.amountSold ? `
-                                <div class="text-sm text-gray-600 mb-2">
-                                    Total Sale: $${parseFloat(call.amountSold).toLocaleString()}
-                                </div>
-                            ` : ''}
-                            <div class="flex gap-2">
+                            <div class="flex gap-3 mt-4">
                                 <button onclick="markPaid('${call.dateKey}', '${call.callId}')" 
-                                    class="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 text-sm">
+                                    class="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 shadow-lg transition-all">
                                     ✓ Mark as Paid
                                 </button>
                                 <button onclick="updateOwedAmount('${call.dateKey}', '${call.callId}', ${call.moneyOwed})" 
-                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 text-sm">
+                                    class="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-bold hover:from-blue-600 hover:to-indigo-700 shadow-lg transition-all">
                                     Edit Amount
                                 </button>
                             </div>
@@ -365,29 +444,29 @@
         // Filter buttons
         document.getElementById('showAllEstimates').onclick = () => {
             showMonthOnlyEstimates = false;
-            document.getElementById('showAllEstimates').className = 'px-4 py-2 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700';
-            document.getElementById('showMonthEstimates').className = 'px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400';
+            document.getElementById('showAllEstimates').className = 'px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-bold hover:from-orange-600 hover:to-red-700 shadow-lg transition-all';
+            document.getElementById('showMonthEstimates').className = 'px-6 py-3 bg-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-400 shadow-lg transition-all';
             renderAll();
         };
 
         document.getElementById('showMonthEstimates').onclick = () => {
             showMonthOnlyEstimates = true;
-            document.getElementById('showMonthEstimates').className = 'px-4 py-2 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700';
-            document.getElementById('showAllEstimates').className = 'px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400';
+            document.getElementById('showMonthEstimates').className = 'px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-bold hover:from-orange-600 hover:to-red-700 shadow-lg transition-all';
+            document.getElementById('showAllEstimates').className = 'px-6 py-3 bg-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-400 shadow-lg transition-all';
             renderAll();
         };
 
         document.getElementById('showAllOwed').onclick = () => {
             showMonthOnlyOwed = false;
-            document.getElementById('showAllOwed').className = 'px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700';
-            document.getElementById('showMonthOwed').className = 'px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400';
+            document.getElementById('showAllOwed').className = 'px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl font-bold hover:from-red-600 hover:to-pink-700 shadow-lg transition-all';
+            document.getElementById('showMonthOwed').className = 'px-6 py-3 bg-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-400 shadow-lg transition-all';
             renderAll();
         };
 
         document.getElementById('showMonthOwed').onclick = () => {
             showMonthOnlyOwed = true;
-            document.getElementById('showMonthOwed').className = 'px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700';
-            document.getElementById('showAllOwed').className = 'px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400';
+            document.getElementById('showMonthOwed').className = 'px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl font-bold hover:from-red-600 hover:to-pink-700 shadow-lg transition-all';
+            document.getElementById('showAllOwed').className = 'px-6 py-3 bg-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-400 shadow-lg transition-all';
             renderAll();
         };
 
