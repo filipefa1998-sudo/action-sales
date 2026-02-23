@@ -107,6 +107,119 @@
                 </div>
             </div>
 
+            <!-- Trade Analysis Section -->
+            <div class="bg-gradient-to-r from-blue-50 to-cyan-50 p-6 rounded-lg border-2 border-blue-300 mb-6">
+                <h3 class="text-xl font-bold text-blue-900 mb-4">🔧 Trade Analysis</h3>
+                
+                <!-- Jobs Sold by Trade -->
+                <div class="mb-6">
+                    <h4 class="text-lg font-bold text-gray-800 mb-3">Jobs Sold by Trade</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Plumbing -->
+                        <div class="bg-white p-4 rounded-lg border-2 border-blue-300">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-blue-700">🔧 Plumbing</span>
+                                <span class="text-2xl font-bold text-blue-900" id="plumbingJobs">0</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+                                <div id="plumbingBar" class="bg-blue-500 h-full rounded-full" style="width: 0%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-600">
+                                <span id="plumbingPercent">0%</span>
+                                <span id="plumbingRevenue">$0</span>
+                            </div>
+                        </div>
+
+                        <!-- HVAC -->
+                        <div class="bg-white p-4 rounded-lg border-2 border-red-300">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-red-700">🌡️ HVAC</span>
+                                <span class="text-2xl font-bold text-red-900" id="hvacJobs">0</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+                                <div id="hvacBar" class="bg-red-500 h-full rounded-full" style="width: 0%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-600">
+                                <span id="hvacPercent">0%</span>
+                                <span id="hvacRevenue">$0</span>
+                            </div>
+                        </div>
+
+                        <!-- Electrical -->
+                        <div class="bg-white p-4 rounded-lg border-2 border-yellow-300">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-yellow-700">⚡ Electrical</span>
+                                <span class="text-2xl font-bold text-yellow-900" id="electricalJobs">0</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+                                <div id="electricalBar" class="bg-yellow-500 h-full rounded-full" style="width: 0%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-600">
+                                <span id="electricalPercent">0%</span>
+                                <span id="electricalRevenue">$0</span>
+                            </div>
+                        </div>
+
+                        <!-- Cameras -->
+                        <div class="bg-white p-4 rounded-lg border-2 border-purple-300">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-purple-700">📹 Cameras</span>
+                                <span class="text-2xl font-bold text-purple-900" id="camerasJobs">0</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+                                <div id="camerasBar" class="bg-purple-500 h-full rounded-full" style="width: 0%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-600">
+                                <span id="camerasPercent">0%</span>
+                                <span id="camerasRevenue">$0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Money Owed by Trade -->
+                <div>
+                    <h4 class="text-lg font-bold text-gray-800 mb-3">💰 Money Owed by Trade</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Plumbing Owed -->
+                        <div class="bg-white p-4 rounded-lg border-2 border-blue-300">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-blue-700">🔧 Plumbing</span>
+                                <span class="text-2xl font-bold text-blue-900" id="plumbingOwed">$0</span>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-1" id="plumbingOwedJobs">0 jobs outstanding</p>
+                        </div>
+
+                        <!-- HVAC Owed -->
+                        <div class="bg-white p-4 rounded-lg border-2 border-red-300">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-red-700">🌡️ HVAC</span>
+                                <span class="text-2xl font-bold text-red-900" id="hvacOwed">$0</span>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-1" id="hvacOwedJobs">0 jobs outstanding</p>
+                        </div>
+
+                        <!-- Electrical Owed -->
+                        <div class="bg-white p-4 rounded-lg border-2 border-yellow-300">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-yellow-700">⚡ Electrical</span>
+                                <span class="text-2xl font-bold text-yellow-900" id="electricalOwed">$0</span>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-1" id="electricalOwedJobs">0 jobs outstanding</p>
+                        </div>
+
+                        <!-- Cameras Owed -->
+                        <div class="bg-white p-4 rounded-lg border-2 border-purple-300">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-purple-700">📹 Cameras</span>
+                                <span class="text-2xl font-bold text-purple-900" id="camerasOwed">$0</span>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-1" id="camerasOwedJobs">0 jobs outstanding</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Objection Breakdown -->
             <div class="bg-gradient-to-r from-red-50 to-orange-50 p-6 rounded-lg border-2 border-red-300 mb-6">
                 <h3 class="text-xl font-bold text-red-900 mb-4">🚫 Objection Breakdown</h3>
@@ -223,7 +336,13 @@
                 reviewsCompleted: 0, turnoversAttempted: 0, turnoversAccepted: 0,
                 restorationLeads: 0, plansSold: 0, upsellsCompleted: 0,
                 estimatesLeft: 0, estimateValue: 0, doorKnocks: 0, doorKnocksSold: 0,
-                objections: {}
+                objections: {},
+                trades: {
+                    plumbing: { jobs: 0, revenue: 0, owed: 0, owedJobs: 0 },
+                    hvac: { jobs: 0, revenue: 0, owed: 0, owedJobs: 0 },
+                    electrical: { jobs: 0, revenue: 0, owed: 0, owedJobs: 0 },
+                    cameras: { jobs: 0, revenue: 0, owed: 0, owedJobs: 0 }
+                }
             };
             people.forEach(p => {
                 dates.forEach(d => {
@@ -234,8 +353,49 @@
                             t.callsSold++;
                             t.amountSold += parseFloat(c.amountSold) || 0;
                             if (c.threeDoorKnocks) t.doorKnocksSold++;
+                            
+                            // Track by trade
+                            const revenue = parseFloat(c.amountSold) || 0;
+                            if (c.tradePlumbing) {
+                                t.trades.plumbing.jobs++;
+                                t.trades.plumbing.revenue += revenue;
+                            }
+                            if (c.tradeHVAC) {
+                                t.trades.hvac.jobs++;
+                                t.trades.hvac.revenue += revenue;
+                            }
+                            if (c.tradeElectrical) {
+                                t.trades.electrical.jobs++;
+                                t.trades.electrical.revenue += revenue;
+                            }
+                            if (c.tradeCameras) {
+                                t.trades.cameras.jobs++;
+                                t.trades.cameras.revenue += revenue;
+                            }
                         }
-                        t.moneyOwed += parseFloat(c.moneyOwed) || 0;
+                        
+                        // Track money owed by trade
+                        const owed = parseFloat(c.moneyOwed) || 0;
+                        if (owed > 0) {
+                            t.moneyOwed += owed;
+                            if (c.tradePlumbing) {
+                                t.trades.plumbing.owed += owed;
+                                t.trades.plumbing.owedJobs++;
+                            }
+                            if (c.tradeHVAC) {
+                                t.trades.hvac.owed += owed;
+                                t.trades.hvac.owedJobs++;
+                            }
+                            if (c.tradeElectrical) {
+                                t.trades.electrical.owed += owed;
+                                t.trades.electrical.owedJobs++;
+                            }
+                            if (c.tradeCameras) {
+                                t.trades.cameras.owed += owed;
+                                t.trades.cameras.owedJobs++;
+                            }
+                        }
+                        
                         if (c.reviewCompleted) t.reviewsCompleted++;
                         if (c.turnoverAttempted) t.turnoversAttempted++;
                         if (c.turnoverAccepted) t.turnoversAccepted++;
@@ -355,6 +515,46 @@
             document.getElementById('doorKnocksRate').textContent = `${doorKnocksRate}% conversion`;
 
             document.getElementById('totalCalls').textContent = stats.totalCalls;
+
+            // Trade Analysis
+            const totalTradeJobs = stats.trades.plumbing.jobs + stats.trades.hvac.jobs + 
+                                   stats.trades.electrical.jobs + stats.trades.cameras.jobs;
+            
+            // Plumbing
+            const plumbingPercent = totalTradeJobs > 0 ? (stats.trades.plumbing.jobs / totalTradeJobs * 100).toFixed(1) : 0;
+            document.getElementById('plumbingJobs').textContent = stats.trades.plumbing.jobs;
+            document.getElementById('plumbingBar').style.width = `${plumbingPercent}%`;
+            document.getElementById('plumbingPercent').textContent = `${plumbingPercent}%`;
+            document.getElementById('plumbingRevenue').textContent = `$${stats.trades.plumbing.revenue.toLocaleString()}`;
+            document.getElementById('plumbingOwed').textContent = `$${stats.trades.plumbing.owed.toLocaleString()}`;
+            document.getElementById('plumbingOwedJobs').textContent = `${stats.trades.plumbing.owedJobs} jobs outstanding`;
+
+            // HVAC
+            const hvacPercent = totalTradeJobs > 0 ? (stats.trades.hvac.jobs / totalTradeJobs * 100).toFixed(1) : 0;
+            document.getElementById('hvacJobs').textContent = stats.trades.hvac.jobs;
+            document.getElementById('hvacBar').style.width = `${hvacPercent}%`;
+            document.getElementById('hvacPercent').textContent = `${hvacPercent}%`;
+            document.getElementById('hvacRevenue').textContent = `$${stats.trades.hvac.revenue.toLocaleString()}`;
+            document.getElementById('hvacOwed').textContent = `$${stats.trades.hvac.owed.toLocaleString()}`;
+            document.getElementById('hvacOwedJobs').textContent = `${stats.trades.hvac.owedJobs} jobs outstanding`;
+
+            // Electrical
+            const electricalPercent = totalTradeJobs > 0 ? (stats.trades.electrical.jobs / totalTradeJobs * 100).toFixed(1) : 0;
+            document.getElementById('electricalJobs').textContent = stats.trades.electrical.jobs;
+            document.getElementById('electricalBar').style.width = `${electricalPercent}%`;
+            document.getElementById('electricalPercent').textContent = `${electricalPercent}%`;
+            document.getElementById('electricalRevenue').textContent = `$${stats.trades.electrical.revenue.toLocaleString()}`;
+            document.getElementById('electricalOwed').textContent = `$${stats.trades.electrical.owed.toLocaleString()}`;
+            document.getElementById('electricalOwedJobs').textContent = `${stats.trades.electrical.owedJobs} jobs outstanding`;
+
+            // Cameras
+            const camerasPercent = totalTradeJobs > 0 ? (stats.trades.cameras.jobs / totalTradeJobs * 100).toFixed(1) : 0;
+            document.getElementById('camerasJobs').textContent = stats.trades.cameras.jobs;
+            document.getElementById('camerasBar').style.width = `${camerasPercent}%`;
+            document.getElementById('camerasPercent').textContent = `${camerasPercent}%`;
+            document.getElementById('camerasRevenue').textContent = `$${stats.trades.cameras.revenue.toLocaleString()}`;
+            document.getElementById('camerasOwed').textContent = `$${stats.trades.cameras.owed.toLocaleString()}`;
+            document.getElementById('camerasOwedJobs').textContent = `${stats.trades.cameras.owedJobs} jobs outstanding`;
 
             // Objections
             const objectionLabels = {
