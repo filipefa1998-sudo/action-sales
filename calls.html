@@ -81,7 +81,7 @@
             window.location.href = 'index.html';
         }
 
-        db.ref('salespeople').once('value', snapshot => {
+        db.ref('salespeople').on('value', snapshot => {
             const data = snapshot.val();
             people = data ? Object.keys(data).map(k => ({ id: k, name: data[k].name })) : [];
             const person = people.find(p => p.id === selected);
@@ -213,6 +213,25 @@
                                             <p id="moneyOwed_${call.id}" class="text-3xl font-black text-orange-900">$${calculateMoneyOwed(call.amountSold, call.amountCollected).toLocaleString()}</p>
                                             <p class="text-xs text-gray-600 mt-1">Auto-calculated: Sold - Collected</p>
                                         </div>
+
+                                        <!-- Sold from Turnover Section -->
+                                        <div class="p-4 bg-purple-50 rounded-xl border-2 border-purple-300">
+                                            <label class="flex items-center gap-3 cursor-pointer mb-3">
+                                                <input type="checkbox" ${call.soldFromTurnover ? 'checked' : ''} onchange="updateCall('${call.id}', 'soldFromTurnover', this.checked)" class="w-5 h-5" />
+                                                <span class="font-bold text-purple-900">🔄 Sold from Turnover</span>
+                                            </label>
+                                            ${call.soldFromTurnover ? `
+                                                <div>
+                                                    <label class="text-sm font-bold text-gray-700 block mb-1">Turnover received from:</label>
+                                                    <select onchange="updateCall('${call.id}', 'turnoverFrom', this.value)" class="w-full px-4 py-3 border-2 border-purple-400 rounded-xl focus:outline-none focus:border-purple-500">
+                                                        <option value="">Select salesperson...</option>
+                                                        ${people.filter(p => p.id !== selected).map(p => 
+                                                            `<option value="${p.id}" ${call.turnoverFrom === p.id ? 'selected' : ''}>${p.name}</option>`
+                                                        ).join('')}
+                                                    </select>
+                                                </div>
+                                            ` : ''}
+                                        </div>
                                     </div>
                                 ` : ''}
 
@@ -330,6 +349,7 @@
                     tradePlumbing: false, tradeHVAC: false,
                     tradeElectrical: false, tradeCameras: false,
                     objection: '',
+                    soldFromTurnover: false, turnoverFrom: '',
                     timestamp: Date.now(), timeOfDay: new Date().getHours()
                 });
             };
