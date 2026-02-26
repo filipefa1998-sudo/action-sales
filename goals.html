@@ -123,6 +123,34 @@
                 </div>
             </div>
 
+            <!-- Turnover Stats Section -->
+            <div class="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-lg border-2 border-purple-300 mb-6">
+                <h3 class="text-xl font-bold text-purple-900 mb-4">🔄 Your Turnover Performance</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div class="bg-white p-4 rounded-lg border-2 border-purple-300">
+                        <p class="text-sm font-bold text-purple-700">Turnovers Received</p>
+                        <p id="turnoversReceived" class="text-4xl font-bold text-purple-900">0</p>
+                        <p id="turnoversReceivedRevenue" class="text-xs text-gray-600">$0 closed</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border-2 border-pink-300">
+                        <p class="text-sm font-bold text-pink-700">Turnovers Given</p>
+                        <p id="turnoversGiven" class="text-4xl font-bold text-pink-900">0</p>
+                        <p id="turnoversGivenRevenue" class="text-xs text-gray-600">$0 closed by others</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border-2 border-indigo-300">
+                        <p class="text-sm font-bold text-indigo-700">Turnover Close Rate</p>
+                        <p id="turnoverCloseRate" class="text-4xl font-bold text-indigo-900">0%</p>
+                        <p class="text-xs text-gray-600">of turnovers received</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-lg border-2 border-purple-300">
+                    <h4 class="text-sm font-bold text-purple-700 mb-2">Who Gave You Turnovers This Month</h4>
+                    <div id="turnoverSources" class="space-y-2"></div>
+                </div>
+            </div>
+
             <!-- Trade Analysis Section -->
             <div class="bg-gradient-to-r from-blue-50 to-cyan-50 p-6 rounded-lg border-2 border-blue-300 mb-6">
                 <h3 class="text-xl font-bold text-blue-900 mb-4">🔧 Your Trade Analysis</h3>
@@ -236,6 +264,45 @@
                 </div>
             </div>
 
+            <!-- Yearly Contribution Section -->
+            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-lg border-2 border-indigo-300 mb-6">
+                <h3 class="text-xl font-bold text-indigo-900 mb-4">🏆 Your Yearly Contribution - <span id="yearContributionDisplay"></span></h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="bg-white p-4 rounded-lg border-2 border-indigo-300">
+                        <p class="text-sm font-bold text-indigo-700">Your Year Total</p>
+                        <p id="yourYearTotal" class="text-4xl font-bold text-indigo-900">$0</p>
+                        <p id="yourYearJobs" class="text-xs text-gray-600">0 jobs closed</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border-2 border-blue-300">
+                        <p class="text-sm font-bold text-blue-700">Team Year Total</p>
+                        <p id="teamYearTotal" class="text-4xl font-bold text-blue-900">$0</p>
+                        <p id="teamYearJobs" class="text-xs text-gray-600">0 jobs closed</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-lg border-2 border-indigo-300 mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <p class="text-sm font-bold text-indigo-700">Your % of Team Total</p>
+                        <p id="yourTeamPercent" class="text-3xl font-bold text-indigo-900">0%</p>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-4">
+                        <div id="yourTeamPercentBar" class="bg-indigo-500 h-full rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="teamGoalSection" class="bg-white p-4 rounded-lg border-2 border-blue-300" style="display: none;">
+                    <div class="flex justify-between items-center mb-2">
+                        <p class="text-sm font-bold text-blue-700">Your Contribution to Team Goal</p>
+                        <p id="yourGoalPercent" class="text-3xl font-bold text-blue-900">0%</p>
+                    </div>
+                    <p id="teamGoalAmount" class="text-xs text-gray-600 mb-2">Team Goal: $0</p>
+                    <div class="w-full bg-gray-200 rounded-full h-4">
+                        <div id="yourGoalPercentBar" class="bg-blue-500 h-full rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Streak Badge -->
             <div id="streakBadge" class="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border-2 border-yellow-400 text-center">
                 <p class="text-sm font-bold text-orange-700">🔥 CURRENT STREAK</p>
@@ -264,6 +331,7 @@
         let weeklyGoals = {};
         let monthlyGoals = {};
         let yearlyGoals = {};
+        let tyGoal = 0;
         let currentWeekKey = '';
         let currentMonthKey = '';
         let currentYearKey = '';
@@ -272,13 +340,14 @@
             window.location.href = 'index.html';
         }
 
-        db.ref('salespeople').once('value', snapshot => {
+        db.ref('salespeople').on('value', snapshot => {
             const data = snapshot.val();
             people = data ? Object.keys(data).map(k => ({ id: k, name: data[k].name })) : [];
             const person = people.find(p => p.id === selected);
             if (person) {
                 document.getElementById('personName').textContent = `Performance for: ${person.name}`;
             }
+            renderAll();
         });
 
         db.ref('callLogs').on('value', snapshot => {
@@ -340,19 +409,22 @@
             return arr;
         }
 
-        function getCalls(d) {
-            const key = `${selected}_${dk(d)}`;
+        function getCalls(pid, d) {
+            const key = `${pid}_${dk(d)}`;
             const l = logs[key];
             if (!l) return [];
             return Object.values(l);
         }
 
-        function calc(dates) {
+        function calc(pid, dates) {
             const t = {
                 totalCalls: 0, callsSold: 0, amountSold: 0,
                 estimatesLeft: 0, estimateValue: 0,
                 doorKnocks: 0, doorKnocksSold: 0,
                 reviewsCompleted: 0, membershipPlansSold: 0,
+                turnoversReceived: 0, turnoversReceivedRevenue: 0,
+                turnoversGiven: 0,
+                turnoverSources: {},
                 trades: {
                     plumbing: { jobs: 0, revenue: 0, owed: 0, owedJobs: 0 },
                     hvac: { jobs: 0, revenue: 0, owed: 0, owedJobs: 0 },
@@ -361,13 +433,24 @@
                 }
             };
             dates.forEach(d => {
-                const calls = getCalls(d);
+                const calls = getCalls(pid, d);
                 calls.forEach(c => {
                     t.totalCalls++;
                     if (c.jobSold) {
                         t.callsSold++;
                         t.amountSold += parseFloat(c.amountSold) || 0;
                         if (c.threeDoorKnocks) t.doorKnocksSold++;
+                        
+                        // Track turnovers received
+                        if (c.soldFromTurnover && c.turnoverFrom) {
+                            t.turnoversReceived++;
+                            t.turnoversReceivedRevenue += parseFloat(c.amountSold) || 0;
+                            if (!t.turnoverSources[c.turnoverFrom]) {
+                                t.turnoverSources[c.turnoverFrom] = { count: 0, revenue: 0 };
+                            }
+                            t.turnoverSources[c.turnoverFrom].count++;
+                            t.turnoverSources[c.turnoverFrom].revenue += parseFloat(c.amountSold) || 0;
+                        }
                         
                         // Track by trade
                         const revenue = parseFloat(c.amountSold) || 0;
@@ -418,8 +501,37 @@
                     if (c.reviewCompleted) t.reviewsCompleted++;
                     if (c.membershipPlanSold) t.membershipPlansSold++;
                 });
+
+                // Count turnovers given (all other people's calls where turnoverFrom = selected)
+                people.forEach(p => {
+                    if (p.id !== pid) {
+                        const otherCalls = getCalls(p.id, d);
+                        otherCalls.forEach(c => {
+                            if (c.soldFromTurnover && c.turnoverFrom === pid && c.jobSold) {
+                                t.turnoversGiven++;
+                            }
+                        });
+                    }
+                });
             });
             return t;
+        }
+
+        function calcTeamTotal(dates) {
+            let total = 0;
+            let jobs = 0;
+            people.forEach(p => {
+                dates.forEach(d => {
+                    const calls = getCalls(p.id, d);
+                    calls.forEach(c => {
+                        if (c.jobSold) {
+                            total += parseFloat(c.amountSold) || 0;
+                            jobs++;
+                        }
+                    });
+                });
+            });
+            return { total, jobs };
         }
 
         function getStreak() {
@@ -428,7 +540,7 @@
             for (let i = 0; i < 365; i++) {
                 const d = new Date(today);
                 d.setDate(today.getDate() - i);
-                const calls = getCalls(d);
+                const calls = getCalls(selected, d);
                 const hasSale = calls.some(c => c.jobSold);
                 if (hasSale) streak++;
                 else if (i > 0) break;
@@ -441,7 +553,7 @@
             for (let i = 0; i < 365; i++) {
                 const d = new Date(today);
                 d.setDate(today.getDate() - i);
-                const calls = getCalls(d);
+                const calls = getCalls(selected, d);
                 if (calls.some(c => c.jobSold)) return i;
             }
             return 365;
@@ -460,6 +572,12 @@
 
             const yearGoal = yearlyGoals[`${selected}_${currentYearKey}`] || 0;
             document.getElementById('yearlyGoalInput').value = yearGoal || '';
+
+            // Load team yearly goal
+            db.ref(`teamYearlyGoals/${currentYearKey}`).once('value', snapshot => {
+                tyGoal = snapshot.val() || 0;
+                renderAll();
+            });
 
             renderAll();
         }
@@ -487,12 +605,14 @@
             const month = getMDates(currentDate);
             const year = getYDates(currentDate.getFullYear());
 
-            const weekStats = calc(week);
-            const monthStats = calc(month);
-            const yearStats = calc(year);
+            const weekStats = calc(selected, week);
+            const monthStats = calc(selected, month);
+            const yearStats = calc(selected, year);
+            const teamYearStats = calcTeamTotal(year);
 
             document.getElementById('monthYear').textContent = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
             document.getElementById('yearDisplay').textContent = currentDate.getFullYear();
+            document.getElementById('yearContributionDisplay').textContent = currentDate.getFullYear();
 
             // Weekly Goal
             const weekGoal = weeklyGoals[`${selected}_${currentWeekKey}`] || 0;
@@ -622,6 +742,44 @@
             const streak = getStreak();
             document.getElementById('streakDays').textContent = streak;
 
+            // Turnover Stats
+            document.getElementById('turnoversReceived').textContent = monthStats.turnoversReceived;
+            document.getElementById('turnoversReceivedRevenue').textContent = `$${monthStats.turnoversReceivedRevenue.toLocaleString()} closed`;
+
+            document.getElementById('turnoversGiven').textContent = monthStats.turnoversGiven;
+            
+            // Calculate revenue from turnovers given
+            let turnoversGivenRevenue = 0;
+            people.forEach(p => {
+                if (p.id !== selected) {
+                    month.forEach(d => {
+                        const calls = getCalls(p.id, d);
+                        calls.forEach(c => {
+                            if (c.soldFromTurnover && c.turnoverFrom === selected && c.jobSold) {
+                                turnoversGivenRevenue += parseFloat(c.amountSold) || 0;
+                            }
+                        });
+                    });
+                }
+            });
+            document.getElementById('turnoversGivenRevenue').textContent = `$${turnoversGivenRevenue.toLocaleString()} closed by others`;
+
+            const turnoverCloseRate = monthStats.turnoversReceived > 0 ? ((monthStats.turnoversReceived / monthStats.turnoversReceived) * 100).toFixed(1) : 0;
+            document.getElementById('turnoverCloseRate').textContent = `${turnoverCloseRate}%`;
+
+            // Turnover Sources
+            const sourceArray = Object.entries(monthStats.turnoverSources).map(([id, data]) => {
+                const person = people.find(p => p.id === id);
+                return { id, name: person ? person.name : 'Unknown', ...data };
+            }).sort((a, b) => b.count - a.count);
+
+            document.getElementById('turnoverSources').innerHTML = sourceArray.length > 0 ? sourceArray.map(source => `
+                <div class="flex justify-between items-center p-2 bg-purple-50 rounded">
+                    <span class="font-semibold">${source.name}</span>
+                    <span class="text-sm text-gray-600">${source.count} leads • $${source.revenue.toLocaleString()}</span>
+                </div>
+            `).join('') : '<p class="text-center text-gray-500 text-sm">No turnovers received this month</p>';
+
             // Trade Analysis
             const totalTradeJobs = monthStats.trades.plumbing.jobs + monthStats.trades.hvac.jobs + 
                                    monthStats.trades.electrical.jobs + monthStats.trades.cameras.jobs;
@@ -661,6 +819,26 @@
             document.getElementById('camerasRevenue').textContent = `$${monthStats.trades.cameras.revenue.toLocaleString()}`;
             document.getElementById('camerasOwed').textContent = `$${monthStats.trades.cameras.owed.toLocaleString()}`;
             document.getElementById('camerasOwedJobs').textContent = `${monthStats.trades.cameras.owedJobs} jobs outstanding`;
+
+            // Yearly Contribution
+            document.getElementById('yourYearTotal').textContent = `$${yearStats.amountSold.toLocaleString()}`;
+            document.getElementById('yourYearJobs').textContent = `${yearStats.callsSold} jobs closed`;
+            document.getElementById('teamYearTotal').textContent = `$${teamYearStats.total.toLocaleString()}`;
+            document.getElementById('teamYearJobs').textContent = `${teamYearStats.jobs} jobs closed`;
+
+            const yourPercent = teamYearStats.total > 0 ? (yearStats.amountSold / teamYearStats.total * 100).toFixed(1) : 0;
+            document.getElementById('yourTeamPercent').textContent = `${yourPercent}%`;
+            document.getElementById('yourTeamPercentBar').style.width = `${Math.min(yourPercent, 100)}%`;
+
+            if (tyGoal > 0) {
+                document.getElementById('teamGoalSection').style.display = 'block';
+                const goalContribution = (yearStats.amountSold / tyGoal * 100).toFixed(1);
+                document.getElementById('yourGoalPercent').textContent = `${goalContribution}%`;
+                document.getElementById('teamGoalAmount').textContent = `Team Goal: $${tyGoal.toLocaleString()}`;
+                document.getElementById('yourGoalPercentBar').style.width = `${Math.min(goalContribution, 100)}%`;
+            } else {
+                document.getElementById('teamGoalSection').style.display = 'none';
+            }
         }
 
         document.getElementById('prevMonth').onclick = () => {
