@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Owed — Action Plumbing</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{--red:#dc2626;--red2:#991b1b;--red3:#450a0a;--bg:#080808;--s1:#111;--s2:#181818;--s3:#202020;--wire:rgba(255,255,255,0.06);--wire2:rgba(255,255,255,0.10);--wire3:rgba(255,255,255,0.18);--muted:#666;--faint:#333;--text:#efefef;--green:#16a34a;--amber:#d97706}
+        html{scroll-behavior:smooth}body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+        body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);pointer-events:none;z-index:999}
+        .page{max-width:1320px;margin:0 auto;padding:24px 20px 60px}
+        .pg-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--wire);gap:16px;flex-wrap:wrap}
+        .pg-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,5vw,60px);line-height:.95;letter-spacing:2px}.pg-title em{font-style:normal;color:var(--red)}
+        .pg-sub{font-family:'Oswald',sans-serif;font-size:11px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+        .back-btn{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border:1px solid var(--wire2);padding:9px 16px;text-decoration:none;transition:all .15s;white-space:nowrap;align-self:flex-start}.back-btn:hover{color:var(--text);border-color:var(--muted)}
+        .card{background:var(--s1);border:1px solid var(--wire);padding:24px 28px;margin-bottom:20px}
+        .stat-mosaic{display:grid;gap:2px;background:var(--wire);margin-bottom:20px}
+        .stat-block{background:var(--s1);padding:18px 20px;position:relative;overflow:hidden}.stat-block::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--red)}
+        .stat-lbl{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+        .stat-num{font-family:'Bebas Neue',sans-serif;font-size:44px;line-height:1;color:var(--text);letter-spacing:1px}
+        .stat-meta{font-size:11px;color:var(--faint);margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
+        .sec-label{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}.sec-label::after{content:'';flex:1;height:1px;background:var(--wire)}
+        .sec-title-lg{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:2px;color:var(--text);margin-bottom:16px}
+        input[type=text],input[type=number],textarea{background:var(--s3);border:1px solid var(--wire2);color:var(--text);padding:9px 12px;font-family:'Inter',sans-serif;font-size:13px;outline:none;transition:border-color .15s;width:100%}
+        input::placeholder,textarea::placeholder{color:var(--faint)}input:focus,textarea:focus{border-color:var(--red)}
+        .btn{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;padding:9px 18px;border:none;cursor:pointer;transition:all .15s}
+        .btn-red{background:var(--red);color:#fff}.btn-red:hover{background:var(--red2)}.btn-red:active{transform:scale(.97)}
+        .btn-outline{background:transparent;color:var(--muted);border:1px solid var(--wire2)}.btn-outline:hover{color:var(--text);border-color:var(--muted)}
+        .btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#15803d}
+        .g2{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--wire)}
+        .g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px;background:var(--wire)}
+        @media(max-width:900px){.g4{grid-template-columns:1fr 1fr}}
+        @media(max-width:520px){.g2,.g4{grid-template-columns:1fr}}
+        /* item cards */
+        .item-card{background:var(--s2);border:1px solid var(--wire);border-left:3px solid var(--wire2);padding:18px 20px;margin-bottom:8px;transition:border-color .15s}
+        .item-card.urgent{border-left-color:var(--red)}
+        .item-card.warning{border-left-color:var(--amber)}
+        .item-card.ok{border-left-color:var(--muted)}
+        .item-name{font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text)}
+        .item-sub{font-size:12px;color:var(--muted);margin-top:3px}
+        .item-amount{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:2px;color:var(--text)}
+        .days-badge{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;padding:3px 10px;border:1px solid;display:inline-block;margin-top:6px}
+        .days-red{color:var(--red);border-color:rgba(220,38,38,.3)}
+        .days-amber{color:var(--amber);border-color:rgba(217,119,6,.3)}
+        .days-muted{color:var(--muted);border-color:var(--wire2)}
+        .filter-row{display:flex;gap:6px;margin-bottom:16px}
+        .filter-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:7px 14px;border:1px solid var(--wire2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+        .filter-btn.active{background:var(--red);border-color:var(--red);color:#fff}
+        .filter-btn:hover:not(.active){border-color:var(--muted);color:var(--text)}
+        .action-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+        .empty-msg{padding:40px;text-align:center;font-family:'Oswald',sans-serif;font-size:14px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="pg-header">
+        <div><div class="pg-title">Money <em>Owed</em></div><div class="pg-sub" id="personName">Loading…</div></div>
+        <a href="index.html" class="back-btn">← Dashboard</a>
+    </div>
+    <!-- Stats -->
+    <div class="g4 stat-mosaic">
+        <div class="stat-block"><div class="stat-lbl">💸 Total Owed</div><div id="totalOwed" class="stat-num">$0</div><div id="totalOwedJobs" class="stat-meta">0 jobs</div></div>
+        <div class="stat-block"><div class="stat-lbl">📅 This Month</div><div id="monthOwed" class="stat-num">$0</div><div id="monthOwedJobs" class="stat-meta">0 jobs</div></div>
+        <div class="stat-block"><div class="stat-lbl">📋 Total Estimates</div><div id="totalEstimates" class="stat-num">$0</div><div id="totalEstimatesCount" class="stat-meta">0 estimates</div></div>
+        <div class="stat-block"><div class="stat-lbl">🗓️ Month Estimates</div><div id="monthEstimates" class="stat-num">$0</div><div id="monthEstimatesCount" class="stat-meta">0 estimates</div></div>
+    </div>
+    <div class="g2 stat-mosaic">
+        <div class="stat-block"><div class="stat-lbl">⚠️ Needs Follow-up</div><div id="needsFollowup" class="stat-num">0</div><div class="stat-meta">Under 3 attempts</div></div>
+        <div class="stat-block"><div class="stat-lbl">⏰ Oldest Outstanding</div><div id="oldestDate" class="stat-num">—</div><div class="stat-meta">Days ago</div></div>
+    </div>
+    <!-- Estimates -->
+    <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div class="sec-title-lg">Active Estimates</div>
+            <div class="filter-row" style="margin-bottom:0">
+                <button class="filter-btn active" id="showAllEstimates" onclick="setFilter('est','all')">All Time</button>
+                <button class="filter-btn" id="showMonthEstimates" onclick="setFilter('est','month')">This Month</button>
+            </div>
+        </div>
+        <div id="estimatesList"></div>
+    </div>
+    <!-- Owed -->
+    <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div class="sec-title-lg">Outstanding Payments</div>
+            <div class="filter-row" style="margin-bottom:0">
+                <button class="filter-btn active" id="showAllOwed" onclick="setFilter('owed','all')">All Time</button>
+                <button class="filter-btn" id="showMonthOwed" onclick="setFilter('owed','month')">This Month</button>
+            </div>
+        </div>
+        <div id="owedList"></div>
+    </div>
+</div>
+<script>
+firebase.initializeApp({apiKey:"AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",authDomain:"action-sales-tracker.firebaseapp.com",databaseURL:"https://action-sales-tracker-default-rtdb.firebaseio.com",projectId:"action-sales-tracker",storageBucket:"action-sales-tracker.firebasestorage.app",messagingSenderId:"686455834332",appId:"1:686455834332:web:84e9b843f912522bbdd619"});
+const db=firebase.database();const selected=localStorage.getItem('selectedPerson');let people=[],logs={},showMonthOwed=false,showMonthEstimates=false;
+if(!selected)window.location.href='index.html';
+db.ref('salespeople').once('value',snap=>{const d=snap.val();people=d?Object.keys(d).map(k=>({id:k,name:d[k].name})):[];const p=people.find(p=>p.id===selected);if(p)document.getElementById('personName').textContent='Tracking for: '+p.name.toUpperCase();});
+db.ref('callLogs').on('value',snap=>{logs=snap.val()||{};renderAll();});
+const dk=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function getAllEstimates(){const all=[];Object.keys(logs).forEach(dateKey=>{if(dateKey.startsWith(selected+'_')){const dateStr=dateKey.split('_')[1];Object.keys(logs[dateKey]).forEach(callId=>{const c=logs[dateKey][callId];if(c.leftEstimate&&parseFloat(c.estimateAmount)>0&&!c.jobSold&&!c.estimateLost)all.push({...c,date:dateStr,dateKey,callId,followUpAttempts:c.followUpAttempts||0,followUpPlan:c.followUpPlan||''});});});});return all.sort((a,b)=>a.date.localeCompare(b.date));}
+function getAllOwed(){const all=[];Object.keys(logs).forEach(dateKey=>{if(dateKey.startsWith(selected+'_')){const dateStr=dateKey.split('_')[1];Object.keys(logs[dateKey]).forEach(callId=>{const c=logs[dateKey][callId];if(c.moneyOwed&&parseFloat(c.moneyOwed)>0)all.push({...c,date:dateStr,dateKey,callId});});});});return all.sort((a,b)=>a.date.localeCompare(b.date));}
+function setFilter(type,mode){if(type==='est'){showMonthEstimates=mode==='month';document.getElementById('showAllEstimates').className='filter-btn'+(mode==='all'?' active':'');document.getElementById('showMonthEstimates').className='filter-btn'+(mode==='month'?' active':'');}else{showMonthOwed=mode==='month';document.getElementById('showAllOwed').className='filter-btn'+(mode==='all'?' active':'');document.getElementById('showMonthOwed').className='filter-btn'+(mode==='month'?' active':'');}renderAll();}
+function urgencyClass(days){return days>14?'urgent':days>7?'warning':'ok';}
+function daysBadgeClass(days){return days>14?'days-red':days>7?'days-amber':'days-muted';}
+function renderAll(){const today=new Date();const monthKey=dk(new Date(today.getFullYear(),today.getMonth(),1)).substring(0,7);const allEst=getAllEstimates(),allOwed=getAllOwed();const mEst=allEst.filter(e=>e.date.startsWith(monthKey)),mOwed=allOwed.filter(e=>e.date.startsWith(monthKey));const dispEst=showMonthEstimates?mEst:allEst,dispOwed=showMonthOwed?mOwed:allOwed;
+document.getElementById('totalOwed').textContent='$'+Math.round(allOwed.reduce((s,e)=>s+(parseFloat(e.moneyOwed)||0),0)).toLocaleString();document.getElementById('totalOwedJobs').textContent=allOwed.length+' jobs';document.getElementById('monthOwed').textContent='$'+Math.round(mOwed.reduce((s,e)=>s+(parseFloat(e.moneyOwed)||0),0)).toLocaleString();document.getElementById('monthOwedJobs').textContent=mOwed.length+' jobs';document.getElementById('totalEstimates').textContent='$'+Math.round(allEst.reduce((s,e)=>s+(parseFloat(e.estimateAmount)||0),0)).toLocaleString();document.getElementById('totalEstimatesCount').textContent=allEst.length+' estimates';document.getElementById('monthEstimates').textContent='$'+Math.round(mEst.reduce((s,e)=>s+(parseFloat(e.estimateAmount)||0),0)).toLocaleString();document.getElementById('monthEstimatesCount').textContent=mEst.length+' estimates';document.getElementById('needsFollowup').textContent=allEst.filter(e=>(e.followUpAttempts||0)<3).length;
+if(allOwed.length>0||allEst.length>0){const oldest=[...allOwed,...allEst].map(e=>new Date(e.date)).sort((a,b)=>a-b)[0];document.getElementById('oldestDate').textContent=Math.floor((today-oldest)/(1000*60*60*24));}else{document.getElementById('oldestDate').textContent='—';}
+const estEl=document.getElementById('estimatesList');estEl.innerHTML=dispEst.length?dispEst.map(est=>{const days=Math.floor((today-new Date(est.date))/(1000*60*60*24));const attempts=est.followUpAttempts||0;return`<div class="item-card ${urgencyClass(days)}"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><div class="item-name">${est.customerName||'Unnamed'}</div><div class="item-sub">Job #${est.jobNumber||'N/A'} · ${est.customerPhone||'No phone'}</div><span class="days-badge ${daysBadgeClass(days)}">${days} days ago · ${new Date(est.date).toLocaleDateString()}</span></div><div style="text-align:right"><div class="item-amount">$${parseFloat(est.estimateAmount).toLocaleString()}</div><div style="font-size:11px;color:var(--muted);margin-top:4px">Follow-ups: ${attempts}/3</div></div></div><textarea onchange="updateEst('${est.dateKey}','${est.callId}','followUpPlan',this.value)" placeholder="Follow-up notes…" rows="2" style="margin-bottom:10px">${est.followUpPlan||''}</textarea><div class="action-row">${attempts<3?`<button class="btn btn-outline" onclick="incrementAttempt('${est.dateKey}','${est.callId}',${attempts})">📞 Attempted (${attempts+1}/3)</button>`:''}${attempts>=3?`<button class="btn btn-red" onclick="markLost('${est.dateKey}','${est.callId}')">✗ Mark Lost</button>`:''}` +
+`<button class="btn btn-green" onclick="convertToSale('${est.dateKey}','${est.callId}')">✓ Converted</button></div></div>`}).join(''):'<div class="empty-msg">No active estimates 🎉</div>';
+const owedEl=document.getElementById('owedList');owedEl.innerHTML=dispOwed.length?dispOwed.map(call=>{const days=Math.floor((today-new Date(call.date))/(1000*60*60*24));return`<div class="item-card ${urgencyClass(days)}"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><div class="item-name">${call.customerName||'Unnamed'}</div><div class="item-sub">Job #${call.jobNumber||'N/A'} · ${call.customerPhone||'No phone'}${call.amountSold?` · Total: $${parseFloat(call.amountSold).toLocaleString()}`:''}</div><span class="days-badge ${daysBadgeClass(days)}">${days} days ago</span></div><div style="text-align:right"><div class="item-amount">$${parseFloat(call.moneyOwed).toLocaleString()}</div><div style="font-size:11px;color:var(--muted);margin-top:4px">${new Date(call.date).toLocaleDateString()}</div></div></div><div class="action-row"><button class="btn btn-green" onclick="markPaid('${call.dateKey}','${call.callId}')">✓ Mark Paid</button><button class="btn btn-outline" onclick="updateOwedAmount('${call.dateKey}','${call.callId}',${call.moneyOwed})">Edit Amount</button></div></div>`}).join(''):'<div class="empty-msg">No outstanding payments 🎉</div>';}
+function updateEst(dateKey,callId,field,value){db.ref(`callLogs/${dateKey}/${callId}/${field}`).set(value);}
+function incrementAttempt(dateKey,callId,cur){db.ref(`callLogs/${dateKey}/${callId}/followUpAttempts`).set(cur+1);}
+function convertToSale(dateKey,callId){if(confirm('Mark as converted?')){db.ref(`callLogs/${dateKey}/${callId}`).update({jobSold:true,leftEstimate:false});alert('Converted! Remember to enter the sale amount in the call log.');}}
+function markLost(dateKey,callId){if(confirm('Mark as lost?'))db.ref(`callLogs/${dateKey}/${callId}/estimateLost`).set(true);}
+function markPaid(dateKey,callId){if(confirm('Mark as paid?'))db.ref(`callLogs/${dateKey}/${callId}/moneyOwed`).set(0);}
+function updateOwedAmount(dateKey,callId,cur){const n=prompt('New amount owed:',cur);if(n!==null)db.ref(`callLogs/${dateKey}/${callId}/moneyOwed`).set(parseFloat(n)||0);}
+renderAll();
+</script>
+</body>
+</html>
