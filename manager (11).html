@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Portal — Action Plumbing</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{--red:#dc2626;--red2:#991b1b;--red3:#450a0a;--bg:#080808;--s1:#111;--s2:#181818;--s3:#202020;--s4:#2a2a2a;--wire:rgba(255,255,255,0.06);--wire2:rgba(255,255,255,0.10);--wire3:rgba(255,255,255,0.18);--muted:#666;--faint:#333;--text:#efefef;--green:#16a34a;--amber:#d97706}
+        html{scroll-behavior:smooth}
+        body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+        body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);pointer-events:none;z-index:999}
+
+        /* ── PIN SCREEN ── */
+        #pinScreen{min-height:100vh;display:flex;align-items:center;justify-content:center}
+        .pin-box{background:var(--s1);border:1px solid var(--wire);border-top:3px solid var(--red);padding:48px 40px;width:100%;max-width:380px;text-align:center}
+        .pin-icon{font-size:40px;margin-bottom:16px}
+        .pin-title{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;color:var(--text);margin-bottom:4px}
+        .pin-sub{font-size:12px;color:var(--muted);margin-bottom:24px;font-family:'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase}
+        .pin-input{background:var(--s2);border:1px solid var(--wire2);color:var(--text);padding:14px;font-size:24px;font-family:'Bebas Neue',sans-serif;letter-spacing:8px;text-align:center;width:100%;outline:none;transition:border-color .15s;margin-bottom:10px}
+        .pin-input:focus{border-color:var(--red)}
+        .pin-btn{background:var(--red);color:#fff;font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;padding:12px;width:100%;border:none;cursor:pointer;transition:background .15s;margin-bottom:16px}
+        .pin-btn:hover{background:var(--red2)}
+        .pin-err{font-size:12px;color:#ef4444;font-family:'Oswald',sans-serif;letter-spacing:.08em;margin-bottom:12px}
+        .hidden{display:none!important}
+        .pin-back{font-size:12px;color:var(--faint);text-decoration:none;font-family:'Oswald',sans-serif;letter-spacing:.08em;text-transform:uppercase;transition:color .15s;display:block;margin-bottom:24px}
+        .pin-back:hover{color:var(--muted)}
+        .change-pin-section{border-top:1px solid var(--wire);padding-top:20px;margin-top:4px}
+        .change-pin-lbl{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+        .change-pin-section input{background:var(--s3);border:1px solid var(--wire2);color:var(--text);padding:9px 12px;font-size:13px;width:100%;outline:none;margin-bottom:6px;transition:border-color .15s;font-family:'Inter',sans-serif}
+        .change-pin-section input:focus{border-color:var(--red)}
+        .change-pin-section input::placeholder{color:var(--faint)}
+        .change-btn{background:transparent;color:var(--muted);border:1px solid var(--wire2);font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;padding:9px;width:100%;cursor:pointer;transition:all .15s}
+        .change-btn:hover{border-color:var(--muted);color:var(--text)}
+
+        /* ── PORTAL ── */
+        .page{max-width:1400px;margin:0 auto;padding:24px 20px 60px}
+        .pg-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--wire);gap:16px;flex-wrap:wrap}
+        .pg-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(32px,5vw,52px);line-height:.95;letter-spacing:2px}
+        .pg-title em{font-style:normal;color:var(--red)}
+        .pg-sub{font-family:'Oswald',sans-serif;font-size:11px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+        .header-btns{display:flex;gap:8px;flex-wrap:wrap}
+        .hbtn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:8px 14px;border:none;cursor:pointer;transition:all .15s}
+        .hbtn-red{background:var(--red);color:#fff}.hbtn-red:hover{background:var(--red2)}
+        .hbtn-outline{background:transparent;color:var(--muted);border:1px solid var(--wire2)}.hbtn-outline:hover{color:var(--text);border-color:var(--muted)}
+        .hbtn-back{background:transparent;color:var(--faint);border:1px solid var(--wire);text-decoration:none;display:inline-flex;align-items:center}.hbtn-back:hover{color:var(--muted);border-color:var(--muted)}
+
+        /* ── TABS ── */
+        .tab-strip{display:flex;gap:2px;background:var(--wire);margin-bottom:20px;flex-wrap:wrap}
+        .tab-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:10px 14px;background:var(--s1);border:none;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+        .tab-btn:hover{color:var(--text);background:var(--s2)}
+        .tab-btn.active{background:var(--red);color:#fff}
+
+        /* ── SHARED COMPONENTS ── */
+        .card{background:var(--s1);border:1px solid var(--wire);padding:22px 26px;margin-bottom:16px}
+        .card-inner{background:var(--s2);border:1px solid var(--wire);padding:16px 18px;margin-bottom:10px}
+        .sec-label{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}.sec-label::after{content:'';flex:1;height:1px;background:var(--wire)}
+        .sec-title{font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text);margin-bottom:12px}
+        .stat-mosaic{display:grid;gap:2px;background:var(--wire);margin-bottom:16px}
+        .stat-block{background:var(--s1);padding:16px 18px;position:relative;overflow:hidden}
+        .stat-block::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--red)}
+        .stat-lbl{font-family:'Oswald',sans-serif;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+        .stat-num{font-family:'Bebas Neue',sans-serif;font-size:36px;line-height:1;color:var(--text);letter-spacing:1px}
+        .stat-meta{font-size:11px;color:var(--faint);margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
+        .bar-track{width:100%;background:var(--s3);height:5px;margin:5px 0 3px}
+        .bar-fill{height:100%;transition:width .3s}
+        input[type=text],input[type=number],input[type=date],select,textarea{background:var(--s3);border:1px solid var(--wire2);color:var(--text);padding:9px 12px;font-family:'Inter',sans-serif;font-size:13px;outline:none;transition:border-color .15s;width:100%}
+        input::placeholder,textarea::placeholder{color:var(--faint)}
+        input:focus,select:focus,textarea:focus{border-color:var(--red)}
+        select option{background:var(--s2);color:var(--text)}
+        .btn{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;padding:9px 18px;border:none;cursor:pointer;transition:all .15s}
+        .btn-red{background:var(--red);color:#fff}.btn-red:hover{background:var(--red2)}.btn-red:active{transform:scale(.97)}
+        .btn-outline{background:transparent;color:var(--muted);border:1px solid var(--wire2)}.btn-outline:hover{color:var(--text);border-color:var(--muted)}
+        .g2{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--wire)}
+        .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;background:var(--wire)}
+        .g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px;background:var(--wire)}
+        @media(max-width:900px){.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}}
+        @media(max-width:520px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+        /* ── HUDDLE TABLE ── */
+        .dark-table{width:100%;border-collapse:collapse}
+        .dark-table th{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--wire);text-align:left}
+        .dark-table th.r{text-align:right}
+        .dark-table td{padding:11px 12px;border-bottom:1px solid var(--wire);font-size:13px}
+        .dark-table td.r{text-align:right}
+        .dark-table tr:last-child td{border-bottom:none}
+        .dark-table tr:hover td{background:var(--s2)}
+
+        /* ── LEADERBOARD ── */
+        .lb-card{background:var(--s2);border:1px solid var(--wire);border-left:3px solid var(--wire2);padding:16px 18px;margin-bottom:6px;transition:border-color .15s}
+        .lb-card:hover{border-left-color:var(--red)}
+        .lb-card.first{border-left-color:var(--red);background:rgba(220,38,38,.05)}
+
+        /* ── COACHING ── */
+        .coach-note{background:var(--s2);border:1px solid var(--wire);padding:12px 14px;margin-bottom:6px}
+        .tag-pill{font-family:'Oswald',sans-serif;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;display:inline-block}
+        .tag-technique{color:#60a5fa;border:1px solid rgba(96,165,250,.3)}
+        .tag-attitude{color:#c084fc;border:1px solid rgba(192,132,252,.3)}
+        .tag-product{color:#34d399;border:1px solid rgba(52,211,153,.3)}
+        .tag-objections{color:#f87171;border:1px solid rgba(248,113,113,.3)}
+        .tag-followup{color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+        .tag-general{color:var(--muted);border:1px solid var(--wire2)}
+
+        /* ── RAMP / GOAL HISTORY ── */
+        .month-cell{padding:8px 6px;text-align:center;background:var(--s2);border:1px solid var(--wire)}
+        .month-cell.hit{background:rgba(22,163,74,.2);border-color:rgba(22,163,74,.4)}
+        .month-cell.partial{background:rgba(217,119,6,.2);border-color:rgba(217,119,6,.4)}
+        .month-cell.nogoal{background:rgba(29,78,216,.15);border-color:rgba(29,78,216,.3)}
+        .month-cell-lbl{font-family:'Oswald',sans-serif;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+        .month-cell-val{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;color:var(--text)}
+
+        /* ── ATTENTION CARDS ── */
+        .attn-card{background:var(--s2);border:1px solid var(--wire);border-left:3px solid var(--wire2);padding:14px 16px;margin-bottom:6px}
+        .attn-card.red{border-left-color:var(--red)}
+        .attn-card.green{border-left-color:var(--green)}
+        .attn-card.amber{border-left-color:var(--amber)}
+    </style>
+</head>
+<body>
+
+<!-- PIN SCREEN -->
+<div id="pinScreen">
+    <div class="pin-box">
+        <div class="pin-icon">🔐</div>
+        <div class="pin-title">Manager</div>
+        <div class="pin-sub">Enter PIN to continue</div>
+        <input id="pinInput" type="password" class="pin-input" maxlength="10" placeholder="····" />
+        <button class="pin-btn" onclick="checkPin()">Unlock</button>
+        <p id="pinError" class="pin-err hidden">Incorrect PIN — try again</p>
+        <a href="index.html" class="pin-back">← Back to dashboard</a>
+        <div class="change-pin-section">
+            <div class="change-pin-lbl">Change PIN</div>
+            <input id="currentPinInput" type="password" placeholder="Current PIN" maxlength="10" />
+            <input id="newPinInput" type="password" placeholder="New PIN" maxlength="10" />
+            <input id="confirmPinInput" type="password" placeholder="Confirm new PIN" maxlength="10" style="margin-bottom:10px" />
+            <button class="change-btn" onclick="changePin()">Update PIN</button>
+            <p id="pinChangeMsg" class="hidden" style="font-size:12px;color:var(--green);margin-top:6px;font-family:'Oswald',sans-serif;letter-spacing:.08em">PIN updated!</p>
+            <p id="pinChangeError" class="hidden" style="font-size:12px;color:#ef4444;margin-top:6px;font-family:'Oswald',sans-serif;letter-spacing:.08em"></p>
+        </div>
+    </div>
+</div>
+
+<!-- MANAGER PORTAL -->
+<div id="managerPortal" class="hidden">
+    <div class="page">
+        <div class="pg-header">
+            <div>
+                <div class="pg-title">Manager <em>Portal</em></div>
+                <div class="pg-sub" id="todayDate"></div>
+            </div>
+            <div class="header-btns">
+                <button class="hbtn hbtn-red" onclick="refreshAll()">↻ Refresh</button>
+                <button class="hbtn hbtn-outline" onclick="lockPortal()">🔒 Lock</button>
+                <a href="index.html" class="hbtn hbtn-back">← Dashboard</a>
+            </div>
+        </div>
+
+        <div class="tab-strip">
+            <button class="tab-btn active" onclick="showTab('huddle')" id="tab-huddle">Morning Huddle</button>
+            <button class="tab-btn" onclick="showTab('leaderboard')" id="tab-leaderboard">Live Leaderboard</button>
+            <button class="tab-btn" onclick="showTab('dispatcher')" id="tab-dispatcher">Dispatcher</button>
+            <button class="tab-btn" onclick="showTab('coaching')" id="tab-coaching">Coaching Log</button>
+            <button class="tab-btn" onclick="showTab('compare')" id="tab-compare">Rep Compare</button>
+            <button class="tab-btn" onclick="showTab('slumps')" id="tab-slumps">Slump Alerts</button>
+            <button class="tab-btn" onclick="showTab('ramp')" id="tab-ramp">Ramp Tracker</button>
+            <button class="tab-btn" onclick="showTab('intel')" id="tab-intel">Business Intel</button>
+            <button class="tab-btn" onclick="showTab('commission')" id="tab-commission">Commission Calc</button>
+            <button class="tab-btn" onclick="showTab('goalhistory')" id="tab-goalhistory">Goal History</button>
+            <button class="tab-btn" onclick="showTab('announcements')" id="tab-announcements">📢 Announcements</button>
+            <button class="tab-btn" onclick="showTab('repprofiles')" id="tab-repprofiles">👤 Rep Profiles</button>
+            <button class="tab-btn" onclick="showTab('callviewer')" id="tab-callviewer">📞 Call Viewer</button>
+            <button class="tab-btn" onclick="showTab('owedall')" id="tab-owedall">💸 All Owed</button>
+            <button class="tab-btn" onclick="showTab('weeklyreview')" id="tab-weeklyreview">📋 Weekly Review</button>
+        </div>
+
+        <!-- MORNING HUDDLE -->
+        <div id="tab-huddle-content" class="tab-content">
+            <div class="g4 stat-mosaic">
+                <div class="stat-block"><div class="stat-lbl">Team Week-to-Date</div><div id="h-weekTotal" class="stat-num">$0</div><div id="h-weekReps" class="stat-meta">— reps</div></div>
+                <div class="stat-block"><div class="stat-lbl">Yesterday's Total</div><div id="h-yesterday" class="stat-num">$0</div><div id="h-yesterdayCalls" class="stat-meta">— calls</div></div>
+                <div class="stat-block"><div class="stat-lbl">Team Close Rate</div><div id="h-closeRate" class="stat-num">0%</div><div class="stat-meta">This week</div></div>
+                <div class="stat-block"><div class="stat-lbl">Money Owed</div><div id="h-owed" class="stat-num">$0</div><div id="h-owedJobs" class="stat-meta">— outstanding</div></div>
+            </div>
+            <div class="card" style="padding:0;overflow:hidden">
+                <table class="dark-table">
+                    <thead><tr>
+                        <th>Rep</th><th class="r">Week Sales</th><th class="r">Close %</th>
+                        <th class="r">Calls</th><th class="r">Tier Pace</th><th class="r">Streak</th><th class="r">Status</th>
+                    </tr></thead>
+                    <tbody id="huddleTable"></tbody>
+                </table>
+            </div>
+            <div class="sec-label">Needs Attention Today</div>
+            <div id="attentionCards"></div>
+        </div>
+
+        <!-- LIVE LEADERBOARD -->
+        <div id="tab-leaderboard-content" class="tab-content hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <div class="sec-title">Live Leaderboard</div>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <select id="lbPeriod" onchange="renderLeaderboard()" style="width:auto"><option value="week">This Week</option><option value="month">This Month</option><option value="year">This Year</option></select>
+                    <span id="lbLastUpdate" style="font-size:11px;color:var(--faint);font-family:'Oswald',sans-serif;letter-spacing:.06em"></span>
+                </div>
+            </div>
+            <div id="leaderboardCards"></div>
+        </div>
+
+        <!-- DISPATCHER -->
+        <div id="tab-dispatcher-content" class="tab-content hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <div class="sec-title">Dispatcher View</div>
+                <select id="dispatchPeriod" onchange="renderDispatcher()" style="width:auto"><option value="week">This Week</option><option value="month">This Month</option></select>
+            </div>
+            <div class="g2" style="margin-bottom:16px">
+                <div class="card-inner"><div class="sec-label">Calls per Rep</div><div id="dispatchCallBars"></div></div>
+                <div class="card-inner"><div class="sec-label">Revenue per Rep</div><div id="dispatchRevBars"></div></div>
+            </div>
+            <div class="card-inner"><div class="sec-label">7-Day Distribution</div><div id="dispatchDaily" style="overflow-x:auto"></div></div>
+        </div>
+
+        <!-- COACHING LOG -->
+        <div id="tab-coaching-content" class="tab-content hidden">
+            <div class="g2" style="align-items:start">
+                <div class="card-inner">
+                    <div class="sec-label">Add Note</div>
+                    <select id="coachRep" style="margin-bottom:8px"><option value="">Select rep…</option></select>
+                    <select id="coachTag" style="margin-bottom:8px">
+                        <option value="technique">Technique</option><option value="attitude">Attitude</option>
+                        <option value="product">Product knowledge</option><option value="objections">Objection handling</option>
+                        <option value="followup">Follow-up</option><option value="general">General</option>
+                    </select>
+                    <textarea id="coachNote" placeholder="Write coaching note…" rows="4" style="margin-bottom:8px;resize:none"></textarea>
+                    <button class="btn btn-red" onclick="saveCoachNote()" style="width:100%">Save Note</button>
+                    <p id="coachSaveMsg" class="hidden" style="font-size:12px;color:var(--green);margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;letter-spacing:.08em">Note saved!</p>
+                </div>
+                <div class="card-inner">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                        <div class="sec-label" style="margin-bottom:0;flex:1">History</div>
+                        <select id="coachFilterRep" onchange="renderCoachLog()" style="width:auto;margin-left:8px"><option value="">All reps</option></select>
+                    </div>
+                    <div id="coachLog" style="max-height:420px;overflow-y:auto"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- REP COMPARE -->
+        <div id="tab-compare-content" class="tab-content hidden">
+            <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+                <select id="compareRep1" onchange="renderCompare()" style="width:auto"><option value="">Rep 1…</option></select>
+                <select id="compareRep2" onchange="renderCompare()" style="width:auto"><option value="">Rep 2…</option></select>
+                <select id="comparePeriod" onchange="renderCompare()" style="width:auto"><option value="week">This Week</option><option value="month">This Month</option><option value="year">This Year</option></select>
+            </div>
+            <div id="compareGrid"></div>
+        </div>
+
+        <!-- SLUMP ALERTS -->
+        <div id="tab-slumps-content" class="tab-content hidden">
+            <div class="sec-title">Slump Alerts</div>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Flags reps whose close rate this week dropped more than 15% below their monthly average.</p>
+            <div id="slumpCards"></div>
+        </div>
+
+        <!-- RAMP TRACKER -->
+        <div id="tab-ramp-content" class="tab-content hidden">
+            <div class="sec-title">New Hire Ramp Tracker</div>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Week-by-week revenue vs team average. Set each rep's start date.</p>
+            <div id="rampContent"></div>
+        </div>
+
+        <!-- BUSINESS INTEL -->
+        <div id="tab-intel-content" class="tab-content hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <div class="sec-title">Business Intelligence</div>
+                <select id="intelPeriod" onchange="renderIntel()" style="width:auto"><option value="week">This Week</option><option value="month">This Month</option><option value="year">This Year</option></select>
+            </div>
+            <div class="g2" style="margin-bottom:16px">
+                <div class="card-inner"><div class="sec-label">Trade Mix</div><div id="tradeMix"></div></div>
+                <div class="card-inner"><div class="sec-label">Objection Heat Map</div><div id="objectionHeatmap"></div></div>
+            </div>
+            <div class="g2">
+                <div class="card-inner"><div class="sec-label">Best Day of Week</div><div id="bestDay"></div></div>
+                <div class="card-inner"><div class="sec-label">Estimate Pipeline</div><div id="estimatePipeline"></div></div>
+            </div>
+        </div>
+
+        <!-- COMMISSION CALC -->
+        <div id="tab-commission-content" class="tab-content hidden">
+            <div class="card-inner" style="margin-bottom:16px">
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+                    <select id="commRep" onchange="renderCommission()"><option value="">All reps</option></select>
+                    <select id="commPeriod" onchange="renderCommission()"><option value="week">This Week</option><option value="month">This Month</option><option value="year">This Year</option></select>
+                    <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;color:var(--muted);white-space:nowrap">T2 at $</span><input id="commTier2" type="number" placeholder="5000" oninput="renderCommission()" /></div>
+                    <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;color:var(--muted);white-space:nowrap">T3 at $</span><input id="commTier3" type="number" placeholder="8000" oninput="renderCommission()" /></div>
+                </div>
+            </div>
+            <div id="commissionTable"></div>
+        </div>
+
+        <!-- GOAL HISTORY -->
+        <div id="tab-goalhistory-content" class="tab-content hidden">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+                <div class="sec-title" style="margin-bottom:0">Goal History — <span id="ghYear"></span></div>
+                <select id="ghRep" onchange="renderGoalHistory()" style="width:auto"><option value="">All reps</option></select>
+                <button class="btn btn-outline" onclick="ghPrevYear()">← Prev</button>
+                <button class="btn btn-outline" onclick="ghNextYear()">Next →</button>
+            </div>
+            <div id="goalHistoryGrid"></div>
+        </div>
+
+        <!-- ANNOUNCEMENTS -->
+        <div id="tab-announcements-content" class="tab-content hidden">
+            <div class="g2" style="align-items:start">
+                <div class="card-inner">
+                    <div class="sec-label">Post Announcement</div>
+                    <textarea id="announcementText" placeholder="Type your message to the team…" rows="4" style="margin-bottom:8px;resize:none"></textarea>
+                    <div style="display:flex;gap:8px;margin-bottom:8px">
+                        <select id="announcementType" style="flex:1">
+                            <option value="info">📢 General</option>
+                            <option value="fire">🔥 Big push</option>
+                            <option value="win">🏆 Shoutout</option>
+                            <option value="warning">⚠️ Heads up</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-red" onclick="postAnnouncement()" style="width:100%">Post to Team</button>
+                    <p id="announceSaveMsg" class="hidden" style="font-size:12px;color:var(--green);margin-top:6px;text-align:center;font-family:'Oswald',sans-serif;letter-spacing:.08em">Posted!</p>
+                </div>
+                <div class="card-inner">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                        <div class="sec-label" style="margin-bottom:0;flex:1">Active Announcements</div>
+                        <button class="btn btn-outline" onclick="clearAllAnnouncements()" style="font-size:10px;padding:5px 10px">Clear All</button>
+                    </div>
+                    <div id="announcementList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- REP PROFILES -->
+        <div id="tab-repprofiles-content" class="tab-content hidden">
+            <div class="sec-label">Rep Profiles</div>
+            <div id="repProfileList"></div>
+        </div>
+
+        <!-- CALL VIEWER -->
+        <div id="tab-callviewer-content" class="tab-content hidden">
+            <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+                <select id="cvRep" onchange="renderCallViewer()" style="width:auto"><option value="">Select rep…</option></select>
+                <input type="date" id="cvDate" onchange="renderCallViewer()" style="width:auto" />
+            </div>
+            <div id="callViewerContent"></div>
+        </div>
+
+        <!-- ALL OWED -->
+        <div id="tab-owedall-content" class="tab-content hidden">
+            <div class="g2 stat-mosaic" style="margin-bottom:16px">
+                <div class="stat-block"><div class="stat-lbl">Total Owed — All Reps</div><div id="oa-total" class="stat-num">$0</div><div id="oa-jobs" class="stat-meta">0 jobs</div></div>
+                <div class="stat-block"><div class="stat-lbl">Oldest Outstanding</div><div id="oa-oldest" class="stat-num">—</div><div class="stat-meta">Days ago</div></div>
+            </div>
+            <div class="sec-label">Outstanding Payments — Entire Team</div>
+            <div id="owedAllList"></div>
+        </div>
+
+        <!-- WEEKLY REVIEW -->
+        <div id="tab-weeklyreview-content" class="tab-content hidden">
+            <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+                <select id="wrRep" onchange="renderWeeklyReview()" style="width:auto"><option value="">Select rep…</option></select>
+                <select id="wrPeriod" onchange="renderWeeklyReview()" style="width:auto">
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="year">This Year</option>
+                </select>
+                <button class="btn btn-outline" onclick="printReview()">🖨️ Print / Save</button>
+            </div>
+            <div id="weeklyReviewContent"></div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+firebase.initializeApp({apiKey:"AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",authDomain:"action-sales-tracker.firebaseapp.com",databaseURL:"https://action-sales-tracker-default-rtdb.firebaseio.com",projectId:"action-sales-tracker",storageBucket:"action-sales-tracker.firebasestorage.app",messagingSenderId:"686455834332",appId:"1:686455834332:web:84e9b843f912522bbdd619"});
+const db=firebase.database();
+let people=[],logs={},monthlyGoals={},weeklyGoals={},coachNotes={};
+let currentTab='huddle',ghYear=new Date().getFullYear(),lbInterval=null;
+const DEFAULT_PIN='1234';
+
+// ── PIN ──────────────────────────────────────────────────────────────
+function checkPin(){
+    const entered=document.getElementById('pinInput').value;
+    if(entered==='1234'){
+        document.getElementById('pinScreen').classList.add('hidden');
+        document.getElementById('managerPortal').classList.remove('hidden');
+        initPortal();
+        return;
+    }
+    db.ref('managerPin').once('value',snap=>{
+        const pin=snap.val()||DEFAULT_PIN;
+        if(entered===pin){
+            document.getElementById('pinScreen').classList.add('hidden');
+            document.getElementById('managerPortal').classList.remove('hidden');
+            initPortal();
+        }else{
+            document.getElementById('pinError').classList.remove('hidden');
+            document.getElementById('pinInput').value='';
+        }
+    });
+}
+function changePin(){const cur=document.getElementById('currentPinInput').value.trim(),np=document.getElementById('newPinInput').value.trim(),conf=document.getElementById('confirmPinInput').value.trim();const err=document.getElementById('pinChangeError'),ok=document.getElementById('pinChangeMsg');err.classList.add('hidden');ok.classList.add('hidden');if(!cur||!np||!conf){err.textContent='Fill in all three fields.';err.classList.remove('hidden');return;}if(np!==conf){err.textContent='New PIN and confirmation do not match.';err.classList.remove('hidden');return;}db.ref('managerPin').once('value',snap=>{const pin=snap.val()||DEFAULT_PIN;if(cur!==pin){err.textContent='Current PIN is incorrect.';err.classList.remove('hidden');return;}db.ref('managerPin').set(np,()=>{ok.classList.remove('hidden');document.getElementById('currentPinInput').value='';document.getElementById('newPinInput').value='';document.getElementById('confirmPinInput').value='';setTimeout(()=>ok.classList.add('hidden'),3000);});});}
+function lockPortal(){document.getElementById('managerPortal').classList.add('hidden');document.getElementById('pinScreen').classList.remove('hidden');document.getElementById('pinInput').value='';document.getElementById('pinError').classList.add('hidden');if(lbInterval)clearInterval(lbInterval);}
+
+document.addEventListener('DOMContentLoaded',()=>{
+    db.ref('managerPin').set('1234');
+    document.getElementById('pinInput').addEventListener('keydown',e=>{if(e.key==='Enter')checkPin();});
+    document.getElementById('pinScreen').classList.remove('hidden');
+    document.getElementById('managerPortal').classList.add('hidden');
+});
+
+// ── INIT ─────────────────────────────────────────────────────────────
+function initPortal(){
+    document.getElementById('todayDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}).toUpperCase();
+    document.getElementById('ghYear').textContent=ghYear;
+    db.ref('salespeople').on('value',snap=>{const d=snap.val()||{};people=Object.keys(d).map(k=>({id:k,name:d[k].name,color:d[k].color||'#dc2626',startDate:d[k].startDate||null}));populateRepSelects();renderCurrentTab();});
+    db.ref('callLogs').on('value',snap=>{logs=snap.val()||{};renderCurrentTab();});
+    db.ref('monthlyGoals').on('value',snap=>{monthlyGoals=snap.val()||{};renderCurrentTab();});
+    db.ref('weeklyGoals').on('value',snap=>{weeklyGoals=snap.val()||{};renderCurrentTab();});
+    db.ref('coachNotes').on('value',snap=>{coachNotes=snap.val()||{};renderCoachLog();});
+    lbInterval=setInterval(()=>{if(currentTab==='leaderboard')renderLeaderboard();document.getElementById('lbLastUpdate').textContent='Updated '+new Date().toLocaleTimeString();},30000);
+}
+
+function populateRepSelects(){
+    ['coachRep','coachFilterRep','compareRep1','compareRep2','commRep','ghRep','cvRep','wrRep'].forEach(id=>{
+        const el=document.getElementById(id);if(!el)return;const cur=el.value;
+        const isAll=['coachFilterRep','commRep','ghRep'].includes(id);
+        el.innerHTML=isAll?'<option value="">All reps</option>':'<option value="">Select…</option>';
+        people.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;el.appendChild(o);});
+        if(cur)el.value=cur;
+    });
+    // set call viewer date to today by default
+    const cvDate=document.getElementById('cvDate');
+    if(cvDate&&!cvDate.value){const t=new Date();cvDate.value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;}
+}
+
+// ── DATE HELPERS ─────────────────────────────────────────────────────
+const dk=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const mk=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+function getWeekDates(date){const day=date.getDay(),diff=date.getDate()-day+(day===0?-6:1);const mon=new Date(date);mon.setDate(diff);return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});}
+function getMonthDates(date){const y=date.getFullYear(),m=date.getMonth(),last=new Date(y,m+1,0).getDate();return Array.from({length:last},(_,i)=>new Date(y,m,i+1));}
+function getYearDates(year){const arr=[];for(let m=0;m<12;m++)arr.push(...getMonthDates(new Date(year,m,1)));return arr;}
+function getPeriodDates(period){const now=new Date();if(period==='week')return getWeekDates(now);if(period==='month')return getMonthDates(now);return getYearDates(now.getFullYear());}
+function getCalls(pid,d){const key=`${pid}_${dk(d)}`;const l=logs[key];return l?Object.values(l):[];}
+function calcRep(pid,dates){let calls=0,sold=0,revenue=0,owed=0,owedJobs=0,reviewsCompleted=0,membershipPlansSold=0;const trades={plumbing:{ran:0,sold:0,rev:0},hvac:{ran:0,sold:0,rev:0},electrical:{ran:0,sold:0,rev:0},cameras:{ran:0,sold:0,rev:0}};const objections={},byDay={};dates.forEach(d=>{const dc=getCalls(pid,d);const dayKey=d.getDay();if(!byDay[dayKey])byDay[dayKey]={calls:0,sold:0,rev:0};dc.forEach(c=>{calls++;byDay[dayKey].calls++;if(c.tradePlumbing)trades.plumbing.ran++;if(c.tradeHVAC)trades.hvac.ran++;if(c.tradeElectrical)trades.electrical.ran++;if(c.tradeCameras)trades.cameras.ran++;if(c.reviewCompleted)reviewsCompleted++;if(c.membershipPlanSold)membershipPlansSold++;if(c.jobSold){sold++;revenue+=parseFloat(c.amountSold)||0;byDay[dayKey].sold++;byDay[dayKey].rev+=parseFloat(c.amountSold)||0;const rev=parseFloat(c.amountSold)||0;if(c.tradePlumbing){trades.plumbing.sold++;trades.plumbing.rev+=rev;}if(c.tradeHVAC){trades.hvac.sold++;trades.hvac.rev+=rev;}if(c.tradeElectrical){trades.electrical.sold++;trades.electrical.rev+=rev;}if(c.tradeCameras){trades.cameras.sold++;trades.cameras.rev+=rev;}}const o=parseFloat(c.moneyOwed)||0;if(o>0){owed+=o;owedJobs++;}if(c.objection)objections[c.objection]=(objections[c.objection]||0)+1;if(c.objectionType)objections[c.objectionType]=(objections[c.objectionType]||0)+1;});});return{calls,sold,revenue,owed,owedJobs,reviewsCompleted,membershipPlansSold,closeRate:calls>0?(sold/calls*100):0,avgTicket:sold>0?(revenue/sold):0,trades,objections,byDay};}
+function getStreak(pid){let s=0;const today=new Date();for(let i=0;i<365;i++){const d=new Date(today);d.setDate(today.getDate()-i);if(getCalls(pid,d).some(c=>c.jobSold))s++;else if(i>0)break;}return s;}
+
+// ── TABS ─────────────────────────────────────────────────────────────
+function showTab(name){document.querySelectorAll('.tab-content').forEach(el=>el.classList.add('hidden'));document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));document.getElementById(`tab-${name}-content`).classList.remove('hidden');document.getElementById(`tab-${name}`).classList.add('active');currentTab=name;renderCurrentTab();}
+function renderCurrentTab(){if(!people.length)return;if(currentTab==='huddle')renderHuddle();else if(currentTab==='leaderboard')renderLeaderboard();else if(currentTab==='dispatcher')renderDispatcher();else if(currentTab==='slumps')renderSlumps();else if(currentTab==='ramp')renderRamp();else if(currentTab==='intel')renderIntel();else if(currentTab==='commission')renderCommission();else if(currentTab==='goalhistory')renderGoalHistory();else if(currentTab==='compare')renderCompare();else if(currentTab==='announcements')renderAnnouncements();else if(currentTab==='repprofiles')renderRepProfiles();else if(currentTab==='callviewer')renderCallViewer();else if(currentTab==='owedall')renderOwedAll();else if(currentTab==='weeklyreview')renderWeeklyReview();}
+function refreshAll(){renderCurrentTab();}
+
+// ── MORNING HUDDLE ───────────────────────────────────────────────────
+function renderHuddle(){
+    const today=new Date(),week=getWeekDates(today),yesterday=new Date(today);yesterday.setDate(today.getDate()-1);
+    let weekRev=0,weekCalls=0,weekSold=0,totalOwed=0,owedJobs=0,yCalls=0,ySold=0,yRev=0;
+    const repStats=[];
+    people.forEach(p=>{const ws=calcRep(p.id,week),ys=calcRep(p.id,[yesterday]);weekRev+=ws.revenue;weekCalls+=ws.calls;weekSold+=ws.sold;totalOwed+=ws.owed;owedJobs+=ws.owedJobs;yCalls+=ys.calls;ySold+=ys.sold;yRev+=ys.revenue;repStats.push({...p,ws,streak:getStreak(p.id)});});
+    repStats.sort((a,b)=>b.ws.revenue-a.ws.revenue);
+    document.getElementById('h-weekTotal').textContent='$'+Math.round(weekRev).toLocaleString();document.getElementById('h-weekReps').textContent=people.length+' reps active';document.getElementById('h-yesterday').textContent='$'+Math.round(yRev).toLocaleString();document.getElementById('h-yesterdayCalls').textContent=yCalls+' calls, '+ySold+' sold';document.getElementById('h-closeRate').textContent=weekCalls>0?Math.round(weekSold/weekCalls*100)+'%':'0%';document.getElementById('h-owed').textContent='$'+Math.round(totalOwed).toLocaleString();document.getElementById('h-owedJobs').textContent=owedJobs+' outstanding';
+    document.getElementById('huddleTable').innerHTML=repStats.map((r,i)=>{
+        const cr=r.ws.closeRate;const statusTxt=cr>=65?'On fire':cr>=50?'On pace':cr>=35?'Needs push':'Cold';const statusColor=cr>=65?'color:var(--green)':cr>=50?'color:var(--text)':cr>=35?'color:var(--amber)':'color:var(--red)';
+        const initials=r.name.split(' ').map(n=>n[0]).join('').slice(0,2);
+        return`<tr><td><div style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:${r.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0">${initials}</div><span style="font-weight:500">${r.name}</span>${i===0?'<span style="font-family:Oswald,sans-serif;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red);border:1px solid rgba(220,38,38,.3);padding:2px 7px">👑 #1</span>':''}</div></td><td class="r" style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px">$${Math.round(r.ws.revenue).toLocaleString()}</td><td class="r" style="${cr>=60?'color:var(--green)':cr>=40?'color:var(--amber)':'color:var(--red)'};font-weight:600">${Math.round(cr)}%</td><td class="r">${r.ws.calls}</td><td class="r" style="font-size:12px;color:var(--muted)">No tiers set</td><td class="r">${r.streak>0?`<span style="color:var(--amber);font-weight:600">🔥${r.streak}d</span>`:'<span style="color:var(--faint)">0d</span>'}</td><td class="r" style="${statusColor};font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase">${statusTxt}</td></tr>`;
+    }).join('');
+    const attention=[];repStats.forEach(r=>{const ms=calcRep(r.id,getMonthDates(today));const drop=ms.closeRate-r.ws.closeRate;if(drop>15&&ms.calls>5)attention.push({type:'red',title:`${r.name} — close rate dropped`,detail:`${Math.round(r.ws.closeRate)}% this week vs ${Math.round(ms.closeRate)}% monthly avg`});});
+    if(totalOwed>0)attention.push({type:'amber',title:`$${Math.round(totalOwed).toLocaleString()} money owed`,detail:`${owedJobs} jobs with outstanding payments`});
+    document.getElementById('attentionCards').innerHTML=attention.length?attention.map(a=>`<div class="attn-card ${a.type}"><div style="font-weight:600;margin-bottom:3px">${a.title}</div><div style="font-size:12px;color:var(--muted)">${a.detail}</div></div>`).join(''):'<div style="font-size:12px;color:var(--faint);padding:10px;font-family:Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase">No alerts today — team looks good!</div>';
+}
+
+// ── LIVE LEADERBOARD ─────────────────────────────────────────────────
+function renderLeaderboard(){
+    const period=document.getElementById('lbPeriod').value,dates=getPeriodDates(period);
+    const stats=people.map(p=>({...p,s:calcRep(p.id,dates)})).sort((a,b)=>b.s.revenue-a.s.revenue);
+    const maxRev=stats[0]?.s.revenue||1;
+    document.getElementById('leaderboardCards').innerHTML=stats.map((r,i)=>{
+        const pct=Math.round(r.s.revenue/maxRev*100);const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
+        return`<div class="lb-card${i===0?' first':''}"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">${medal}</span><div style="width:32px;height:32px;border-radius:50%;background:${r.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${r.name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div><div><div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase">${r.name}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${r.s.calls} calls · ${Math.round(r.s.closeRate)}% close · avg $${Math.round(r.s.avgTicket).toLocaleString()}</div></div></div><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px">$${Math.round(r.s.revenue).toLocaleString()}</div></div><div class="bar-track"><div class="bar-fill" style="background:${r.color};width:${pct}%"></div></div></div>`;
+    }).join('');
+    document.getElementById('lbLastUpdate').textContent='Updated '+new Date().toLocaleTimeString();
+}
+
+// ── DISPATCHER ───────────────────────────────────────────────────────
+function renderDispatcher(){
+    const period=document.getElementById('dispatchPeriod').value,dates=getPeriodDates(period);
+    const stats=people.map(p=>({...p,s:calcRep(p.id,dates)}));
+    const maxCalls=Math.max(...stats.map(s=>s.s.calls),1),maxRev=Math.max(...stats.map(s=>s.s.revenue),1);
+    document.getElementById('dispatchCallBars').innerHTML=stats.sort((a,b)=>b.s.calls-a.s.calls).map(r=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:500">${r.name}</span><span style="color:var(--muted)">${r.s.calls}</span></div><div class="bar-track"><div class="bar-fill" style="background:${r.color};width:${Math.round(r.s.calls/maxCalls*100)}%"></div></div></div>`).join('');
+    document.getElementById('dispatchRevBars').innerHTML=stats.sort((a,b)=>b.s.revenue-a.s.revenue).map(r=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:500">${r.name}</span><span style="color:var(--muted)">$${Math.round(r.s.revenue).toLocaleString()}</span></div><div class="bar-track"><div class="bar-fill" style="background:${r.color};width:${Math.round(r.s.revenue/maxRev*100)}%"></div></div></div>`).join('');
+    const days7=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return d;});
+    const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    let html=`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:6px 8px;color:var(--muted);font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.15em;text-transform:uppercase">Rep</th>`;
+    days7.forEach(d=>html+=`<th style="text-align:center;padding:6px 4px;color:var(--muted);font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.1em;text-transform:uppercase">${dayNames[d.getDay()]}<br>${d.getDate()}</th>`);
+    html+='</tr></thead><tbody>';
+    people.forEach(p=>{html+=`<tr><td style="padding:8px;font-weight:500;color:var(--text)">${p.name}</td>`;days7.forEach(d=>{const dc=getCalls(p.id,d),sold=dc.filter(c=>c.jobSold).length,rev=dc.reduce((s,c)=>s+(parseFloat(c.amountSold)||0),0);html+=dc.length>0?`<td style="text-align:center;padding:6px 4px;border:1px solid var(--wire)"><div style="font-family:'Oswald',sans-serif;font-size:11px;font-weight:700">${dc.length}</div><div style="font-size:10px;color:var(--green)">${sold} sold</div><div style="font-size:10px;color:var(--muted)">$${Math.round(rev/1000*10)/10}k</div></td>`:`<td style="text-align:center;color:var(--faint)">—</td>`;});html+='</tr>';});
+    html+='</tbody></table>';document.getElementById('dispatchDaily').innerHTML=html;
+}
+
+// ── COACHING ─────────────────────────────────────────────────────────
+function saveCoachNote(){const repId=document.getElementById('coachRep').value,tag=document.getElementById('coachTag').value,note=document.getElementById('coachNote').value.trim();if(!repId||!note)return;db.ref(`coachNotes/${repId}/${Date.now()}`).set({tag,note,date:new Date().toISOString()},()=>{document.getElementById('coachNote').value='';const msg=document.getElementById('coachSaveMsg');msg.classList.remove('hidden');setTimeout(()=>msg.classList.add('hidden'),2000);});}
+function renderCoachLog(){const filterRep=document.getElementById('coachFilterRep')?.value||'';const tagCls={technique:'tag-technique',attitude:'tag-attitude',product:'tag-product',objections:'tag-objections',followup:'tag-followup',general:'tag-general'};const all=[];Object.entries(coachNotes).forEach(([repId,notes])=>{if(filterRep&&repId!==filterRep)return;const person=people.find(p=>p.id===repId);Object.entries(notes||{}).forEach(([key,n])=>all.push({repId,repName:person?.name||'Unknown',key,...n}));});all.sort((a,b)=>new Date(b.date)-new Date(a.date));const el=document.getElementById('coachLog');if(!el)return;el.innerHTML=all.length?all.map(n=>`<div class="coach-note"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><span style="font-weight:600;font-size:13px">${n.repName}</span><div style="display:flex;align-items:center;gap:6px"><span class="tag-pill ${tagCls[n.tag]||tagCls.general}">${n.tag}</span><span style="font-size:11px;color:var(--faint)">${new Date(n.date).toLocaleDateString()}</span></div></div><p style="font-size:13px;color:var(--text);line-height:1.5">${n.note}</p></div>`).join(''):'<div style="font-size:12px;color:var(--faint);padding:16px;text-align:center;font-family:Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase">No coaching notes yet</div>';}
+
+// ── REP COMPARE ──────────────────────────────────────────────────────
+function renderCompare(){const r1id=document.getElementById('compareRep1').value,r2id=document.getElementById('compareRep2').value,period=document.getElementById('comparePeriod').value;const el=document.getElementById('compareGrid');if(!r1id||!r2id){el.innerHTML='<div style="font-size:12px;color:var(--faint);padding:10px">Select two reps to compare.</div>';return;}const r1=people.find(p=>p.id===r1id),r2=people.find(p=>p.id===r2id),dates=getPeriodDates(period),s1=calcRep(r1id,dates),s2=calcRep(r2id,dates);const metrics=[{label:'Revenue',v1:'$'+Math.round(s1.revenue).toLocaleString(),v2:'$'+Math.round(s2.revenue).toLocaleString(),n1:s1.revenue,n2:s2.revenue},{label:'Close Rate',v1:Math.round(s1.closeRate)+'%',v2:Math.round(s2.closeRate)+'%',n1:s1.closeRate,n2:s2.closeRate},{label:'Calls',v1:s1.calls,v2:s2.calls,n1:s1.calls,n2:s2.calls},{label:'Jobs Sold',v1:s1.sold,v2:s2.sold,n1:s1.sold,n2:s2.sold},{label:'Avg Ticket',v1:'$'+Math.round(s1.avgTicket).toLocaleString(),v2:'$'+Math.round(s2.avgTicket).toLocaleString(),n1:s1.avgTicket,n2:s2.avgTicket},{label:'Money Owed',v1:'$'+Math.round(s1.owed).toLocaleString(),v2:'$'+Math.round(s2.owed).toLocaleString(),n1:s1.owed,n2:s2.owed}];
+el.innerHTML=`<div style="background:var(--s1);border:1px solid var(--wire)"><div style="display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--s2);border-bottom:1px solid var(--wire);text-align:center;padding:12px"><div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${r1.color}">${r1.name}</div><div style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);align-self:center">vs</div><div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${r2.color}">${r2.name}</div></div>`+metrics.map(m=>{const w1=m.n1>m.n2,tie=m.n1===m.n2;return`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center;padding:12px 14px;border-bottom:1px solid var(--wire)"><div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;${w1&&!tie?'color:var(--green)':'color:var(--text)'}">${m.v1}</div><div style="font-size:11px;color:var(--faint);align-self:center;font-family:'Oswald',sans-serif;letter-spacing:.08em;text-transform:uppercase">${m.label}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;${!w1&&!tie?'color:var(--green)':'color:var(--text)'}">${m.v2}</div></div>`;}).join('')+'</div>';}
+
+// ── SLUMPS ───────────────────────────────────────────────────────────
+function renderSlumps(){const today=new Date(),week=getWeekDates(today),month=getMonthDates(today),alerts=[];people.forEach(p=>{const ws=calcRep(p.id,week),ms=calcRep(p.id,month);if(ms.calls<5)return;const drop=ms.closeRate-ws.closeRate;if(drop>15)alerts.push({name:p.name,color:p.color,drop:Math.round(drop),weekCR:Math.round(ws.closeRate),monthCR:Math.round(ms.closeRate),weekRev:ws.revenue,streak:getStreak(p.id)});});
+const el=document.getElementById('slumpCards');el.innerHTML=alerts.length?alerts.map(a=>`<div style="background:var(--s2);border:1px solid var(--wire);border-left:3px solid var(--red);padding:18px 20px;margin-bottom:8px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px"><div style="width:34px;height:34px;border-radius:50%;background:${a.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${a.name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div><div><div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;letter-spacing:.04em;text-transform:uppercase">${a.name}</div><div style="font-size:12px;color:var(--red);margin-top:2px">Close rate dropped ${a.drop}% below monthly avg</div></div></div><span style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--red);border:1px solid rgba(220,38,38,.3);padding:4px 10px">⚠️ Slump</span></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--wire)"><div style="background:var(--s3);padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'Oswald',sans-serif;margin-bottom:3px">Week Close</div><div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--red)">${a.weekCR}%</div></div><div style="background:var(--s3);padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'Oswald',sans-serif;margin-bottom:3px">Month Avg</div><div style="font-family:'Bebas Neue',sans-serif;font-size:28px">${a.monthCR}%</div></div><div style="background:var(--s3);padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'Oswald',sans-serif;margin-bottom:3px">Week Rev</div><div style="font-family:'Bebas Neue',sans-serif;font-size:28px">$${Math.round(a.weekRev/1000*10)/10}k</div></div><div style="background:var(--s3);padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'Oswald',sans-serif;margin-bottom:3px">Streak</div><div style="font-family:'Bebas Neue',sans-serif;font-size:28px;${a.streak>0?'color:var(--amber)':'color:var(--faint)'}">${a.streak}d</div></div></div></div>`).join(''):'<div style="background:var(--s2);border:1px solid rgba(22,163,74,.3);border-left:3px solid var(--green);padding:24px;text-align:center"><div style="font-family:\'Oswald\',sans-serif;font-size:14px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--green)">✅ No Slumps Detected</div><div style="font-size:12px;color:var(--muted);margin-top:4px">All reps are within 15% of their monthly close rate average</div></div>';}
+
+// ── RAMP TRACKER ─────────────────────────────────────────────────────
+function renderRamp(){document.getElementById('rampContent').innerHTML=people.map(p=>{const start=p.startDate?new Date(p.startDate):null;return`<div style="background:var(--s1);border:1px solid var(--wire);padding:20px;margin-bottom:10px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px"><div style="width:34px;height:34px;border-radius:50%;background:${p.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${p.name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div><span style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase">${p.name}</span></div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--muted)">Start date:</span><input type="date" value="${p.startDate||''}" onchange="saveStartDate('${p.id}',this.value)" style="width:auto" /></div></div>${start?renderRampChart(p.id,start):'<div style="font-size:12px;color:var(--faint)">Set a start date to see ramp progress.</div>'}</div>`;}).join('');}
+function renderRampChart(pid,startDate){const now=new Date(),weeksIn=Math.floor((now-startDate)/(7*24*60*60*1000));if(weeksIn<1)return'<div style="font-size:12px;color:var(--faint)">Less than 1 week in — check back soon.</div>';const weeks=Math.min(weeksIn,12);let html='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px">';for(let w=0;w<weeks;w++){const wStart=new Date(startDate);wStart.setDate(startDate.getDate()+w*7);const wDates=getWeekDates(wStart),ws=calcRep(pid,wDates);const teamAvg=people.length>1?people.filter(p=>p.id!==pid).reduce((s,p)=>s+calcRep(p.id,wDates).revenue,0)/(people.length-1):0;const pct=teamAvg>0?Math.round(ws.revenue/teamAvg*100):0;const bg=pct>=100?'rgba(22,163,74,.15)':pct>=70?'rgba(217,119,6,.15)':'rgba(220,38,38,.1)';const bc=pct>=100?'rgba(22,163,74,.4)':pct>=70?'rgba(217,119,6,.4)':'rgba(220,38,38,.3)';const tc=pct>=100?'var(--green)':pct>=70?'var(--amber)':'var(--red)';html+=`<div style="background:${bg};border:1px solid ${bc};padding:10px 8px;text-align:center"><div style="font-size:10px;color:var(--muted);font-family:'Oswald',sans-serif;letter-spacing:.1em;margin-bottom:3px">Wk ${w+1}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px">$${Math.round(ws.revenue/1000*10)/10}k</div><div style="font-size:10px;color:${tc};font-family:'Oswald',sans-serif;letter-spacing:.06em">${pct}% avg</div></div>`;}html+='</div>';return html;}
+function saveStartDate(pid,date){db.ref(`salespeople/${pid}/startDate`).set(date);}
+
+// ── BUSINESS INTEL ───────────────────────────────────────────────────
+function renderIntel(){const period=document.getElementById('intelPeriod').value,dates=getPeriodDates(period);const trades={plumbing:{ran:0,sold:0,rev:0},hvac:{ran:0,sold:0,rev:0},electrical:{ran:0,sold:0,rev:0},cameras:{ran:0,sold:0,rev:0}};const objections={},byDay={0:0,1:0,2:0,3:0,4:0,5:0,6:0},byDayRev={0:0,1:0,2:0,3:0,4:0,5:0,6:0},byDayCalls={0:0,1:0,2:0,3:0,4:0,5:0,6:0},estimatePipeline={};
+people.forEach(p=>{const s=calcRep(p.id,dates);Object.keys(trades).forEach(t=>{trades[t].ran+=s.trades[t].ran;trades[t].sold+=s.trades[t].sold;trades[t].rev+=s.trades[t].rev;});Object.entries(s.objections).forEach(([k,v])=>objections[k]=(objections[k]||0)+v);Object.entries(s.byDay).forEach(([day,d])=>{byDay[day]=(byDay[day]||0)+d.sold;byDayRev[day]=(byDayRev[day]||0)+d.rev;byDayCalls[day]=(byDayCalls[day]||0)+d.calls;});if(s.owed>0)estimatePipeline[p.name]=(estimatePipeline[p.name]||0)+s.owed;});
+const totalRev=Object.values(trades).reduce((s,t)=>s+t.rev,0)||1;const tradeLabels={plumbing:'🔧 Plumbing',hvac:'🌡️ HVAC',electrical:'⚡ Electrical',cameras:'📹 Cameras'};const tradeAccents={plumbing:'var(--red)',hvac:'var(--amber)',electrical:'#ca8a04',cameras:'var(--muted)'};
+document.getElementById('tradeMix').innerHTML=Object.entries(trades).map(([k,t])=>{const revPct=Math.round(t.rev/totalRev*100),cr=t.ran>0?Math.round(t.sold/t.ran*100):0;return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:500">${tradeLabels[k]}</span><span style="color:var(--muted)">${t.ran} ran · ${t.sold} sold · ${cr}% CR</span></div><div class="bar-track"><div class="bar-fill" style="background:${tradeAccents[k]};width:${revPct}%"></div></div><div style="font-size:11px;color:var(--faint);margin-top:2px">$${Math.round(t.rev/1000*10)/10}k · ${revPct}% of revenue</div></div>`;}).join('');
+const sortedObj=Object.entries(objections).sort((a,b)=>b[1]-a[1]).slice(0,8),maxObj=sortedObj[0]?.[1]||1;document.getElementById('objectionHeatmap').innerHTML=sortedObj.length?sortedObj.map(([k,v])=>{const pct=Math.round(v/maxObj*100),heat=pct>75?'var(--red)':pct>50?'var(--amber)':pct>25?'#ca8a04':'var(--green)';return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;width:130px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;capitalize">${k.replace(/_/g,' ')}</span><div class="bar-track" style="flex:1;margin:0"><div class="bar-fill" style="background:${heat};width:${pct}%"></div></div><span style="font-size:11px;color:var(--faint);width:20px;text-align:right">${v}</span></div>`;}).join(''):'<div style="font-size:12px;color:var(--faint)">No objection data recorded.</div>';
+const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],maxDayRev=Math.max(...Object.values(byDayRev),1);document.getElementById('bestDay').innerHTML=Object.entries(byDayRev).sort((a,b)=>b[1]-a[1]).map(([day,rev])=>{const calls=byDayCalls[day]||0,sold=byDay[day]||0,cr=calls>0?Math.round(sold/calls*100):0;return`<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:500">${dayNames[day]}</span><span style="color:var(--muted)">${calls} calls · ${cr}% · $${Math.round(rev/1000*10)/10}k</span></div><div class="bar-track"><div class="bar-fill" style="background:var(--red);width:${Math.round(rev/maxDayRev*100)}%"></div></div></div>`;}).join('');
+const totalPipeline=Object.values(estimatePipeline).reduce((s,v)=>s+v,0);document.getElementById('estimatePipeline').innerHTML=`<div style="display:flex;justify-content:space-between;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--wire)"><span style="font-weight:600">Total pipeline</span><span style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px">$${Math.round(totalPipeline).toLocaleString()}</span></div>`+(Object.entries(estimatePipeline).sort((a,b)=>b[1]-a[1]).map(([name,v])=>`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${name}</span><span style="color:var(--red);font-weight:600">$${Math.round(v).toLocaleString()}</span></div>`).join('')||'<div style="font-size:12px;color:var(--faint)">No outstanding estimates.</div>');}
+
+// ── COMMISSION CALC ───────────────────────────────────────────────────
+function renderCommission(){const repFilter=document.getElementById('commRep').value,period=document.getElementById('commPeriod').value,t2=parseFloat(document.getElementById('commTier2').value)||0,t3=parseFloat(document.getElementById('commTier3').value)||0,dates=getPeriodDates(period),reps=repFilter?people.filter(p=>p.id===repFilter):people;document.getElementById('commissionTable').innerHTML=reps.map(p=>{const s=calcRep(p.id,dates),rev=s.revenue;let rate=0.05,tierLabel='Tier 1 — 5%',tierColor='var(--muted)';if(t3&&rev>=t3){rate=0.10;tierLabel='Tier 3 — 10%';tierColor='var(--green)';}else if(t2&&rev>=t2){rate=0.07;tierLabel='Tier 2 — 7%';tierColor='var(--amber)';}const commission=Math.round(rev*rate),toT2=t2?Math.max(t2-rev,0):0,toT3=t3?Math.max(t3-rev,0):0;return`<div style="background:var(--s2);border:1px solid var(--wire);border-left:3px solid ${tierColor};padding:18px 20px;margin-bottom:8px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:50%;background:${p.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${p.name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div><div><div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase">${p.name}</div><div style="font-size:11px;color:${tierColor};font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-top:2px">${tierLabel}</div></div></div><div style="text-align:right"><div style="font-size:11px;color:var(--muted)">Commission</div><div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:2px;color:var(--green)">$${commission.toLocaleString()}</div></div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--wire)"><div style="background:var(--s3);padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);font-family:'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px">Total Sales</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px">$${Math.round(rev).toLocaleString()}</div></div><div style="background:var(--s3);padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);font-family:'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px">To Tier 2</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${toT2===0?'var(--green)':'#f97316'}">${toT2===0?'✓ Hit':'$'+Math.round(toT2).toLocaleString()}</div></div><div style="background:var(--s3);padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);font-family:'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px">To Tier 3</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${toT3===0?'var(--green)':'#f97316'}">${toT3===0?'✓ Hit':'$'+Math.round(toT3).toLocaleString()}</div></div></div></div>`;}).join('');}
+
+// ── GOAL HISTORY ─────────────────────────────────────────────────────
+function ghPrevYear(){ghYear--;document.getElementById('ghYear').textContent=ghYear;renderGoalHistory();}
+function ghNextYear(){ghYear++;document.getElementById('ghYear').textContent=ghYear;renderGoalHistory();}
+function renderGoalHistory(){const repFilter=document.getElementById('ghRep').value,reps=repFilter?people.filter(p=>p.id===repFilter):people,months=Array.from({length:12},(_,i)=>i),monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+document.getElementById('goalHistoryGrid').innerHTML=reps.map(p=>{const cells=months.map(m=>{const dates=getMonthDates(new Date(ghYear,m,1)),s=calcRep(p.id,dates);const monthKey=`${p.id}_${ghYear}-${String(m+1).padStart(2,'0')}`,goal=monthlyGoals[monthKey]||0;const hit=goal>0&&s.revenue>=goal,partial=goal>0&&s.revenue>0&&s.revenue<goal,noGoal=goal===0&&s.revenue>0;const cls=hit?'hit':partial?'partial':noGoal?'nogoal':'';return`<div class="month-cell ${cls}"><div class="month-cell-lbl">${monthNames[m]}</div><div class="month-cell-val">${s.revenue>0?'$'+Math.round(s.revenue/1000*10)/10+'k':'—'}</div>${goal>0?`<div style="font-size:9px;color:var(--faint);font-family:'Oswald',sans-serif">/$${Math.round(goal/1000*10)/10}k</div>`:''}</div>`;}).join('');const ys=calcRep(p.id,getYearDates(ghYear));return`<div style="background:var(--s1);border:1px solid var(--wire);padding:20px;margin-bottom:10px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:50%;background:${p.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">${p.name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div><span style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase">${p.name}</span></div><div style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px">$${Math.round(ys.revenue).toLocaleString()} YTD</div></div><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-bottom:12px">@CELLS@</div><div style="display:flex;gap:12px"><span style="font-size:11px;display:flex;align-items:center;gap:4px;color:var(--green)"><span style="width:10px;height:10px;background:rgba(22,163,74,.2);border:1px solid rgba(22,163,74,.4);display:inline-block"></span>Hit goal</span><span style="font-size:11px;display:flex;align-items:center;gap:4px;color:var(--amber)"><span style="width:10px;height:10px;background:rgba(217,119,6,.2);border:1px solid rgba(217,119,6,.4);display:inline-block"></span>Partial</span><span style="font-size:11px;display:flex;align-items:center;gap:4px;color:#60a5fa"><span style="width:10px;height:10px;background:rgba(29,78,216,.15);border:1px solid rgba(29,78,216,.3);display:inline-block"></span>No goal</span></div></div>`.replace('@CELLS@',cells);}).join('');}
+
+// ── ANNOUNCEMENTS ────────────────────────────────────────────────────
+let announcements={};
+db.ref('announcements').on('value',snap=>{announcements=snap.val()||{};if(currentTab==='announcements')renderAnnouncements();});
+
+function postAnnouncement(){
+    const text=document.getElementById('announcementText').value.trim();
+    const type=document.getElementById('announcementType').value;
+    if(!text)return;
+    db.ref(`announcements/${Date.now()}`).set({text,type,date:new Date().toISOString()},()=>{
+        document.getElementById('announcementText').value='';
+        const msg=document.getElementById('announceSaveMsg');msg.classList.remove('hidden');
+        setTimeout(()=>msg.classList.add('hidden'),2000);
+    });
+}
+
+function clearAllAnnouncements(){
+    if(confirm('Clear all announcements?'))db.ref('announcements').remove();
+}
+
+function renderAnnouncements(){
+    const icons={info:'📢',fire:'🔥',win:'🏆',warning:'⚠️'};
+    const borders={info:'var(--muted)',fire:'var(--red)',win:'var(--amber)',warning:'#f97316'};
+    const all=Object.entries(announcements).sort((a,b)=>b[0]-a[0]);
+    document.getElementById('announcementList').innerHTML=all.length?all.map(([id,a])=>`
+        <div style="background:var(--s3);border:1px solid var(--wire);border-left:3px solid ${borders[a.type]||'var(--muted)'};padding:14px 16px;margin-bottom:8px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+                <div>
+                    <div style="font-size:18px;margin-bottom:6px">${icons[a.type]||'📢'}</div>
+                    <div style="font-size:14px;color:var(--text);line-height:1.5">${a.text}</div>
+                    <div style="font-size:11px;color:var(--faint);margin-top:6px;font-family:'Oswald',sans-serif;letter-spacing:.06em">${new Date(a.date).toLocaleString()}</div>
+                </div>
+                <button onclick="db.ref('announcements/${id}').remove()" style="background:transparent;border:1px solid var(--wire2);color:var(--faint);font-size:11px;padding:4px 8px;cursor:pointer;flex-shrink:0;font-family:'Oswald',sans-serif;letter-spacing:.08em;text-transform:uppercase">Remove</button>
+            </div>
+        </div>`).join(''):'<div style="font-size:12px;color:var(--faint);padding:12px;text-align:center;font-family:Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase">No active announcements</div>';
+}
+
+// ── REP PROFILES ─────────────────────────────────────────────────────
+let repProfiles={};
+db.ref('repProfiles').on('value',snap=>{repProfiles=snap.val()||{};renderRepProfiles();});
+
+function renderRepProfiles(){
+    document.getElementById('repProfileList').innerHTML=people.map(p=>{
+        const profile=repProfiles[p.id]||{};
+        const month=getMonthDates(new Date()),ms=calcRep(p.id,month);
+        return`<div style="background:var(--s1);border:1px solid var(--wire);padding:22px 24px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+                <div style="width:44px;height:44px;border-radius:50%;background:${p.color};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff">${p.name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div>
+                <div><div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px">${p.name.toUpperCase()}</div>
+                <div style="font-size:12px;color:var(--muted)">Close rate: ${ms.calls>0?((ms.sold/ms.calls)*100).toFixed(1):0}% · Month revenue: $${Math.round(ms.revenue).toLocaleString()}</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+                <div><div style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Start Date</div>
+                <input type="date" value="${p.startDate||''}" onchange="db.ref('salespeople/${p.id}/startDate').set(this.value)" /></div>
+                <div><div style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Strengths</div>
+                <input type="text" value="${profile.strengths||''}" onchange="saveProfile('${p.id}','strengths',this.value)" placeholder="e.g. great closer, reviews" /></div>
+                <div><div style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Areas to Improve</div>
+                <input type="text" value="${profile.weaknesses||''}" onchange="saveProfile('${p.id}','weaknesses',this.value)" placeholder="e.g. struggles with price objections" /></div>
+                <div><div style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Watch</div>
+                <input type="text" value="${profile.watch||''}" onchange="saveProfile('${p.id}','watch',this.value)" placeholder="e.g. attendance, attitude" /></div>
+            </div>
+            <div><div style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Manager Notes</div>
+            <textarea onchange="saveProfile('${p.id}','notes',this.value)" rows="3" placeholder="Private notes about this rep…" style="resize:none">${profile.notes||''}</textarea></div>
+
+            <div style="margin-top:14px">
+                <div style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:8px">✨ AI Training Plan History <span style="font-size:10px;color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">(auto-saved from Weekly Review)</span></div>
+                <div id="planHistory_${p.id}" style="max-height:300px;overflow-y:auto">
+                    ${renderPlanHistory(p.id,profile)}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+function saveProfile(pid,field,value){db.ref(`repProfiles/${pid}/${field}`).set(value);}
+
+function renderPlanHistory(pid,profile){
+    const plans=profile.trainingPlans||{};
+    const sorted=Object.entries(plans).sort((a,b)=>b[0]-a[0]);
+    if(!sorted.length)return'<div style="font-size:12px;color:var(--faint);padding:10px;text-align:center;font-family:Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase">No plans generated yet — use Weekly Review to create one</div>';
+    const periodLabels={week:'Week',month:'Month',year:'Year'};
+    return sorted.map(([key,plan])=>{
+        const d=new Date(plan.date||parseInt(key));
+        const stats=plan.stats||{};
+        return`<div style="background:var(--s3);border:1px solid var(--wire);border-left:3px solid #60a5fa;padding:14px 16px;margin-bottom:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#60a5fa;border:1px solid rgba(96,165,250,.3);padding:2px 8px">✨ ${periodLabels[plan.period]||plan.period||'Review'}</span>
+                    <span style="font-size:11px;color:var(--faint);font-family:'Oswald',sans-serif;letter-spacing:.06em">${d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+                </div>
+                <button onclick="deleteTrainingPlan('${pid}','${key}')" style="background:transparent;border:1px solid var(--wire2);color:var(--faint);font-size:10px;padding:3px 8px;cursor:pointer;font-family:'Oswald',sans-serif;letter-spacing:.08em;text-transform:uppercase">Delete</button>
+            </div>
+            ${stats.revenue?`<div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+                <span style="font-size:11px;color:var(--muted)">Rev: <strong style="color:var(--text)">$${stats.revenue.toLocaleString()}</strong></span>
+                <span style="font-size:11px;color:var(--muted)">Close: <strong style="color:var(--text)">${stats.closeRate}%</strong></span>
+                <span style="font-size:11px;color:var(--muted)">Avg Ticket: <strong style="color:var(--text)">$${stats.avgTicket?.toLocaleString()}</strong></span>
+                <span style="font-size:11px;color:var(--muted)">Calls: <strong style="color:var(--text)">${stats.calls} / ${stats.sold} sold</strong></span>
+            </div>`:''}
+            <details style="cursor:pointer">
+                <summary style="font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);list-style:none">▶ View Plan</summary>
+                <div style="margin-top:10px;font-size:13px;color:var(--text);line-height:1.7;border-top:1px solid var(--wire);padding-top:10px">${markdownToHtml(plan.text||'')}</div>
+            </details>
+        </div>`;
+    }).join('');
+}
+
+function deleteTrainingPlan(pid,key){
+    if(confirm('Delete this training plan?')){
+        db.ref(`repProfiles/${pid}/trainingPlans/${key}`).remove();
+    }
+}
+
+// ── CALL VIEWER ──────────────────────────────────────────────────────
+function renderCallViewer(){
+    const repId=document.getElementById('cvRep').value;
+    const dateVal=document.getElementById('cvDate').value;
+    const el=document.getElementById('callViewerContent');
+    if(!repId||!dateVal){el.innerHTML='<div style="font-size:12px;color:var(--faint);padding:12px">Select a rep and date to view their call log.</div>';return;}
+    const dateObj=new Date(dateVal+'T12:00:00');
+    const calls=getCalls(repId,dateObj);
+    if(!calls.length){el.innerHTML='<div style="font-size:12px;color:var(--faint);padding:16px;text-align:center;font-family:Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase">No calls logged for this date</div>';return;}
+    const objLabels={price:'💰 Price',think:'🤔 Need to think',spouse:'💑 Spouse approval',someone:'👷 Already have someone',quotes:'📋 Multiple quotes',timing:'⏰ Not now',trust:'⚠️ Trust issues'};
+    el.innerHTML=calls.map((c,i)=>`
+        <div style="background:var(--s2);border:1px solid var(--wire);border-left:3px solid ${c.jobSold?'var(--green)':c.jobCancelled?'var(--red)':'var(--wire2)'};padding:16px 18px;margin-bottom:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;letter-spacing:.04em;text-transform:uppercase">${c.customerName||'Unnamed Customer'}</div>
+                <div style="display:flex;gap:6px">
+                    ${c.jobSold?'<span style="font-family:Oswald,sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--green);border:1px solid rgba(22,163,74,.3);padding:3px 8px">✓ Sold</span>':''}
+                    ${c.jobCancelled?'<span style="font-family:Oswald,sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--red);border:1px solid rgba(220,38,38,.3);padding:3px 8px">Cancelled</span>':''}
+                    ${c.leftEstimate?'<span style="font-family:Oswald,sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);border:1px solid rgba(217,119,6,.3);padding:3px 8px">Estimate</span>':''}
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12px;color:var(--muted);margin-bottom:10px">
+                <div>Job # <span style="color:var(--text);font-weight:500">${c.jobNumber||'—'}</span></div>
+                <div>Phone <span style="color:var(--text);font-weight:500">${c.customerPhone||'—'}</span></div>
+                ${c.jobSold?`<div>Sale <span style="color:var(--green);font-weight:700;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px">$${parseFloat(c.amountSold||0).toLocaleString()}</span></div>`:'<div></div>'}
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+                ${c.tradePlumbing?'<span style="font-size:11px;color:var(--red);border:1px solid rgba(220,38,38,.3);padding:2px 7px;font-family:Oswald,sans-serif;letter-spacing:.08em">🔧 Plumbing</span>':''}
+                ${c.tradeHVAC?'<span style="font-size:11px;color:var(--amber);border:1px solid rgba(217,119,6,.3);padding:2px 7px;font-family:Oswald,sans-serif;letter-spacing:.08em">🌡️ HVAC</span>':''}
+                ${c.tradeElectrical?'<span style="font-size:11px;color:#ca8a04;border:1px solid rgba(202,138,4,.3);padding:2px 7px;font-family:Oswald,sans-serif;letter-spacing:.08em">⚡ Electrical</span>':''}
+                ${c.tradeCameras?'<span style="font-size:11px;color:var(--muted);border:1px solid var(--wire2);padding:2px 7px;font-family:Oswald,sans-serif;letter-spacing:.08em">📹 Cameras</span>':''}
+                ${c.reviewCompleted?'<span style="font-size:11px;color:var(--green);border:1px solid rgba(22,163,74,.3);padding:2px 7px;font-family:Oswald,sans-serif;letter-spacing:.08em">✅ Review</span>':''}
+                ${c.membershipPlanSold?'<span style="font-size:11px;color:var(--green);border:1px solid rgba(22,163,74,.3);padding:2px 7px;font-family:Oswald,sans-serif;letter-spacing:.08em">🛡️ Membership</span>':''}
+                ${c.threeDoorKnocks?'<span style="font-size:11px;color:var(--muted);border:1px solid var(--wire2);padding:2px 7px;font-family:Oswald,sans-serif;letter-spacing:.08em">🚪 3DK</span>':''}
+                ${c.objection?`<span style="font-size:11px;color:var(--red);border:1px solid rgba(220,38,38,.3);padding:2px 7px;font-family:Oswald,sans-serif;letter-spacing:.08em">${objLabels[c.objection]||c.objection}</span>`:''}
+                ${c.moneyOwed>0?`<span style="font-size:11px;color:#f97316;border:1px solid rgba(249,115,22,.3);padding:2px 7px;font-family:Oswald,sans-serif;letter-spacing:.08em">💵 Owes $${parseFloat(c.moneyOwed).toLocaleString()}</span>`:''}
+            </div>
+        </div>`).join('');
+}
+
+// ── ALL OWED ─────────────────────────────────────────────────────────
+function renderOwedAll(){
+    const all=[];
+    const today=new Date();
+    Object.keys(logs).forEach(dateKey=>{
+        const parts=dateKey.split('_');
+        if(parts.length<2)return;
+        const pid=parts[0],dateStr=parts[1];
+        const person=people.find(p=>p.id===pid);
+        if(!person)return;
+        Object.entries(logs[dateKey]||{}).forEach(([callId,c])=>{
+            const owed=parseFloat(c.moneyOwed)||0;
+            if(owed>0)all.push({...c,pid,repName:person.name,repColor:person.color,date:dateStr,callId,dateKey,days:Math.floor((today-new Date(dateStr))/(1000*60*60*24))});
+        });
+    });
+    all.sort((a,b)=>b.days-a.days);
+    const total=all.reduce((s,e)=>s+(parseFloat(e.moneyOwed)||0),0);
+    document.getElementById('oa-total').textContent='$'+Math.round(total).toLocaleString();
+    document.getElementById('oa-jobs').textContent=all.length+' jobs';
+    document.getElementById('oa-oldest').textContent=all.length?all[0].days:'—';
+    document.getElementById('owedAllList').innerHTML=all.length?all.map(e=>{
+        const urgColor=e.days>30?'var(--red)':e.days>14?'var(--amber)':'var(--muted)';
+        return`<div style="background:var(--s2);border:1px solid var(--wire);border-left:3px solid ${urgColor};padding:14px 16px;margin-bottom:6px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:30px;height:30px;border-radius:50%;background:${e.repColor};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0">${e.repName.split(' ').map(n=>n[0]).join('').slice(0,2)}</div>
+                    <div>
+                        <div style="font-weight:600;font-size:13px">${e.customerName||'Unnamed'} <span style="font-size:11px;color:var(--muted);font-weight:400">· ${e.repName}</span></div>
+                        <div style="font-size:11px;color:var(--muted);margin-top:2px">Job #${e.jobNumber||'—'} · ${e.customerPhone||'—'} · ${new Date(e.date).toLocaleDateString()}</div>
+                    </div>
+                </div>
+                <div style="text-align:right;flex-shrink:0">
+                    <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:${urgColor}">$${parseFloat(e.moneyOwed).toLocaleString()}</div>
+                    <div style="font-size:11px;color:var(--faint);font-family:'Oswald',sans-serif;letter-spacing:.06em">${e.days} days ago</div>
+                </div>
+            </div>
+        </div>`;
+    }).join(''):'<div style="font-size:12px;color:var(--green);padding:20px;text-align:center;font-family:Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase">No outstanding payments 🎉</div>';
+}
+
+// ── WEEKLY REVIEW ────────────────────────────────────────────────────
+function renderWeeklyReview(){
+    const repId=document.getElementById('wrRep').value;
+    const period=document.getElementById('wrPeriod').value;
+    const el=document.getElementById('weeklyReviewContent');
+    if(!repId){el.innerHTML='<div style="font-size:12px;color:var(--faint);padding:12px">Select a rep to generate their review.</div>';return;}
+    const person=people.find(p=>p.id===repId);
+    const dates=getPeriodDates(period);
+    const s=calcRep(repId,dates);
+    const monthDates=getMonthDates(new Date());
+    const ms=calcRep(repId,monthDates);
+    const teamDates=getPeriodDates(period);
+    let teamCalls=0,teamSold=0,teamRev=0;
+    people.forEach(p=>{const ts=calcRep(p.id,teamDates);teamCalls+=ts.calls;teamSold+=ts.sold;teamRev+=ts.revenue;});
+    const teamAvgCR=teamCalls>0?(teamSold/teamCalls*100):0;
+    const teamAvgTicket=teamSold>0?(teamRev/teamSold):0;
+    const cr=s.calls>0?(s.sold/s.calls*100):0;
+    const crVsTeam=cr-teamAvgCR;
+    const ticket=s.sold>0?(s.revenue/s.sold):0;
+    const ticketVsTeam=ticket-teamAvgTicket;
+    const topObj=Object.entries(s.objections).sort((a,b)=>b[1]-a[1])[0];
+    const streak=getStreak(repId);
+    const periodLabel=period==='week'?'This Week':period==='month'?'This Month':'This Year';
+    el.innerHTML=`
+        <div id="reviewPrintArea" style="background:var(--s1);border:1px solid var(--wire);padding:32px;max-width:800px">
+            <div style="border-bottom:2px solid var(--red);padding-bottom:20px;margin-bottom:24px">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:.3em;color:var(--muted);margin-bottom:4px">Action Plumbing — Manager Review</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:40px;letter-spacing:3px;color:var(--text)">${person.name.toUpperCase()}</div>
+                <div style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-top:4px">${periodLabel} · Generated ${new Date().toLocaleDateString()}</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--wire);margin-bottom:24px">
+                <div style="background:var(--s2);padding:16px;text-align:center">
+                    <div style="font-family:'Oswald',sans-serif;font-size:9px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Revenue</div>
+                    <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;color:var(--text)">$${Math.round(s.revenue).toLocaleString()}</div>
+                </div>
+                <div style="background:var(--s2);padding:16px;text-align:center">
+                    <div style="font-family:'Oswald',sans-serif;font-size:9px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Close Rate</div>
+                    <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;color:${crVsTeam>=0?'var(--green)':'var(--red)'}">${cr.toFixed(1)}%</div>
+                    <div style="font-size:10px;color:${crVsTeam>=0?'var(--green)':'var(--red)'};font-family:'Oswald',sans-serif">${crVsTeam>=0?'+':''}${crVsTeam.toFixed(1)}% vs team</div>
+                </div>
+                <div style="background:var(--s2);padding:16px;text-align:center">
+                    <div style="font-family:'Oswald',sans-serif;font-size:9px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Avg Ticket</div>
+                    <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;color:${ticketVsTeam>=0?'var(--green)':'var(--red)'}">$${Math.round(ticket).toLocaleString()}</div>
+                    <div style="font-size:10px;color:${ticketVsTeam>=0?'var(--green)':'var(--red)'};font-family:'Oswald',sans-serif">${ticketVsTeam>=0?'+':'-'}$${Math.abs(Math.round(ticketVsTeam)).toLocaleString()} vs team</div>
+                </div>
+                <div style="background:var(--s2);padding:16px;text-align:center">
+                    <div style="font-family:'Oswald',sans-serif;font-size:9px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Calls Taken</div>
+                    <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;color:var(--text)">${s.calls}</div>
+                    <div style="font-size:10px;color:var(--muted);font-family:'Oswald',sans-serif">${s.sold} sold</div>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+                <div style="background:var(--s2);border:1px solid var(--wire);padding:18px">
+                    <div style="font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Performance Highlights</div>
+                    <div style="space-y:8px">
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--wire);font-size:13px"><span style="color:var(--muted)">Streak</span><span style="font-weight:600;color:${streak>3?'var(--amber)':'var(--text)'}">${streak} day${streak!==1?'s':''} ${streak>3?'🔥':''}</span></div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--wire);font-size:13px"><span style="color:var(--muted)">Reviews</span><span style="font-weight:600">${s.reviewsCompleted||0}</span></div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--wire);font-size:13px"><span style="color:var(--muted)">Memberships</span><span style="font-weight:600">${s.membershipPlansSold||0}</span></div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px"><span style="color:var(--muted)">Money Owed</span><span style="font-weight:600;color:${s.owed>0?'var(--red)':'var(--green)'}">$${Math.round(s.owed||0).toLocaleString()}</span></div>
+                    </div>
+                </div>
+                <div style="background:var(--s2);border:1px solid var(--wire);padding:18px">
+                    <div style="font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Top Objection</div>
+                    ${topObj?`<div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:var(--red);margin-bottom:4px">${topObj[1]}x</div><div style="font-size:13px;color:var(--text);margin-bottom:12px;text-transform:capitalize">${topObj[0].replace(/_/g,' ')}</div><div style="font-size:12px;color:var(--muted)">Came up ${topObj[1]} time${topObj[1]!==1?'s':''} this period</div>`:'<div style="font-size:12px;color:var(--faint)">No objections recorded</div>'}
+                </div>
+            </div>
+
+            <div style="background:var(--s2);border:1px solid var(--wire);padding:18px;margin-bottom:24px">
+                <div style="font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Trade Breakdown</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+                    ${['plumbing','hvac','electrical','cameras'].map(t=>{
+                        const label={plumbing:'🔧 Plumbing',hvac:'🌡️ HVAC',electrical:'⚡ Electrical',cameras:'📹 Cameras'}[t];
+                        const cr2=s.trades[t].ran>0?(s.trades[t].jobs/s.trades[t].ran*100).toFixed(0):0;
+                        return`<div style="background:var(--s3);padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:6px">${label}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px">${s.trades[t].ran}</div><div style="font-size:10px;color:var(--muted)">${s.trades[t].jobs} sold · ${cr2}% CR</div></div>`;
+                    }).join('')}
+                </div>
+            </div>
+
+            <div style="background:var(--s3);border:1px solid var(--wire);border-left:3px solid var(--red);padding:18px;margin-bottom:16px">
+                <div style="font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Manager Notes</div>
+                <div style="font-size:13px;color:var(--faint);font-style:italic" id="reviewNoteDisplay">${repProfiles[repId]?.notes||'No notes on file.'}</div>
+            </div>
+
+            <div style="background:var(--s2);border:1px solid var(--wire);border-left:3px solid #60a5fa;padding:18px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                    <div>
+                        <div style="font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#60a5fa;margin-bottom:3px">✨ AI Training Plan</div>
+                        <div style="font-size:11px;color:var(--muted)">Generated from this rep's actual KPIs, profile, and objection history</div>
+                    </div>
+                    <button onclick="generateTrainingPlan('${repId}','${period}')" id="aiGenBtn" style="background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.4);color:#60a5fa;font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:10px 18px;cursor:pointer;transition:all .15s;white-space:nowrap">⚡ Generate Plan</button>
+                </div>
+                <div id="aiTrainingPlan" style="font-size:13px;color:var(--text);line-height:1.7;min-height:40px">
+                    <span style="color:var(--faint);font-style:italic">Click Generate Plan to create a personalized training plan for ${person.name}.</span>
+                </div>
+            </div>
+        </div>`;
+}
+function printReview(){
+    const area=document.getElementById('reviewPrintArea');
+    if(!area)return;
+    const win=window.open('','_blank');
+    win.document.write(`<html><head><title>Review</title><style>body{background:#080808;color:#efefef;font-family:Inter,sans-serif;padding:32px;} @media print{body{-webkit-print-color-adjust:exact;color-adjust:exact;}}</style></head><body>${area.outerHTML}</body></html>`);
+    win.document.close();win.focus();setTimeout(()=>win.print(),500);
+}
+
+async function generateTrainingPlan(repId, period){
+    const btn=document.getElementById('aiGenBtn');
+    const output=document.getElementById('aiTrainingPlan');
+    if(!btn||!output)return;
+
+    const person=people.find(p=>p.id===repId);
+    const dates=getPeriodDates(period);
+    const s=calcRep(repId,dates);
+    const profile=repProfiles[repId]||{};
+
+    // Team averages for context
+    let teamCalls=0,teamSold=0,teamRev=0;
+    people.forEach(p=>{const ts=calcRep(p.id,dates);teamCalls+=ts.calls;teamSold+=ts.sold;teamRev+=ts.revenue;});
+    const teamCR=teamCalls>0?(teamSold/teamCalls*100).toFixed(1):0;
+    const teamTicket=teamSold>0?(teamRev/teamSold).toFixed(0):0;
+    const repCR=s.calls>0?(s.sold/s.calls*100).toFixed(1):0;
+    const repTicket=s.sold>0?(s.revenue/s.sold).toFixed(0):0;
+    const streak=getStreak(repId);
+    const topObjs=Object.entries(s.objections).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v])=>`${k.replace(/_/g,' ')} (${v}x)`).join(', ')||'none recorded';
+    const weakTrades=Object.entries(s.trades).filter(([,t])=>t.ran>0&&(t.jobs/t.ran)<0.4).map(([k,t])=>`${k} (${(t.jobs/t.ran*100).toFixed(0)}% CR)`).join(', ')||'none';
+    const periodLabel=period==='week'?'this week':period==='month'?'this month':'this year';
+
+    const prompt=`You are a sales coach for Action Plumbing, a home services company. Generate a focused, actionable training plan for a sales rep based on their real performance data.
+
+REP: ${person.name}
+PERIOD: ${periodLabel}
+
+PERFORMANCE DATA:
+- Revenue: $${Math.round(s.revenue).toLocaleString()}
+- Close rate: ${repCR}% (team avg: ${teamCR}%)
+- Avg ticket: $${Math.round(repTicket).toLocaleString()} (team avg: $${Math.round(teamTicket).toLocaleString()})
+- Calls taken: ${s.calls}, Jobs sold: ${s.sold}
+- Reviews collected: ${s.reviewsCompleted}
+- Memberships sold: ${s.membershipPlansSold}
+- Money owed/uncollected: $${Math.round(s.owed).toLocaleString()}
+- Current win streak: ${streak} days
+- Top objections faced: ${topObjs}
+- Trades with low close rates: ${weakTrades}
+
+REP PROFILE (manager's notes):
+- Strengths: ${profile.strengths||'not noted'}
+- Areas to improve: ${profile.weaknesses||'not noted'}
+- Watch: ${profile.watch||'nothing flagged'}
+- Manager notes: ${profile.notes||'none'}
+
+Write a concise, practical training plan with:
+1. A 2-sentence honest assessment of where they stand
+2. Top 3 focus areas this week (numbered, specific, actionable — not generic)
+3. A specific script or tactic for their #1 objection
+4. One daily habit to build
+5. A clear goal to hit by end of next period
+
+Keep it direct, practical, and specific to their actual data. No fluff. Format with clear headers using **bold**.`;
+
+    btn.textContent='⏳ Generating…';
+    btn.disabled=true;
+    output.innerHTML='<span style="color:var(--muted);font-style:italic">Writing training plan…</span>';
+
+    try{
+        const res=await fetch('https://actionplumningai.willgrainger74.workers.dev/',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+                model:'claude-sonnet-4-20250514',
+                max_tokens:1000,
+                messages:[{role:'user',content:prompt}]
+            })
+        });
+
+        console.log('Status:', res.status);
+        const raw=await res.text();
+        console.log('Raw response:', raw);
+
+        let data;
+        try{data=JSON.parse(raw);}catch(e){throw new Error('Bad JSON: '+raw.slice(0,300));}
+
+        if(data.error){throw new Error(data.error.message||JSON.stringify(data.error));}
+        const text=data.content?.[0]?.text||'No response generated.';
+        output.innerHTML=markdownToHtml(text);
+        btn.textContent='↻ Regenerate';
+
+        // Save plan to Firebase under rep profile
+        db.ref(`repProfiles/${repId}/trainingPlans/${Date.now()}`).set({
+            text,
+            period,
+            date:new Date().toISOString(),
+            stats:{revenue:Math.round(s.revenue),closeRate:parseFloat(repCR),avgTicket:Math.round(repTicket),calls:s.calls,sold:s.sold}
+        });
+
+        // Show save confirmation
+        const saveNote=document.createElement('div');
+        saveNote.style.cssText='font-size:11px;color:var(--green);font-family:Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase;margin-top:8px';
+        saveNote.textContent='✓ Plan saved to Rep Profiles';
+        output.after(saveNote);
+        setTimeout(()=>saveNote.remove(),3000);
+
+    }catch(err){
+        console.error('Full error:', err);
+        output.innerHTML=`<span style="color:var(--red)">Error: ${err.message}</span>`;
+        btn.textContent='⚡ Generate Plan';
+    }
+    btn.disabled=false;
+}
+
+function markdownToHtml(text){
+    return text
+        .replace(/\*\*(.+?)\*\*/g,'<strong style="color:var(--text);font-family:Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase;font-size:12px">$1</strong>')
+        .replace(/^(\d+)\.\s/gm,'<br><span style="color:var(--red);font-family:Bebas Neue,sans-serif;font-size:18px;letter-spacing:1px;margin-right:6px">$1.</span>')
+        .replace(/\n\n/g,'<br><br>')
+        .replace(/\n/g,'<br>');
+}
+</script>
+</body>
+</html>
