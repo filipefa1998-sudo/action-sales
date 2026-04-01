@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Individual Report — Action Plumbing</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{--red:#dc2626;--red2:#991b1b;--red3:#450a0a;--bg:#080808;--s1:#111;--s2:#181818;--s3:#202020;--wire:rgba(255,255,255,0.06);--wire2:rgba(255,255,255,0.10);--wire3:rgba(255,255,255,0.18);--muted:#aaa;--faint:#666;--text:#efefef;--green:#16a34a;--amber:#d97706}
+        html{scroll-behavior:smooth}
+        body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+        body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);pointer-events:none;z-index:999}
+        .page{max-width:1320px;margin:0 auto;padding:24px 20px 60px}
+        .pg-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--wire);gap:16px;flex-wrap:wrap}
+        .pg-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,5vw,60px);line-height:.95;letter-spacing:2px}.pg-title em{font-style:normal;color:var(--red)}
+        .pg-sub{font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+        .back-btn{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border:1px solid var(--wire2);padding:9px 16px;text-decoration:none;transition:all .15s;white-space:nowrap;align-self:flex-start}.back-btn:hover{color:var(--text);border-color:var(--muted)}
+        .card{background:var(--s1);border:1px solid var(--wire);padding:24px 28px;margin-bottom:20px}
+        .card-inner{background:var(--s2);border:1px solid var(--wire);padding:16px 18px;margin-bottom:10px}
+        .month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+        .month-nav h2{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px}
+        .sec-label{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}.sec-label::after{content:'';flex:1;height:1px;background:var(--wire)}
+        .sec-title{font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text);margin-bottom:10px}
+        .stat-mosaic{display:grid;gap:2px;background:var(--wire);margin-bottom:16px}
+        .stat-block{background:var(--s1);padding:14px 16px;position:relative;overflow:hidden}.stat-block::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--red)}
+        .stat-lbl{font-family:'Oswald',sans-serif;font-size:12px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+        .stat-num{font-family:'Bebas Neue',sans-serif;font-size:40px;line-height:1;color:var(--text);letter-spacing:1px}
+        .stat-num-md{font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:var(--text)}
+        .stat-meta{font-size:13px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
+        .bar-track{width:100%;background:var(--s3);height:5px;margin:5px 0 3px}.bar-fill{height:100%;transition:width .3s}
+        input[type=text],input[type=number],select,textarea{background:var(--s3);border:1px solid var(--wire2);color:var(--text);padding:9px 12px;font-family:'Inter',sans-serif;font-size:13px;outline:none;transition:border-color .15s;width:100%}
+        input::placeholder,textarea::placeholder{color:var(--muted)}input:focus,select:focus,textarea:focus{border-color:var(--red)}select option{background:var(--s2);color:var(--text)}
+        .btn{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;padding:9px 18px;border:none;cursor:pointer;transition:all .15s}
+        .btn-red{background:var(--red);color:#fff}.btn-red:hover{background:var(--red2)}.btn-red:active{transform:scale(.97)}
+        hr.dark{border:none;border-top:1px solid var(--wire);margin:14px 0}
+        .g2{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--wire)}
+        .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;background:var(--wire)}
+        .g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px;background:var(--wire)}
+        @media(max-width:900px){.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}}
+        @media(max-width:520px){.g2,.g3,.g4{grid-template-columns:1fr}}
+        .streak-block{background:var(--red3);border:1px solid rgba(220,38,38,.4);padding:28px;text-align:center;margin-bottom:20px}
+        .streak-num{font-family:'Bebas Neue',sans-serif;font-size:80px;color:#fca5a5;line-height:1;letter-spacing:4px}
+        .tier-card{background:var(--s2);border:1px solid var(--wire);border-left:3px solid var(--red);padding:16px 18px;margin-bottom:10px}
+        .tier-card.reached{border-left-color:var(--green);background:rgba(22,163,74,.05)}
+        .tier-needed{font-family:'Bebas Neue',sans-serif;font-size:34px;color:#f97316;letter-spacing:2px}
+        .wl-week-toggle{display:flex;gap:2px;background:var(--wire);margin-bottom:14px}
+        .wl-week-btn{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:8px 14px;background:var(--s2);border:none;color:var(--muted);cursor:pointer;transition:all .15s;flex:1}
+        .wl-week-btn.active{background:var(--red);color:#fff}
+        .wl-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--wire);margin-bottom:12px}
+        .wl-stat-blk{background:var(--s2);padding:12px 14px}
+        .wl-stat-lbl{font-family:'Oswald',sans-serif;font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+        .wl-stat-val{font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:var(--text);letter-spacing:1px}
+        .wl-stat-val.green{color:#4ade80}
+        .wl-streak-bar{display:flex;align-items:center;gap:10px;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);border-left:3px solid var(--red);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--muted)}
+        .wl-streak-bar strong{color:var(--text)}
+        .wl-day-label{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--wire)}
+        .wl-entry{background:var(--s2);border:1px solid var(--wire);border-left:3px solid var(--red);display:flex;align-items:center;gap:14px;padding:12px 14px;margin-bottom:6px}
+        .wl-entry.membership{border-left-color:#818cf8}
+        .wl-entry.big{border-left-color:#4ade80}
+        .wl-entry-info{flex:1;min-width:0}
+        .wl-customer{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .wl-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+        .wl-time{font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.06em;color:var(--faint)}
+        .wl-tag{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border:1px solid}
+        .wl-tag.trade{color:#f87171;border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.05)}
+        .wl-tag.memb{color:#a5b4fc;border-color:rgba(165,180,252,.3);background:rgba(165,180,252,.05)}
+        .wl-tag.upsell{color:#4ade80;border-color:rgba(74,222,128,.3);background:rgba(74,222,128,.05)}
+        .wl-tag.cash{color:#fbbf24;border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.05)}
+        .wl-tag.newcust{color:#60a5fa;border-color:rgba(96,165,250,.3);background:rgba(96,165,250,.05)}
+        .wl-amount-col{flex-shrink:0;text-align:right;min-width:80px}
+        .wl-amount{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--text);line-height:1}
+        .wl-sub{font-size:11px;margin-top:2px}
+        .wl-empty{text-align:center;padding:28px;font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint)}
+        .pr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--wire);margin-bottom:4px}
+        @media(max-width:700px){.pr-grid{grid-template-columns:1fr 1fr}}
+        .pr-block{background:var(--s1);padding:18px 20px;position:relative;overflow:hidden}
+        .pr-block::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#b45309,#fbbf24)}
+        .pr-icon{font-size:20px;margin-bottom:4px}
+        .pr-lbl{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+        .pr-val{font-family:'Bebas Neue',sans-serif;font-size:44px;line-height:1;letter-spacing:2px;color:#fbbf24}
+        .pr-meta{font-size:12px;color:var(--muted);margin-top:3px;letter-spacing:.04em}
+        .pr-date{font-family:'Oswald',sans-serif;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-top:8px;padding-top:6px;border-top:1px solid var(--wire)}
+        .pr-crown{position:absolute;top:10px;right:12px;font-size:18px;opacity:.25}
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="pg-header">
+        <div><div class="pg-title">My <em>Report</em></div><div class="pg-sub" id="personName">Loading...</div></div>
+        <a href="index.html" class="back-btn">← Dashboard</a>
+    </div>
+    <div class="card">
+        <div class="month-nav">
+            <button class="btn btn-red" id="prevMonth">←</button>
+            <h2 id="monthYear"></h2>
+            <button class="btn btn-red" id="nextMonth">→</button>
+        </div>
+        <div class="sec-label">Goals</div>
+        <div class="g2" style="margin-bottom:16px">
+            <div class="stat-block"><div class="stat-lbl">Weekly Goal</div><input id="weeklyGoalInput" type="number" placeholder="Set weekly goal ($)" style="margin:8px 0"/><div id="weeklyProgress"></div><div style="margin-top:10px;padding:10px 12px;background:var(--s3);border:1px solid var(--wire)"><div class="stat-lbl">Forecast</div><div class="stat-num-md" id="weeklyForecast">$0</div><div class="stat-meta" id="weeklyForecastNote">Based on pace</div></div></div>
+            <div class="stat-block"><div class="stat-lbl">Monthly Goal</div><input id="monthlyGoalInput" type="number" placeholder="Set monthly goal ($)" style="margin:8px 0"/><div id="monthlyProgress"></div><div style="margin-top:10px;padding:10px 12px;background:var(--s3);border:1px solid var(--wire)"><div class="stat-lbl">Forecast</div><div class="stat-num-md" id="monthlyForecast">$0</div><div class="stat-meta" id="monthlyForecastNote">Based on pace</div></div></div>
+        </div>
+        <div class="card-inner" style="margin-bottom:16px"><div class="stat-lbl">Yearly Goal — <span id="yearDisplay"></span></div><input id="yearlyGoalInput" type="number" placeholder="Set yearly goal ($)" style="margin:8px 0"/><div id="yearlyProgress"></div></div>
+        <div class="sec-label">Performance</div>
+        <div class="g4 stat-mosaic">
+            <div class="stat-block"><div class="stat-lbl">Close %</div><div id="closeRate" class="stat-num">0%</div><div id="closeDetails" class="stat-meta">0 / 0</div></div>
+            <div class="stat-block"><div class="stat-lbl">Calls Taken</div><div id="callsTaken" class="stat-num">0</div><div class="stat-meta">This month</div></div>
+            <div class="stat-block"><div class="stat-lbl">Calls Sold</div><div id="callsSold" class="stat-num">0</div><div class="stat-meta">This month</div></div>
+            <div class="stat-block"><div class="stat-lbl">Estimates</div><div id="estimatesLeft" class="stat-num">0</div><div id="estimateValue" class="stat-meta">$0 potential</div></div>
+            <div class="stat-block"><div class="stat-lbl">Avg Sale</div><div id="avgSale" class="stat-num">$0</div><div class="stat-meta">Per sale</div></div>
+            <div class="stat-block"><div class="stat-lbl">Week Revenue</div><div id="weekRevenue" class="stat-num">$0</div><div class="stat-meta">Last 7 days</div></div>
+            <div class="stat-block"><div class="stat-lbl">Month Revenue</div><div id="monthRevenue" class="stat-num">$0</div><div class="stat-meta">This month</div></div>
+            <div class="stat-block"><div class="stat-lbl">Year Revenue</div><div id="yearRevenue" class="stat-num">$0</div><div class="stat-meta">YTD</div></div>
+            <div class="stat-block"><div class="stat-lbl">Door Knocks</div><div id="doorKnocks" class="stat-num">0</div><div id="doorKnocksRate" class="stat-meta">0% conv</div></div>
+            <div class="stat-block"><div class="stat-lbl">Review Rate</div><div id="reviewRate" class="stat-num">0%</div><div id="reviewCount" class="stat-meta">0 reviews</div></div>
+            <div class="stat-block"><div class="stat-lbl">Membership</div><div id="membershipRate" class="stat-num">0%</div><div id="membershipCount" class="stat-meta">0 plans</div></div>
+            <div class="stat-block"><div class="stat-lbl">Days Since Sale</div><div id="daysSinceSale" class="stat-num">0</div><div class="stat-meta">Keep low!</div></div>
+            <div class="stat-block"><div class="stat-lbl">Add On Rate</div><div id="upsellRate" class="stat-num">0%</div><div id="upsellCount" class="stat-meta">0 add ons</div></div>
+            <div class="stat-block"><div class="stat-lbl">Add On Revenue</div><div id="upsellRevenue" class="stat-num">$0</div><div class="stat-meta">Added revenue</div></div>
+            <div class="stat-block"><div class="stat-lbl">Restoration Leads</div><div id="restorationLeads" class="stat-num">0</div><div class="stat-meta">This month</div></div>
+            <div class="stat-block"><div class="stat-lbl">Cancellations</div><div id="cancellations" class="stat-num">0</div><div id="cancellationRate" class="stat-meta">0% of calls</div></div>
+        </div>
+        <div class="sec-label" style="margin-top:20px">Performance Last Week</div>
+        <div id="lastWeekDateRange" style="font-size:12px;color:var(--muted);font-family:'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px"></div>
+        <div class="g4 stat-mosaic" style="margin-bottom:20px">
+            <div class="stat-block"><div class="stat-lbl">Close %</div><div id="lw_closeRate" class="stat-num">0%</div><div id="lw_closeDetails" class="stat-meta">0 / 0</div></div>
+            <div class="stat-block"><div class="stat-lbl">Calls Taken</div><div id="lw_callsTaken" class="stat-num">0</div><div class="stat-meta">Last week</div></div>
+            <div class="stat-block"><div class="stat-lbl">Calls Sold</div><div id="lw_callsSold" class="stat-num">0</div><div class="stat-meta">Last week</div></div>
+            <div class="stat-block"><div class="stat-lbl">Estimates</div><div id="lw_estimatesLeft" class="stat-num">0</div><div id="lw_estimateValue" class="stat-meta">$0 potential</div></div>
+            <div class="stat-block"><div class="stat-lbl">Avg Sale</div><div id="lw_avgSale" class="stat-num">$0</div><div class="stat-meta">Per sale</div></div>
+            <div class="stat-block"><div class="stat-lbl">Week Revenue</div><div id="lw_weekRevenue" class="stat-num">$0</div><div class="stat-meta">Last week total</div></div>
+            <div class="stat-block"><div class="stat-lbl">Door Knocks</div><div id="lw_doorKnocks" class="stat-num">0</div><div id="lw_doorKnocksRate" class="stat-meta">0% conv</div></div>
+            <div class="stat-block"><div class="stat-lbl">Review Rate</div><div id="lw_reviewRate" class="stat-num">0%</div><div id="lw_reviewCount" class="stat-meta">0 reviews</div></div>
+            <div class="stat-block"><div class="stat-lbl">Membership</div><div id="lw_membershipRate" class="stat-num">0%</div><div id="lw_membershipCount" class="stat-meta">0 plans</div></div>
+            <div class="stat-block"><div class="stat-lbl">Turnovers Recv</div><div id="lw_turnoversReceived" class="stat-num">0</div><div id="lw_turnoversReceivedRevenue" class="stat-meta">$0 closed</div></div>
+            <div class="stat-block"><div class="stat-lbl">Turnovers Given</div><div id="lw_turnoversGiven" class="stat-num">0</div><div class="stat-meta">Last week</div></div>
+            <div class="stat-block"><div class="stat-lbl">Days Since Sale</div><div id="lw_daysSinceSale" class="stat-num">—</div><div class="stat-meta">As of Sun</div></div>
+            <div class="stat-block"><div class="stat-lbl">Add On Rate</div><div id="lw_upsellRate" class="stat-num">0%</div><div id="lw_upsellCount" class="stat-meta">0 add ons</div></div>
+            <div class="stat-block"><div class="stat-lbl">Add On Revenue</div><div id="lw_upsellRevenue" class="stat-num">$0</div><div class="stat-meta">Added revenue</div></div>
+            <div class="stat-block"><div class="stat-lbl">Restoration Leads</div><div id="lw_restorationLeads" class="stat-num">0</div><div class="stat-meta">Last week</div></div>
+            <div class="stat-block"><div class="stat-lbl">Cancellations</div><div id="lw_cancellations" class="stat-num">0</div><div id="lw_cancellationRate" class="stat-meta">0% of calls</div></div>
+        </div>
+        <div class="sec-label">Yearly Performance — <span id="yrPerfLabel"></span></div>
+        <div class="g4 stat-mosaic" style="margin-bottom:20px">
+            <div class="stat-block"><div class="stat-lbl">Close %</div><div id="yr_closeRate" class="stat-num">0%</div><div id="yr_closeDetails" class="stat-meta">0 / 0</div></div>
+            <div class="stat-block"><div class="stat-lbl">Calls Taken</div><div id="yr_callsTaken" class="stat-num">0</div><div class="stat-meta">This year</div></div>
+            <div class="stat-block"><div class="stat-lbl">Calls Sold</div><div id="yr_callsSold" class="stat-num">0</div><div class="stat-meta">This year</div></div>
+            <div class="stat-block"><div class="stat-lbl">Estimates</div><div id="yr_estimatesLeft" class="stat-num">0</div><div id="yr_estimateValue" class="stat-meta">$0 potential</div></div>
+            <div class="stat-block"><div class="stat-lbl">Avg Sale</div><div id="yr_avgSale" class="stat-num">$0</div><div class="stat-meta">Per sale</div></div>
+            <div class="stat-block"><div class="stat-lbl">Year Revenue</div><div id="yr_revenue" class="stat-num">$0</div><div class="stat-meta">YTD total</div></div>
+            <div class="stat-block"><div class="stat-lbl">Door Knocks</div><div id="yr_doorKnocks" class="stat-num">0</div><div id="yr_doorKnocksRate" class="stat-meta">0% conv</div></div>
+            <div class="stat-block"><div class="stat-lbl">Review Rate</div><div id="yr_reviewRate" class="stat-num">0%</div><div id="yr_reviewCount" class="stat-meta">0 reviews</div></div>
+            <div class="stat-block"><div class="stat-lbl">Membership</div><div id="yr_membershipRate" class="stat-num">0%</div><div id="yr_membershipCount" class="stat-meta">0 plans</div></div>
+            <div class="stat-block"><div class="stat-lbl">Turnovers Recv</div><div id="yr_turnoversReceived" class="stat-num">0</div><div id="yr_turnoversReceivedRevenue" class="stat-meta">$0 closed</div></div>
+            <div class="stat-block"><div class="stat-lbl">Turnovers Given</div><div id="yr_turnoversGiven" class="stat-num">0</div><div class="stat-meta">This year</div></div>
+            <div class="stat-block"><div class="stat-lbl">Plans Sold</div><div id="yr_plansSold" class="stat-num">0</div><div class="stat-meta">Memberships YTD</div></div>
+            <div class="stat-block"><div class="stat-lbl">Add On Rate</div><div id="yr_upsellRate" class="stat-num">0%</div><div id="yr_upsellCount" class="stat-meta">0 add ons</div></div>
+            <div class="stat-block"><div class="stat-lbl">Add On Revenue</div><div id="yr_upsellRevenue" class="stat-num">$0</div><div class="stat-meta">Added revenue</div></div>
+            <div class="stat-block"><div class="stat-lbl">Restoration Leads</div><div id="yr_restorationLeads" class="stat-num">0</div><div class="stat-meta">This year</div></div>
+            <div class="stat-block"><div class="stat-lbl">Cancellations</div><div id="yr_cancellations" class="stat-num">0</div><div id="yr_cancellationRate" class="stat-meta">0% of calls</div></div>
+        </div>
+        <div class="sec-label">Turnover Performance</div>
+        <div class="g3 stat-mosaic" style="margin-bottom:10px">
+            <div class="stat-block"><div class="stat-lbl">Received</div><div id="turnoversReceived" class="stat-num">0</div><div id="turnoversReceivedRevenue" class="stat-meta">$0 closed</div></div>
+            <div class="stat-block"><div class="stat-lbl">Given</div><div id="turnoversGiven" class="stat-num">0</div><div id="turnoversGivenRevenue" class="stat-meta">$0 by others</div></div>
+            <div class="stat-block"><div class="stat-lbl">Close Rate</div><div id="turnoverCloseRate" class="stat-num">0%</div><div class="stat-meta">Of received</div></div>
+        </div>
+        <div class="card-inner" style="margin-bottom:16px"><div class="stat-lbl" style="margin-bottom:8px">Who Gave You Turnovers</div><div id="turnoverSources"></div></div>
+        <div class="sec-label">Trade Analysis</div>
+        <div class="sec-title">Jobs Sold by Trade</div>
+        <div class="g2" style="gap:2px;background:var(--wire);margin-bottom:8px">
+            <div class="stat-block"><div class="stat-lbl">Plumbing</div><div id="plumbingJobs" class="stat-num-md">0</div><div class="bar-track"><div id="plumbingBar" class="bar-fill" style="background:var(--red);width:0%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span id="plumbingPercent">0%</span><span id="plumbingRevenue">$0</span></div></div>
+            <div class="stat-block"><div class="stat-lbl">HVAC</div><div id="hvacJobs" class="stat-num-md">0</div><div class="bar-track"><div id="hvacBar" class="bar-fill" style="background:var(--amber);width:0%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span id="hvacPercent">0%</span><span id="hvacRevenue">$0</span></div></div>
+            <div class="stat-block"><div class="stat-lbl">Electrical</div><div id="electricalJobs" class="stat-num-md">0</div><div class="bar-track"><div id="electricalBar" class="bar-fill" style="background:#ca8a04;width:0%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span id="electricalPercent">0%</span><span id="electricalRevenue">$0</span></div></div>
+            <div class="stat-block"><div class="stat-lbl">Cameras</div><div id="camerasJobs" class="stat-num-md">0</div><div class="bar-track"><div id="camerasBar" class="bar-fill" style="background:var(--muted);width:0%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span id="camerasPercent">0%</span><span id="camerasRevenue">$0</span></div></div>
+        </div>
+        <div class="sec-title">Jobs Ran by Trade</div>
+        <div class="g2" style="gap:2px;background:var(--wire);margin-bottom:8px">
+            <div class="stat-block"><div class="stat-lbl">Plumbing</div><div id="plumbingRan" class="stat-num-md">0</div><div class="bar-track"><div id="plumbingRanBar" class="bar-fill" style="background:var(--red);width:0%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span id="plumbingRanPercent">0%</span><span id="plumbingCloseRate">0% close</span></div></div>
+            <div class="stat-block"><div class="stat-lbl">HVAC</div><div id="hvacRan" class="stat-num-md">0</div><div class="bar-track"><div id="hvacRanBar" class="bar-fill" style="background:var(--amber);width:0%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span id="hvacRanPercent">0%</span><span id="hvacCloseRate">0% close</span></div></div>
+            <div class="stat-block"><div class="stat-lbl">Electrical</div><div id="electricalRan" class="stat-num-md">0</div><div class="bar-track"><div id="electricalRanBar" class="bar-fill" style="background:#ca8a04;width:0%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span id="electricalRanPercent">0%</span><span id="electricalCloseRate">0% close</span></div></div>
+            <div class="stat-block"><div class="stat-lbl">Cameras</div><div id="camerasRan" class="stat-num-md">0</div><div class="bar-track"><div id="camerasRanBar" class="bar-fill" style="background:var(--muted);width:0%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span id="camerasRanPercent">0%</span><span id="camerasCloseRate">0% close</span></div></div>
+        </div>
+        <div class="sec-title">Money Owed by Trade</div>
+        <div class="g2" style="gap:2px;background:var(--wire);margin-bottom:16px">
+            <div class="stat-block"><div class="stat-lbl">Plumbing</div><div id="plumbingOwed" class="stat-num-md">$0</div><div id="plumbingOwedJobs" class="stat-meta">0 outstanding</div></div>
+            <div class="stat-block"><div class="stat-lbl">HVAC</div><div id="hvacOwed" class="stat-num-md">$0</div><div id="hvacOwedJobs" class="stat-meta">0 outstanding</div></div>
+            <div class="stat-block"><div class="stat-lbl">Electrical</div><div id="electricalOwed" class="stat-num-md">$0</div><div id="electricalOwedJobs" class="stat-meta">0 outstanding</div></div>
+            <div class="stat-block"><div class="stat-lbl">Cameras</div><div id="camerasOwed" class="stat-num-md">$0</div><div id="camerasOwedJobs" class="stat-meta">0 outstanding</div></div>
+        </div>
+        <div class="sec-label">Yearly Contribution — <span id="yearContributionDisplay"></span></div>
+        <div class="g2 stat-mosaic" style="margin-bottom:8px">
+            <div class="stat-block"><div class="stat-lbl">Your Year Total</div><div id="yourYearTotal" class="stat-num">$0</div><div id="yourYearJobs" class="stat-meta">0 jobs closed</div></div>
+            <div class="stat-block"><div class="stat-lbl">Team Year Total</div><div id="teamYearTotal" class="stat-num">$0</div><div id="teamYearJobs" class="stat-meta">0 jobs closed</div></div>
+        </div>
+        <div class="card-inner" style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span class="stat-lbl">Your % of Team</span><span id="yourTeamPercent" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px">0%</span></div><div style="background:var(--s3);height:7px;width:100%"><div id="yourTeamPercentBar" style="background:var(--red);height:100%;width:0%;transition:width .3s"></div></div></div>
+        <div id="teamGoalSection" class="card-inner" style="display:none;margin-bottom:16px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span class="stat-lbl">Contribution to Team Goal</span><span id="yourGoalPercent" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px">0%</span></div><div class="stat-meta" id="teamGoalAmount" style="margin-bottom:5px">Team Goal: $0</div><div style="background:var(--s3);height:7px;width:100%"><div id="yourGoalPercentBar" style="background:var(--muted);height:100%;width:0%;transition:width .3s"></div></div></div>
+        <div class="sec-label">Win Log</div>
+        <div class="wl-week-toggle">
+            <button class="wl-week-btn active" onclick="setWinLogWeek('this',this)">This Week</button>
+            <button class="wl-week-btn" onclick="setWinLogWeek('last',this)">Last Week</button>
+        </div>
+        <div class="wl-stats-row">
+            <div class="wl-stat-blk"><div class="wl-stat-lbl">Revenue</div><div class="wl-stat-val" id="wl-rev">$0</div></div>
+            <div class="wl-stat-blk"><div class="wl-stat-lbl">Jobs Sold</div><div class="wl-stat-val green" id="wl-jobs">0</div></div>
+            <div class="wl-stat-blk"><div class="wl-stat-lbl">Close Rate</div><div class="wl-stat-val" id="wl-cr">0%</div></div>
+        </div>
+        <div class="wl-streak-bar" id="wl-streak-bar">
+            <span style="font-size:18px">🔥</span>
+            <span id="wl-streak-text">Loading streak...</span>
+        </div>
+        <div id="winLogFeed"></div>
+        <div class="streak-block"><div style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(252,165,165,.5);margin-bottom:6px">Current Streak</div><div class="streak-num" id="streakDays">0</div><div style="font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:rgba(252,165,165,.4);margin-top:4px">Consecutive days with sales</div></div>
+        <div class="sec-label" style="margin-top:20px">🏆 Personal Records</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px">All-time bests pulled from your full history. Updates automatically as you break them.</div>
+        <div id="prContainer">
+            <div style="text-align:center;padding:24px;font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint)">Scanning your history...</div>
+        </div>
+        <div class="sec-label" style="margin-top:20px">Commission Tier Tracker</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Set your weekly thresholds to track how much more you need.</div>
+        <div class="g2" style="gap:2px;background:var(--wire);margin-bottom:14px">
+            <div class="stat-block"><div class="stat-lbl">Tier 2 — 7%</div><input id="tier2Input" type="number" placeholder="e.g. 5000" style="margin-top:6px"/></div>
+            <div class="stat-block"><div class="stat-lbl">Tier 3 — 10%</div><input id="tier3Input" type="number" placeholder="e.g. 8000" style="margin-top:6px"/></div>
+        </div>
+        <div id="tierStatus"></div>
+    </div>
+</div>
+<script>
+firebase.initializeApp({apiKey:"AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",authDomain:"action-sales-tracker.firebaseapp.com",databaseURL:"https://action-sales-tracker-default-rtdb.firebaseio.com",projectId:"action-sales-tracker",storageBucket:"action-sales-tracker.firebasestorage.app",messagingSenderId:"686455834332",appId:"1:686455834332:web:84e9b843f912522bbdd619"});
+const db=firebase.database();const selected=localStorage.getItem('selectedPerson');let currentDate=new Date(),people=[],logs={},weeklyGoals={},monthlyGoals={},yearlyGoals={},tyGoal=0,currentWeekKey='',currentMonthKey='',currentYearKey='',commissionTiers={tier2:0,tier3:0};
+if(!selected)window.location.href='index.html';
+db.ref('salespeople').on('value',snap=>{const d=snap.val();people=d?Object.keys(d).map(k=>({id:k,name:d[k].name})):[];const p=people.find(p=>p.id===selected);if(p)document.getElementById('personName').textContent='Performance for: '+p.name.toUpperCase();renderAll();});
+db.ref('callLogs').on('value',snap=>{logs=snap.val()||{};renderAll();});
+db.ref('weeklyGoals').on('value',snap=>{weeklyGoals=snap.val()||{};renderAll();});
+db.ref('monthlyGoals').on('value',snap=>{monthlyGoals=snap.val()||{};renderAll();});
+db.ref('yearlyGoals').on('value',snap=>{yearlyGoals=snap.val()||{};renderAll();});
+db.ref(`commissionTiers/${selected}`).on('value',snap=>{const d=snap.val()||{};commissionTiers={tier2:d.tier2||0,tier3:d.tier3||0};if(!document.getElementById('tier2Input').value)document.getElementById('tier2Input').value=commissionTiers.tier2||'';if(!document.getElementById('tier3Input').value)document.getElementById('tier3Input').value=commissionTiers.tier3||'';renderAll();});
+const dk=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const wk=d=>{const w=getWeek(d);return`${dk(w[0])}_${dk(w[6])}`;}
+const mk=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+const yk=d=>`${d.getFullYear()}`;
+function getWeek(date){const day=date.getDay(),diff=date.getDate()-day+(day===0?-6:1);const mon=new Date(date);mon.setDate(diff);return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});}
+function getMDates(date){const y=date.getFullYear(),m=date.getMonth(),last=new Date(y,m+1,0).getDate();return Array.from({length:last},(_,i)=>new Date(y,m,i+1));}
+function getYDates(year){const arr=[];for(let m=0;m<12;m++)arr.push(...getMDates(new Date(year,m,1)));return arr;}
+function getCalls(pid,d){const key=`${pid}_${dk(d)}`;const l=logs[key];return l?Object.values(l):[];}
+
+// ── WIN LOG ──────────────────────────────────────────────────────────
+let winLogWeek = 'this';
+function setWinLogWeek(w, btn) {
+    winLogWeek = w;
+    document.querySelectorAll('.wl-week-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderWinLog();
+}
+function getWinLogDates() {
+    const now = new Date();
+    if (winLogWeek === 'last') { now.setDate(now.getDate() - 7); }
+    return getWeek(now);
+}
+function renderWinLog() {
+    if (!selected || !Object.keys(logs).length) return;
+    const dates = getWinLogDates();
+    // Collect all sold calls with their date
+    const soldEntries = [];
+    dates.forEach(d => {
+        const calls = getCalls(selected, d);
+        calls.forEach(c => {
+            if (c.jobSold) soldEntries.push({ ...c, _date: new Date(d) });
+        });
+    });
+    // Stats
+    const totalRev = soldEntries.reduce((s, c) => s + (parseFloat(c.amountSold) || 0), 0);
+    const totalCalls = dates.reduce((s, d) => s + getCalls(selected, d).length, 0);
+    const cr = totalCalls > 0 ? Math.round((soldEntries.length / totalCalls) * 100) : 0;
+    document.getElementById('wl-rev').textContent = '$' + Math.round(totalRev).toLocaleString();
+    document.getElementById('wl-jobs').textContent = soldEntries.length;
+    document.getElementById('wl-cr').textContent = cr + '%';
+    // Streak
+    const streak = getStreak();
+    const streakEl = document.getElementById('wl-streak-text');
+    if (streak >= 3) streakEl.innerHTML = `<strong>${streak}-day win streak</strong> — keep it going!`;
+    else if (streak === 2) streakEl.innerHTML = `<strong>2-day streak</strong> — one more and you're on a run`;
+    else if (streak === 1) streakEl.innerHTML = `<strong>Sold today</strong> — build the streak, close again tomorrow`;
+    else streakEl.innerHTML = `<strong>No active streak</strong> — today's the day to start one`;
+    // Sort newest first
+    soldEntries.sort((a, b) => {
+        const at = a._date - b._date || (b.timestamp || 0) - (a.timestamp || 0);
+        return -at;
+    });
+    // Group by date label
+    const groups = {};
+    soldEntries.forEach(c => {
+        const key = dk(c._date);
+        if (!groups[key]) groups[key] = { date: c._date, calls: [] };
+        groups[key].calls.push(c);
+    });
+    const tradeLabel = c => {
+        if (c.tradePlumbing) return 'Plumbing';
+        if (c.tradeHVAC) return 'HVAC';
+        if (c.tradeElectrical) return 'Electrical';
+        if (c.tradeCameras) return 'Cameras';
+        return null;
+    };
+    const today = new Date();
+    const dateLabel = d => {
+        const t = dk(d), td = dk(today);
+        const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+        if (t === td) return 'Today — ' + d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        if (t === dk(yesterday)) return 'Yesterday — ' + d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    };
+    const timeLabel = c => {
+        if (c.timeOfDay !== undefined) {
+            const h = c.timeOfDay, ampm = h >= 12 ? 'PM' : 'AM', h12 = h % 12 || 12;
+            return `${h12}:00 ${ampm}`;
+        }
+        return '';
+    };
+    const payLabel = { card: 'Card', cash: 'Cash', check: 'Check', financing: 'Financing', mixed: 'Mixed' };
+    if (!soldEntries.length) {
+        document.getElementById('winLogFeed').innerHTML = '<div class="wl-empty">No sold jobs ' + (winLogWeek === 'last' ? 'last week' : 'this week') + ' yet</div>';
+        return;
+    }
+    let html = '';
+    Object.keys(groups).sort((a, b) => b.localeCompare(a)).forEach(key => {
+        const grp = groups[key];
+        html += `<div class="wl-day-label">${dateLabel(grp.date)}</div>`;
+        grp.calls.forEach(c => {
+            const amt = parseFloat(c.amountSold) || 0;
+            const collected = parseFloat(c.amountCollected) || 0;
+            const owed = parseFloat(c.moneyOwed) || 0;
+            const isBig = amt >= 2000;
+            const isMemb = c.membershipPlanSold;
+            const entryClass = isMemb ? 'membership' : isBig ? 'big' : '';
+            const trade = tradeLabel(c);
+            const tags = [];
+            if (trade) tags.push(`<span class="wl-tag trade">${trade}</span>`);
+            if (isMemb) tags.push(`<span class="wl-tag memb">Membership</span>`);
+            if (c.upsellCompleted) tags.push(`<span class="wl-tag upsell">Add On</span>`);
+            if (c.paymentMethod === 'cash') tags.push(`<span class="wl-tag cash">Cash</span>`);
+            if (c.isNewCustomer) tags.push(`<span class="wl-tag newcust">New customer</span>`);
+            const tl = timeLabel(c);
+            html += `<div class="wl-entry ${entryClass}">
+                <div class="wl-entry-info">
+                    <div class="wl-customer">${c.customerName || 'Customer'}</div>
+                    <div class="wl-tags">${tl ? `<span class="wl-time">${tl}</span>` : ''}${tags.join('')}</div>
+                </div>
+                <div class="wl-amount-col">
+                    <div class="wl-amount">$${Math.round(amt).toLocaleString()}</div>
+                    ${owed > 0 ? `<div class="wl-sub" style="color:#f87171">Owed: $${Math.round(owed).toLocaleString()}</div>` : `<div class="wl-sub" style="color:#4ade80">Collected</div>`}
+                </div>
+            </div>`;
+        });
+    });
+    document.getElementById('winLogFeed').innerHTML = html;
+}
+function calc(pid,dates){const t={totalCalls:0,callsSold:0,amountSold:0,amountCollected:0,estimatesLeft:0,estimateValue:0,doorKnocks:0,doorKnocksSold:0,reviewsCompleted:0,membershipPlansSold:0,upsellsCompleted:0,upsellAmount:0,restorationLeads:0,jobsCancelled:0,turnoversReceived:0,turnoversReceivedRevenue:0,turnoversGiven:0,turnoverSources:{},trades:{plumbing:{jobs:0,revenue:0,ran:0,owed:0,owedJobs:0},hvac:{jobs:0,revenue:0,ran:0,owed:0,owedJobs:0},electrical:{jobs:0,revenue:0,ran:0,owed:0,owedJobs:0},cameras:{jobs:0,revenue:0,ran:0,owed:0,owedJobs:0}}};dates.forEach(d=>{const calls=getCalls(pid,d);calls.forEach(c=>{t.totalCalls++;if(c.tradePlumbing)t.trades.plumbing.ran++;if(c.tradeHVAC)t.trades.hvac.ran++;if(c.tradeElectrical)t.trades.electrical.ran++;if(c.tradeCameras)t.trades.cameras.ran++;if(c.jobCancelled)t.jobsCancelled++;if(c.restorationLead)t.restorationLeads++;if(c.upsellCompleted){t.upsellsCompleted++;t.upsellAmount+=parseFloat(c.upsellAmount)||0;}if(c.jobSold){t.callsSold++;t.amountSold+=parseFloat(c.amountSold)||0;t.amountCollected+=parseFloat(c.amountCollected)||0;if(c.threeDoorKnocks)t.doorKnocksSold++;if(c.soldFromTurnover&&c.turnoverFrom){t.turnoversReceived++;t.turnoversReceivedRevenue+=parseFloat(c.amountSold)||0;if(!t.turnoverSources[c.turnoverFrom])t.turnoverSources[c.turnoverFrom]={count:0,revenue:0};t.turnoverSources[c.turnoverFrom].count++;t.turnoverSources[c.turnoverFrom].revenue+=parseFloat(c.amountSold)||0;}const rev=parseFloat(c.amountSold)||0;if(c.tradePlumbing){t.trades.plumbing.jobs++;t.trades.plumbing.revenue+=rev;}if(c.tradeHVAC){t.trades.hvac.jobs++;t.trades.hvac.revenue+=rev;}if(c.tradeElectrical){t.trades.electrical.jobs++;t.trades.electrical.revenue+=rev;}if(c.tradeCameras){t.trades.cameras.jobs++;t.trades.cameras.revenue+=rev;}}const owed=parseFloat(c.moneyOwed)||0;if(owed>0){if(c.tradePlumbing){t.trades.plumbing.owed+=owed;t.trades.plumbing.owedJobs++;}if(c.tradeHVAC){t.trades.hvac.owed+=owed;t.trades.hvac.owedJobs++;}if(c.tradeElectrical){t.trades.electrical.owed+=owed;t.trades.electrical.owedJobs++;}if(c.tradeCameras){t.trades.cameras.owed+=owed;t.trades.cameras.owedJobs++;}}if(c.leftEstimate){t.estimatesLeft++;t.estimateValue+=parseFloat(c.estimateAmount)||0;}if(c.threeDoorKnocks)t.doorKnocks++;if(c.reviewCompleted)t.reviewsCompleted++;if(c.membershipPlanSold)t.membershipPlansSold++;});people.forEach(p=>{if(p.id!==pid){getCalls(p.id,d).forEach(c=>{if(c.soldFromTurnover&&c.turnoverFrom===pid&&c.jobSold)t.turnoversGiven++;})}});});return t;}
+function calcTeamTotal(dates){let total=0,jobs=0;people.forEach(p=>{dates.forEach(d=>{getCalls(p.id,d).forEach(c=>{if(c.jobSold){total+=parseFloat(c.amountSold)||0;jobs++;}});});});return{total,jobs};}
+function getStreak(){let s=0;const today=new Date();for(let i=0;i<365;i++){const d=new Date(today);d.setDate(today.getDate()-i);if(getCalls(selected,d).some(c=>c.jobSold))s++;else if(i>0)break;}return s;}
+function getDaysSinceSale(){const today=new Date();for(let i=0;i<365;i++){const d=new Date(today);d.setDate(today.getDate()-i);if(getCalls(selected,d).some(c=>c.jobSold))return i;}return 365;}
+function renderGoalProgress(elId,actual,goal){if(!goal){document.getElementById(elId).innerHTML='<div style="font-size:12px;color:var(--muted)">Set a goal to track progress</div>';return;}const p=(actual/goal)*100;const c=p>=100?'var(--green)':p>=50?'var(--amber)':'var(--red)';document.getElementById(elId).innerHTML=`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--muted)">Progress</span><span style="font-family:'Oswald',sans-serif;font-weight:700">${p.toFixed(1)}%</span></div><div style="background:var(--s3);height:8px;width:100%"><div style="background:${c};height:100%;width:${Math.min(p,100)}%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:3px"><span>$${Math.round(actual).toLocaleString()}</span><span>Goal: $${Math.round(goal).toLocaleString()}</span></div>`;}
+function renderTiers(weekSales){const container=document.getElementById('tierStatus');if(!commissionTiers.tier2&&!commissionTiers.tier3){container.innerHTML='<div style="font-size:12px;color:var(--muted);padding:10px">Enter your tier thresholds above.</div>';return;}const t2=commissionTiers.tier2,t3=commissionTiers.tier3;const build=(label,rate,pct,threshold)=>{if(!threshold)return'';const reached=weekSales>=threshold,needed=Math.max(threshold-weekSales,0),progress=Math.min((weekSales/threshold)*100,100),commission=Math.round(threshold*rate);return`<div class="tier-card${reached?' reached':''}"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div><div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">${label} — ${pct}</div><div style="font-size:13px;color:var(--muted);margin-top:2px">$${threshold.toLocaleString()} threshold · $${commission.toLocaleString()} commission</div></div>${reached?`<div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--green);border:1px solid rgba(22,163,74,.3);padding:4px 10px">✓ Reached</div>`:`<div style="text-align:right"><div style="font-size:13px;color:var(--muted)">Still need</div><div class="tier-needed">$${needed.toLocaleString()}</div></div>`}</div><div style="background:var(--s3);height:6px;width:100%"><div style="background:${reached?'var(--green)':'#f97316'};height:100%;width:${Math.max(progress,2).toFixed(1)}%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:3px"><span>$${Math.round(weekSales).toLocaleString()} this week</span><span>$${threshold.toLocaleString()} to unlock</span></div></div>`;};container.innerHTML=[build('Tier 2',0.07,'7%',t2),build('Tier 3',0.10,'10%',t3)].join('');}
+function loadGoals(){currentWeekKey=wk(currentDate);currentMonthKey=mk(currentDate);currentYearKey=yk(currentDate);document.getElementById('weeklyGoalInput').value=weeklyGoals[`${selected}_${currentWeekKey}`]||'';document.getElementById('monthlyGoalInput').value=monthlyGoals[`${selected}_${currentMonthKey}`]||'';document.getElementById('yearlyGoalInput').value=yearlyGoals[`${selected}_${currentYearKey}`]||'';db.ref(`teamYearlyGoals/${currentYearKey}`).once('value',snap=>{tyGoal=snap.val()||0;renderAll();});renderAll();}
+document.getElementById('weeklyGoalInput').onchange=e=>{db.ref(`weeklyGoals/${selected}_${currentWeekKey}`).set(parseFloat(e.target.value)||0);renderAll();};
+document.getElementById('monthlyGoalInput').onchange=e=>{db.ref(`monthlyGoals/${selected}_${currentMonthKey}`).set(parseFloat(e.target.value)||0);renderAll();};
+document.getElementById('yearlyGoalInput').onchange=e=>{db.ref(`yearlyGoals/${selected}_${currentYearKey}`).set(parseFloat(e.target.value)||0);renderAll();};
+['tier2Input','tier3Input'].forEach(id=>{document.getElementById(id).oninput=()=>{commissionTiers={tier2:parseFloat(document.getElementById('tier2Input').value)||0,tier3:parseFloat(document.getElementById('tier3Input').value)||0};db.ref(`commissionTiers/${selected}`).set(commissionTiers);renderAll();};});
+function getLastWeekDates(){const today=new Date();const dow=today.getDay();const lastSun=new Date(today);lastSun.setDate(today.getDate()-dow-(dow===0?7:0));lastSun.setHours(23,59,59,0);const lastMon=new Date(lastSun);lastMon.setDate(lastSun.getDate()-6);lastMon.setHours(0,0,0,0);const dates=[];for(let d=new Date(lastMon);d<=lastSun;d.setDate(d.getDate()+1))dates.push(new Date(d));return{dates,lastMon,lastSun};}
+function renderLastWeek(){
+  const {dates,lastMon,lastSun}=getLastWeekDates();
+  const fmt=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  document.getElementById('lastWeekDateRange').textContent=fmt(lastMon)+' – '+fmt(lastSun);
+  const s=calc(selected,dates);
+  const cr=s.totalCalls>0?((s.callsSold/s.totalCalls)*100).toFixed(1):0;
+  document.getElementById('lw_closeRate').textContent=cr+'%';
+  document.getElementById('lw_closeDetails').textContent=s.callsSold+' / '+s.totalCalls;
+  document.getElementById('lw_callsTaken').textContent=s.totalCalls;
+  document.getElementById('lw_callsSold').textContent=s.callsSold;
+  document.getElementById('lw_estimatesLeft').textContent=s.estimatesLeft;
+  document.getElementById('lw_estimateValue').textContent='$'+s.estimateValue.toLocaleString()+' potential';
+  document.getElementById('lw_avgSale').textContent='$'+(s.callsSold>0?Math.round(s.amountSold/s.callsSold):0).toLocaleString();
+  document.getElementById('lw_weekRevenue').textContent='$'+Math.round(s.amountSold).toLocaleString();
+  document.getElementById('lw_doorKnocks').textContent=s.doorKnocks;
+  document.getElementById('lw_doorKnocksRate').textContent=(s.doorKnocks>0?((s.doorKnocksSold/s.doorKnocks)*100).toFixed(1):0)+'% conv';
+  document.getElementById('lw_reviewRate').textContent=(s.totalCalls>0?((s.reviewsCompleted/s.totalCalls)*100).toFixed(1):0)+'%';
+  document.getElementById('lw_reviewCount').textContent=s.reviewsCompleted+' reviews';
+  document.getElementById('lw_membershipRate').textContent=(s.callsSold>0?((s.membershipPlansSold/s.callsSold)*100).toFixed(1):0)+'%';
+  document.getElementById('lw_membershipCount').textContent=s.membershipPlansSold+' plans';
+  document.getElementById('lw_turnoversReceived').textContent=s.turnoversReceived;
+  document.getElementById('lw_turnoversReceivedRevenue').textContent='$'+s.turnoversReceivedRevenue.toLocaleString()+' closed';
+  document.getElementById('lw_turnoversGiven').textContent=s.turnoversGiven;
+  // days since sale as of end of last week
+  let dss='—';for(let i=0;i<30;i++){const d=new Date(lastSun);d.setDate(lastSun.getDate()-i);if(getCalls(selected,d).some(c=>c.jobSold)){dss=i;break;}}
+  document.getElementById('lw_daysSinceSale').textContent=dss;
+  document.getElementById('lw_upsellRate').textContent=(s.callsSold>0?((s.upsellsCompleted/s.callsSold)*100).toFixed(1):0)+'%';
+  document.getElementById('lw_upsellCount').textContent=s.upsellsCompleted+' add ons';
+  document.getElementById('lw_upsellRevenue').textContent='$'+Math.round(s.upsellAmount).toLocaleString();
+  document.getElementById('lw_restorationLeads').textContent=s.restorationLeads;
+  document.getElementById('lw_cancellations').textContent=s.jobsCancelled;
+  document.getElementById('lw_cancellationRate').textContent=(s.totalCalls>0?((s.jobsCancelled/s.totalCalls)*100).toFixed(1):0)+'% of calls';
+}
+function renderYearlyPerf(){
+  const year=new Date().getFullYear();
+  document.getElementById('yrPerfLabel').textContent=year;
+  const dates=getYDates(year);
+  const s=calc(selected,dates);
+  const cr=s.totalCalls>0?((s.callsSold/s.totalCalls)*100).toFixed(1):0;
+  document.getElementById('yr_closeRate').textContent=cr+'%';
+  document.getElementById('yr_closeDetails').textContent=s.callsSold+' / '+s.totalCalls;
+  document.getElementById('yr_callsTaken').textContent=s.totalCalls;
+  document.getElementById('yr_callsSold').textContent=s.callsSold;
+  document.getElementById('yr_estimatesLeft').textContent=s.estimatesLeft;
+  document.getElementById('yr_estimateValue').textContent='$'+s.estimateValue.toLocaleString()+' potential';
+  document.getElementById('yr_avgSale').textContent='$'+(s.callsSold>0?Math.round(s.amountSold/s.callsSold):0).toLocaleString();
+  document.getElementById('yr_revenue').textContent='$'+Math.round(s.amountSold).toLocaleString();
+  document.getElementById('yr_doorKnocks').textContent=s.doorKnocks;
+  document.getElementById('yr_doorKnocksRate').textContent=(s.doorKnocks>0?((s.doorKnocksSold/s.doorKnocks)*100).toFixed(1):0)+'% conv';
+  document.getElementById('yr_reviewRate').textContent=(s.totalCalls>0?((s.reviewsCompleted/s.totalCalls)*100).toFixed(1):0)+'%';
+  document.getElementById('yr_reviewCount').textContent=s.reviewsCompleted+' reviews';
+  document.getElementById('yr_membershipRate').textContent=(s.callsSold>0?((s.membershipPlansSold/s.callsSold)*100).toFixed(1):0)+'%';
+  document.getElementById('yr_membershipCount').textContent=s.membershipPlansSold+' plans';
+  document.getElementById('yr_turnoversReceived').textContent=s.turnoversReceived;
+  document.getElementById('yr_turnoversReceivedRevenue').textContent='$'+s.turnoversReceivedRevenue.toLocaleString()+' closed';
+  document.getElementById('yr_turnoversGiven').textContent=s.turnoversGiven;
+  document.getElementById('yr_plansSold').textContent=s.membershipPlansSold;
+  document.getElementById('yr_upsellRate').textContent=(s.callsSold>0?((s.upsellsCompleted/s.callsSold)*100).toFixed(1):0)+'%';
+  document.getElementById('yr_upsellCount').textContent=s.upsellsCompleted+' add ons';
+  document.getElementById('yr_upsellRevenue').textContent='$'+Math.round(s.upsellAmount).toLocaleString();
+  document.getElementById('yr_restorationLeads').textContent=s.restorationLeads;
+  document.getElementById('yr_cancellations').textContent=s.jobsCancelled;
+  document.getElementById('yr_cancellationRate').textContent=(s.totalCalls>0?((s.jobsCancelled/s.totalCalls)*100).toFixed(1):0)+'% of calls';
+}
+function calcPersonalRecords(){
+  // Scan ALL call log keys for this person
+  const allKeys=Object.keys(logs).filter(k=>k.startsWith(selected+'_'));
+  if(!allKeys.length){document.getElementById('prContainer').innerHTML='<div style="text-align:center;padding:24px;font-family:\'Oswald\',sans-serif;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint)">No data yet — start logging calls!</div>';return;}
+
+  // Records to track
+  let biggestSale={val:0,date:'',customer:''};
+  let bestWeekRev={val:0,weekLabel:''};
+  let bestWeekClose={val:0,calls:0,sold:0,weekLabel:''};
+  let mostReviewsWeek={val:0,weekLabel:''};
+  let mostSalesDay={val:0,date:''};
+  let bestAvgSale={val:0,weekLabel:'',sales:0};
+  let longestStreak={val:0};
+
+  // Group keys by week (Mon-Sun)
+  const getWeekKey=dateStr=>{const d=new Date(dateStr);const day=d.getDay(),diff=d.getDate()-day+(day===0?-6:1);const mon=new Date(d);mon.setDate(diff);return dk(mon);};
+  const weekBuckets={};
+  allKeys.forEach(k=>{
+    const dateStr=k.replace(selected+'_','');
+    const wk=getWeekKey(dateStr);
+    if(!weekBuckets[wk])weekBuckets[wk]={calls:[],weekLabel:'',monDate:null};
+    const calls=logs[k]?Object.values(logs[k]):[];
+    calls.forEach(c=>weekBuckets[wk].calls.push({...c,_dateStr:dateStr}));
+    if(!weekBuckets[wk].monDate){
+      const mon=new Date(dateStr);const day=mon.getDay(),diff=mon.getDate()-day+(day===0?-6:1);mon.setDate(diff);
+      const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+      weekBuckets[wk].weekLabel=mon.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+sun.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      weekBuckets[wk].monDate=mon;
+    }
+  });
+
+  // Biggest single sale & most sales in a day
+  const dayBuckets={};
+  allKeys.forEach(k=>{
+    const dateStr=k.replace(selected+'_','');
+    const calls=logs[k]?Object.values(logs[k]):[];
+    let daySales=0;
+    calls.forEach(c=>{
+      if(c.jobSold){
+        const amt=parseFloat(c.amountSold)||0;
+        if(amt>biggestSale.val)biggestSale={val:amt,date:dateStr,customer:c.customerName||''};
+        daySales++;
+      }
+    });
+    if(daySales>mostSalesDay.val)mostSalesDay={val:daySales,date:dateStr};
+  });
+
+  // Week-based records
+  Object.entries(weekBuckets).forEach(([wk,{calls,weekLabel}])=>{
+    const sold=calls.filter(c=>c.jobSold);
+    const rev=sold.reduce((s,c)=>s+(parseFloat(c.amountSold)||0),0);
+    const reviews=calls.filter(c=>c.reviewCompleted).length;
+    const cr=calls.length>0?(sold.length/calls.length)*100:0;
+    const avg=sold.length>0?rev/sold.length:0;
+
+    if(rev>bestWeekRev.val)bestWeekRev={val:rev,weekLabel};
+    if(reviews>mostReviewsWeek.val)mostReviewsWeek={val:reviews,weekLabel};
+    if(calls.length>=3&&cr>bestWeekClose.val)bestWeekClose={val:cr,calls:calls.length,sold:sold.length,weekLabel};
+    if(sold.length>=3&&avg>bestAvgSale.val)bestAvgSale={val:avg,weekLabel,sales:sold.length};
+  });
+
+  // Longest streak — scan all dates sorted
+  const allDates=[...new Set(allKeys.map(k=>k.replace(selected+'_','')))].sort();
+  let curStreak=0,prevDate=null;
+  allDates.forEach(dateStr=>{
+    const hasSale=(logs[selected+'_'+dateStr]&&Object.values(logs[selected+'_'+dateStr]).some(c=>c.jobSold));
+    if(hasSale){
+      if(prevDate){const d1=new Date(prevDate),d2=new Date(dateStr);const diff=(d2-d1)/86400000;curStreak=diff===1?curStreak+1:1;}
+      else curStreak=1;
+      if(curStreak>longestStreak.val)longestStreak={val:curStreak};
+      prevDate=dateStr;
+    } else {prevDate=null;curStreak=0;}
+  });
+
+  const fmtDate=ds=>{if(!ds)return'—';const d=new Date(ds+'T12:00:00');return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});};
+  const fmtAmt=v=>v>0?'$'+Math.round(v).toLocaleString():'—';
+
+  document.getElementById('prContainer').innerHTML=`
+    <div class="pr-grid">
+      <div class="pr-block">
+        <div class="pr-crown">👑</div>
+        <div class="pr-icon">💰</div>
+        <div class="pr-lbl">Biggest Single Sale</div>
+        <div class="pr-val">${fmtAmt(biggestSale.val)}</div>
+        <div class="pr-meta">${biggestSale.customer||'—'}</div>
+        <div class="pr-date">${fmtDate(biggestSale.date)}</div>
+      </div>
+      <div class="pr-block">
+        <div class="pr-crown">👑</div>
+        <div class="pr-icon">📈</div>
+        <div class="pr-lbl">Best Week Revenue</div>
+        <div class="pr-val">${fmtAmt(bestWeekRev.val)}</div>
+        <div class="pr-meta">Single week total</div>
+        <div class="pr-date">${bestWeekRev.weekLabel||'—'}</div>
+      </div>
+      <div class="pr-block">
+        <div class="pr-crown">👑</div>
+        <div class="pr-icon">🎯</div>
+        <div class="pr-lbl">Best Week Close Rate</div>
+        <div class="pr-val">${bestWeekClose.val>0?bestWeekClose.val.toFixed(1)+'%':'—'}</div>
+        <div class="pr-meta">${bestWeekClose.sold} sold / ${bestWeekClose.calls} calls</div>
+        <div class="pr-date">${bestWeekClose.weekLabel||'—'}</div>
+      </div>
+      <div class="pr-block">
+        <div class="pr-crown">👑</div>
+        <div class="pr-icon">⭐</div>
+        <div class="pr-lbl">Most Reviews in a Week</div>
+        <div class="pr-val">${mostReviewsWeek.val||'—'}</div>
+        <div class="pr-meta">Reviews collected</div>
+        <div class="pr-date">${mostReviewsWeek.weekLabel||'—'}</div>
+      </div>
+      <div class="pr-block">
+        <div class="pr-crown">👑</div>
+        <div class="pr-icon">🔥</div>
+        <div class="pr-lbl">Longest Win Streak</div>
+        <div class="pr-val">${longestStreak.val||'—'}</div>
+        <div class="pr-meta">Consecutive days with a sale</div>
+        <div class="pr-date">All-time record</div>
+      </div>
+      <div class="pr-block">
+        <div class="pr-crown">👑</div>
+        <div class="pr-icon">⚡</div>
+        <div class="pr-lbl">Best Avg Sale (Week)</div>
+        <div class="pr-val">${fmtAmt(bestAvgSale.val)}</div>
+        <div class="pr-meta">${bestAvgSale.sales>0?bestAvgSale.sales+' sales that week':'Min. 3 sales needed'}</div>
+        <div class="pr-date">${bestAvgSale.weekLabel||'—'}</div>
+      </div>
+    </div>`;
+}
+function renderAll(){const week=getWeek(currentDate),month=getMDates(currentDate),year=getYDates(currentDate.getFullYear());const ws=calc(selected,week),ms=calc(selected,month),ys=calc(selected,year),ty=calcTeamTotal(year);const today=new Date();document.getElementById('monthYear').textContent=currentDate.toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();document.getElementById('yearDisplay').textContent=currentDate.getFullYear();document.getElementById('yearContributionDisplay').textContent=currentDate.getFullYear();renderGoalProgress('weeklyProgress',ws.amountSold,weeklyGoals[`${selected}_${currentWeekKey}`]||0);renderGoalProgress('monthlyProgress',ms.amountSold,monthlyGoals[`${selected}_${currentMonthKey}`]||0);renderGoalProgress('yearlyProgress',ys.amountSold,yearlyGoals[`${selected}_${currentYearKey}`]||0);const daysPassed=week.filter(d=>d<=today).length;const wAvg=daysPassed>0?ws.amountSold/daysPassed:0;document.getElementById('weeklyForecast').textContent='$'+Math.round(wAvg*7).toLocaleString();document.getElementById('weeklyForecastNote').textContent='$'+Math.round(wAvg).toLocaleString()+'/day';const dIM=new Date(currentDate.getFullYear(),currentDate.getMonth()+1,0).getDate();const mDP=currentDate.getMonth()===today.getMonth()&&currentDate.getFullYear()===today.getFullYear()?today.getDate():dIM;const mAvg=mDP>0?ms.amountSold/mDP:0;document.getElementById('monthlyForecast').textContent='$'+Math.round(mAvg*dIM).toLocaleString();document.getElementById('monthlyForecastNote').textContent='$'+Math.round(mAvg).toLocaleString()+'/day';document.getElementById('closeRate').textContent=(ms.totalCalls>0?((ms.callsSold/ms.totalCalls)*100).toFixed(1):0)+'%';document.getElementById('closeDetails').textContent=ms.callsSold+' / '+ms.totalCalls;document.getElementById('callsTaken').textContent=ms.totalCalls;document.getElementById('callsSold').textContent=ms.callsSold;document.getElementById('estimatesLeft').textContent=ms.estimatesLeft;document.getElementById('estimateValue').textContent='$'+ms.estimateValue.toLocaleString()+' potential';document.getElementById('avgSale').textContent='$'+(ms.callsSold>0?Math.round(ms.amountSold/ms.callsSold):0).toLocaleString();document.getElementById('weekRevenue').textContent='$'+Math.round(ws.amountSold).toLocaleString();document.getElementById('monthRevenue').textContent='$'+Math.round(ms.amountSold).toLocaleString();document.getElementById('yearRevenue').textContent='$'+Math.round(ys.amountSold).toLocaleString();document.getElementById('doorKnocks').textContent=ms.doorKnocks;document.getElementById('doorKnocksRate').textContent=(ms.doorKnocks>0?((ms.doorKnocksSold/ms.doorKnocks)*100).toFixed(1):0)+'% conv';document.getElementById('reviewRate').textContent=(ms.totalCalls>0?((ms.reviewsCompleted/ms.totalCalls)*100).toFixed(1):0)+'%';document.getElementById('reviewCount').textContent=ms.reviewsCompleted+' reviews';document.getElementById('membershipRate').textContent=(ms.callsSold>0?((ms.membershipPlansSold/ms.callsSold)*100).toFixed(1):0)+'%';document.getElementById('membershipCount').textContent=ms.membershipPlansSold+' plans';document.getElementById('daysSinceSale').textContent=getDaysSinceSale();document.getElementById('streakDays').textContent=getStreak();document.getElementById('upsellRate').textContent=(ms.callsSold>0?((ms.upsellsCompleted/ms.callsSold)*100).toFixed(1):0)+'%';document.getElementById('upsellCount').textContent=ms.upsellsCompleted+' add ons';document.getElementById('upsellRevenue').textContent='$'+Math.round(ms.upsellAmount).toLocaleString();document.getElementById('restorationLeads').textContent=ms.restorationLeads;document.getElementById('cancellations').textContent=ms.jobsCancelled;document.getElementById('cancellationRate').textContent=(ms.totalCalls>0?((ms.jobsCancelled/ms.totalCalls)*100).toFixed(1):0)+'% of calls';document.getElementById('turnoversReceived').textContent=ms.turnoversReceived;document.getElementById('turnoversReceivedRevenue').textContent='$'+ms.turnoversReceivedRevenue.toLocaleString()+' closed';document.getElementById('turnoversGiven').textContent=ms.turnoversGiven;let tgRev=0;people.forEach(p=>{if(p.id!==selected){month.forEach(d=>{getCalls(p.id,d).forEach(c=>{if(c.soldFromTurnover&&c.turnoverFrom===selected&&c.jobSold)tgRev+=parseFloat(c.amountSold)||0;});});}});document.getElementById('turnoversGivenRevenue').textContent='$'+Math.round(tgRev).toLocaleString()+' by others';document.getElementById('turnoverCloseRate').textContent=(ms.turnoversReceived>0?'100':'0')+'%';const srcArr=Object.entries(ms.turnoverSources).map(([id,data])=>({id,name:people.find(p=>p.id===id)?.name||'Unknown',...data})).sort((a,b)=>b.count-a.count);document.getElementById('turnoverSources').innerHTML=srcArr.length?srcArr.map(s=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--s3);border:1px solid var(--wire);margin-bottom:3px"><span style="font-size:13px;font-weight:500">${s.name}</span><span style="font-size:13px;color:var(--muted)">${s.count} leads · $${s.revenue.toLocaleString()}</span></div>`).join(''):'<div style="font-size:12px;color:var(--muted);padding:8px">No turnovers received this month</div>';const ttj=ms.trades.plumbing.jobs+ms.trades.hvac.jobs+ms.trades.electrical.jobs+ms.trades.cameras.jobs;const ttr=ms.trades.plumbing.ran+ms.trades.hvac.ran+ms.trades.electrical.ran+ms.trades.cameras.ran;['plumbing','hvac','electrical','cameras'].forEach(t=>{const pct=ttj>0?(ms.trades[t].jobs/ttj*100).toFixed(1):0;document.getElementById(t+'Jobs').textContent=ms.trades[t].jobs;document.getElementById(t+'Bar').style.width=pct+'%';document.getElementById(t+'Percent').textContent=pct+'%';document.getElementById(t+'Revenue').textContent='$'+ms.trades[t].revenue.toLocaleString();const rp=ttr>0?(ms.trades[t].ran/ttr*100).toFixed(1):0;const cr2=ms.trades[t].ran>0?(ms.trades[t].jobs/ms.trades[t].ran*100).toFixed(1):0;document.getElementById(t+'Ran').textContent=ms.trades[t].ran;document.getElementById(t+'RanBar').style.width=rp+'%';document.getElementById(t+'RanPercent').textContent=rp+'% of calls';document.getElementById(t+'CloseRate').textContent=cr2+'% close';document.getElementById(t+'Owed').textContent='$'+ms.trades[t].owed.toLocaleString();document.getElementById(t+'OwedJobs').textContent=ms.trades[t].owedJobs+' outstanding';});document.getElementById('yourYearTotal').textContent='$'+Math.round(ys.amountSold).toLocaleString();document.getElementById('yourYearJobs').textContent=ys.callsSold+' jobs closed';document.getElementById('teamYearTotal').textContent='$'+Math.round(ty.total).toLocaleString();document.getElementById('teamYearJobs').textContent=ty.jobs+' jobs closed';const yp=ty.total>0?(ys.amountSold/ty.total*100).toFixed(1):0;document.getElementById('yourTeamPercent').textContent=yp+'%';document.getElementById('yourTeamPercentBar').style.width=Math.min(yp,100)+'%';if(tyGoal>0){document.getElementById('teamGoalSection').style.display='block';const gp=(ys.amountSold/tyGoal*100).toFixed(1);document.getElementById('yourGoalPercent').textContent=gp+'%';document.getElementById('teamGoalAmount').textContent='Team Goal: $'+tyGoal.toLocaleString();document.getElementById('yourGoalPercentBar').style.width=Math.min(gp,100)+'%';}else{document.getElementById('teamGoalSection').style.display='none';}renderTiers(calc(selected,getWeek(new Date())).amountSold);renderWinLog();renderLastWeek();renderYearlyPerf();calcPersonalRecords();}
+document.getElementById('prevMonth').onclick=()=>{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()-1,1);loadGoals();};
+document.getElementById('nextMonth').onclick=()=>{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+1,1);loadGoals();};
+loadGoals();
+</script>
+</body>
+</html>
