@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Door Knock Tracker - Action Plumbing</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDCkcI-eOifQqMZQH8-O6qaZZy2SmS6gDI&libraries=places&callback=gmapsReady" async defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--red:#dc2626;--red2:#991b1b;--red3:#450a0a;--bg:#080808;--s1:#111;--s2:#181818;--s3:#202020;--wire:rgba(255,255,255,.06);--wire2:rgba(255,255,255,.10);--muted:#aaa;--faint:#666;--text:#efefef}
+html.light{--bg:#f4f4f4;--s1:#fff;--s2:#ebebeb;--s3:#e0e0e0;--wire:rgba(0,0,0,.08);--wire2:rgba(0,0,0,.14);--muted:#555;--faint:#999;--text:#111;--red3:#fde8e8}
+html.light body::after{display:none}
+html.light input,html.light select,html.light textarea{background:var(--s3);border-color:var(--wire2);color:var(--text)}
+html.light input::placeholder,html.light textarea::placeholder{color:var(--faint)}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);pointer-events:none;z-index:999}
+.page{max-width:1400px;margin:0 auto;padding:24px 20px 80px}
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--wire)}
+.page-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,6vw,72px);line-height:.9;letter-spacing:2px}
+.page-title em{font-style:normal;color:var(--red)}
+.page-sub{font-family:'Oswald',sans-serif;font-size:12px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.back-btn{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);border:1px solid var(--wire2);padding:10px 18px;text-decoration:none;transition:all .15s;white-space:nowrap;margin-top:8px;display:inline-block}
+.back-btn:hover{color:var(--text);border-color:var(--muted)}
+/* STAT STRIP */
+.stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:24px}
+@media(max-width:700px){.stat-strip{grid-template-columns:1fr 1fr}}
+.stat-block{background:var(--s1);border:1px solid var(--wire);border-top:2px solid var(--red);padding:18px 20px}
+.stat-label{font-family:'Oswald',sans-serif;font-size:11px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:48px;line-height:1;color:var(--text);letter-spacing:2px}
+.stat-meta{font-size:11px;color:var(--faint);margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
+.stat-block.green{border-top-color:#16a34a}.stat-block.green .stat-num{color:#22c55e}
+.stat-block.yellow{border-top-color:#d97706}.stat-block.yellow .stat-num{color:#f59e0b}
+/* TABS */
+.tabs{display:flex;gap:2px;margin-bottom:24px;border-bottom:1px solid var(--wire);overflow-x:auto}
+.tab{font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;padding:12px 20px;cursor:pointer;color:var(--muted);background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.tab:hover{color:var(--text)}.tab.active{color:var(--red);border-bottom-color:var(--red)}
+/* CARD */
+.card{background:var(--s1);border:1px solid var(--wire);padding:24px 28px;margin-bottom:20px}
+.card-title{font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--text);margin-bottom:16px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+/* BUTTONS */
+.btn{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;padding:10px 20px;border:none;cursor:pointer;transition:all .15s}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{background:var(--red2)}.btn-red:active{transform:scale(.97)}
+.btn-outline{background:transparent;color:var(--muted);border:1px solid var(--wire2)}.btn-outline:hover{color:var(--text);border-color:var(--muted)}
+.btn-green{background:#16a34a;color:#fff}.btn-green:hover{background:#15803d}
+.btn-sm{padding:7px 14px;font-size:11px}
+/* FORM */
+.field{margin-bottom:14px}
+.field label{font-family:'Oswald',sans-serif;font-size:12px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+input[type=text],input[type=number],textarea,select{background:var(--s3);border:1px solid var(--wire2);color:var(--text);padding:10px 14px;width:100%;font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color .15s}
+input::placeholder,textarea::placeholder{color:var(--faint)}
+input:focus,textarea:focus,select:focus{border-color:var(--red)}
+select option{background:var(--s3);color:var(--text)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.field-row{grid-template-columns:1fr}}
+/* LOG FORM */
+.log-form{background:var(--s2);border:1px solid rgba(220,38,38,.25);border-left:3px solid var(--red);padding:20px 24px;margin-bottom:20px;display:none}
+.log-form.open{display:block}
+.log-form-title{font-family:'Oswald',sans-serif;font-size:14px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--red);margin-bottom:18px}
+/* STATUS BADGE */
+.status-badge{display:inline-flex;align-items:center;font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:4px 10px;border:1px solid}
+.status-badge.not-home{color:#888;border-color:#444;background:rgba(255,255,255,.03)}
+.status-badge.not-interested{color:#ef4444;border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.07)}
+.status-badge.soft-lead{color:#f59e0b;border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.07)}
+.status-badge.hot-lead{color:#f97316;border-color:rgba(249,115,22,.4);background:rgba(249,115,22,.1)}
+.status-badge.follow-up{color:#60a5fa;border-color:rgba(96,165,250,.4);background:rgba(96,165,250,.07)}
+.status-badge.sold{color:#22c55e;border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.08)}
+.status-badge.appointment{color:#a78bfa;border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.08)}
+/* DOOR CARD */
+.door-card{background:var(--s2);border:1px solid var(--wire);border-left:3px solid #444;padding:18px 20px;margin-bottom:10px}
+.door-card.not-home{border-left-color:#444}.door-card.not-interested{border-left-color:#dc2626}
+.door-card.soft-lead{border-left-color:#d97706}.door-card.hot-lead{border-left-color:#f97316}
+.door-card.follow-up{border-left-color:#3b82f6}.door-card.sold{border-left-color:#16a34a}
+.door-card.appointment{border-left-color:#7c3aed}.door-card.sold .door-card-addr{color:#22c55e}
+.door-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.door-card-addr{font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text)}
+.door-card-meta{font-size:12px;color:var(--faint);letter-spacing:.04em;margin-top:3px}
+.door-card-actions{display:flex;gap:8px;flex-shrink:0;align-items:center;flex-wrap:wrap}
+.door-card-notes{font-size:13px;color:var(--muted);line-height:1.5;font-style:italic;border-top:1px solid var(--wire);padding-top:10px;margin-top:8px}
+.door-card-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+.door-follow-date{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#60a5fa;padding:3px 8px;border:1px solid rgba(96,165,250,.3);background:rgba(96,165,250,.06)}
+/* ICON BTN */
+.icon-btn{background:transparent;border:1px solid var(--wire2);color:var(--faint);width:30px;height:30px;cursor:pointer;transition:all .15s;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.icon-btn:hover{color:var(--text);border-color:var(--muted)}.icon-btn.danger:hover{color:#ef4444;border-color:#ef4444}
+/* REP BADGE */
+.rep-badge{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--s3);border:1px solid var(--wire2);padding:2px 8px;flex-shrink:0}
+.rep-badge.me{color:var(--red);border-color:rgba(220,38,38,.35);background:var(--red3)}
+/* GEOCODE STATUS */
+.geocode-status{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:6px 12px;margin-top:6px;display:none}
+.geocode-status.ok{background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
+.geocode-status.err{background:rgba(220,38,38,.1);color:#ef4444;border:1px solid rgba(220,38,38,.3)}
+.geocode-status.loading{background:rgba(245,158,11,.08);color:#f59e0b;border:1px solid rgba(245,158,11,.3)}
+/* MAP */
+#mapContainer{position:relative;width:100%;height:560px;background:var(--s2)}
+#doorMap{width:100%;height:100%}
+.map-controls{display:flex;gap:8px;flex-wrap:wrap;padding:12px 20px;background:var(--s2);border:1px solid var(--wire);border-bottom:none;align-items:center}
+.map-legend{display:flex;gap:12px;flex-wrap:wrap;padding:14px 20px;background:var(--s1);border:1px solid var(--wire);border-top:none;margin-bottom:20px}
+.map-legend-item{display:flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.map-legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.map-chip{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border:1px solid var(--wire2);color:var(--muted);cursor:pointer;transition:all .15s;background:transparent}
+.map-chip:hover{color:var(--text);border-color:var(--muted)}.map-chip.active{background:var(--red3);border-color:var(--red);color:var(--text)}
+.map-count{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-left:auto}
+/* FILTER ROW */
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
+.filter-chip{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:6px 12px;border:1px solid var(--wire2);color:var(--muted);cursor:pointer;transition:all .15s;background:transparent}
+.filter-chip:hover{color:var(--text);border-color:var(--muted)}.filter-chip.active{color:var(--red);border-color:var(--red);background:var(--red3)}
+.search-input{background:var(--s3);border:1px solid var(--wire2);color:var(--text);padding:8px 14px;font-family:'Inter',sans-serif;font-size:13px;outline:none;transition:border-color .15s;flex:1;min-width:160px;max-width:260px}
+.search-input:focus{border-color:var(--red)}.search-input::placeholder{color:var(--faint)}
+/* VOICE */
+.voice-btn{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:8px 14px;border:1px solid var(--wire2);color:var(--muted);cursor:pointer;background:transparent;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.voice-btn:hover{color:var(--text);border-color:var(--muted)}.voice-btn.listening{color:var(--red);border-color:var(--red);background:var(--red3)}
+/* FOLLOW-UP */
+.followup-card{background:var(--s2);border:1px solid var(--wire);border-left:3px solid #3b82f6;padding:16px 18px;margin-bottom:8px}
+.followup-today{border-left-color:#f97316}
+.followup-addr{font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text)}
+.followup-when{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;margin-top:4px}
+.followup-when.today{color:#f97316}.followup-when.upcoming{color:#60a5fa}
+/* STREETS */
+.street-row{background:var(--s2);border:1px solid var(--wire);padding:14px 18px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.street-name{font-family:'Oswald',sans-serif;font-size:14px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text)}
+.street-chips{display:flex;gap:6px;flex-wrap:wrap}
+.mini-chip{font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border:1px solid}
+/* LEADERBOARD */
+.lb-row{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--s2);border:1px solid var(--wire);margin-bottom:6px;position:relative;overflow:hidden}
+.lb-row.me{border-color:rgba(220,38,38,.4);background:var(--red3)}
+.lb-rank{font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:var(--faint);width:36px;flex-shrink:0;text-align:center}
+.lb-rank.gold{color:#f59e0b}.lb-rank.silver{color:#94a3b8}.lb-rank.bronze{color:#cd7c3a}
+.lb-name{font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text);flex:1;min-width:0}
+.lb-you{font-family:'Oswald',sans-serif;font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--red);background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.3);padding:2px 7px;margin-left:8px;vertical-align:middle}
+.lb-stats{display:flex;gap:16px;flex-shrink:0}
+.lb-stat{text-align:center}
+.lb-stat-num{font-family:'Bebas Neue',sans-serif;font-size:26px;line-height:1;color:var(--text);letter-spacing:1px}
+.lb-stat-num.green{color:#22c55e}
+.lb-stat-label{font-family:'Oswald',sans-serif;font-size:9px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--faint)}
+.lb-bar{position:absolute;bottom:0;left:0;height:2px;background:var(--red);transition:width .5s ease}
+/* STATS CHART */
+.chart-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.chart-bar-label{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);width:120px;flex-shrink:0}
+.chart-bar-track{flex:1;height:22px;background:var(--s3)}
+.chart-bar-fill{height:100%;transition:width .4s ease}
+.chart-bar-val{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:var(--text);width:36px;text-align:right;flex-shrink:0}
+/* MISC */
+.empty{text-align:center;padding:48px 24px;color:var(--faint);font-family:'Oswald',sans-serif;font-size:14px;font-weight:500;letter-spacing:.15em;text-transform:uppercase}
+.empty-icon{font-size:36px;margin-bottom:12px;display:block;opacity:.5}
+.live-dot{display:inline-flex;align-items:center;gap:6px;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.15em;color:var(--red);text-transform:uppercase}
+.live-dot::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+@media(max-width:560px){.door-card-top{flex-direction:column}.door-card-actions{align-self:flex-end}.lb-stats{gap:8px}.lb-stat-num{font-size:20px}}
+/* INFO WINDOW */
+.iw-wrap{font-family:'Inter',sans-serif;min-width:200px;max-width:260px}
+.iw-addr{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#111;margin-bottom:4px}
+.iw-meta{font-size:12px;color:#555;line-height:1.6}
+.iw-notes{font-size:12px;color:#777;font-style:italic;margin-top:6px;border-top:1px solid #e5e5e5;padding-top:6px}
+.iw-btn{display:inline-block;margin-top:8px;font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:5px 12px;background:#dc2626;color:#fff;border:none;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="themeToggleWrap" style="position:fixed;top:12px;right:16px;z-index:9999;">
+  <button onclick="toggleTheme()" style="background:var(--s2);border:1px solid var(--wire2);color:var(--muted);font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:7px 12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;">
+    <span id="themeIcon">☀️</span><span id="themeLabel">LIGHT</span>
+  </button>
+</div>
+<script>
+(function(){var t=localStorage.getItem('apTheme')||'dark';applyTheme(t)})();
+function applyTheme(t){localStorage.setItem('apTheme',t);if(t==='light'){document.documentElement.classList.add('light');var i=document.getElementById('themeIcon'),l=document.getElementById('themeLabel');if(i)i.textContent='🌙';if(l)l.textContent='DARK'}else{document.documentElement.classList.remove('light');var i=document.getElementById('themeIcon'),l=document.getElementById('themeLabel');if(i)i.textContent='☀️';if(l)l.textContent='LIGHT'}}
+function toggleTheme(){applyTheme(localStorage.getItem('apTheme')==='dark'?'light':'dark')}
+</script>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Door <em>Knock</em></div>
+      <div id="personName" class="page-sub">Loading...</div>
+    </div>
+    <a href="index.html" class="back-btn">← Dashboard</a>
+  </div>
+
+  <div class="stat-strip">
+    <div class="stat-block"><div class="stat-label">Doors Today</div><div id="statDoorsToday" class="stat-num">0</div><div class="stat-meta">Whole team</div></div>
+    <div class="stat-block yellow"><div class="stat-label">Contacts</div><div id="statContacts" class="stat-num">0</div><div class="stat-meta">Whole team</div></div>
+    <div class="stat-block"><div class="stat-label">Hot Leads</div><div id="statLeads" class="stat-num">0</div><div class="stat-meta">Whole team</div></div>
+    <div class="stat-block green"><div class="stat-label">Sold</div><div id="statSold" class="stat-num">0</div><div class="stat-meta">Whole team</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="log">📋 Log Doors</button>
+    <button class="tab" data-tab="map">🗺️ Live Map</button>
+    <button class="tab" data-tab="followup">🔔 Follow-Ups</button>
+    <button class="tab" data-tab="streets">📍 Streets</button>
+    <button class="tab" data-tab="stats">📊 Stats</button>
+  </div>
+
+  <!-- LOG DOORS -->
+  <div id="tab-log">
+    <div class="card" style="padding-bottom:8px">
+      <div class="card-header">
+        <div class="card-title"><span class="live-dot" style="font-size:11px;margin-right:8px"></span>Today's Doors</div>
+        <button class="btn btn-red" id="addDoorBtn">+ Log a Door</button>
+      </div>
+      <div class="log-form" id="doorForm">
+        <div class="log-form-title" id="formTitle">New Door Log</div>
+        <input type="hidden" id="editId" value="">
+        <div class="field-row">
+          <div class="field"><label>Street Address *</label><input type="text" id="fAddress" placeholder="123 Main St, Salt Lake City, UT" autocomplete="off"><div class="geocode-status" id="geocodeStatus"></div></div>
+          <div class="field"><label>Neighborhood / Area</label><input type="text" id="fStreet" placeholder="Maple Grove, North Loop…"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Status *</label>
+            <select id="fStatus">
+              <option value="not-home">🔘 Not Home / No Answer</option>
+              <option value="not-interested">🚫 Not Interested</option>
+              <option value="soft-lead">💛 Soft Lead</option>
+              <option value="hot-lead">🔥 Hot Lead</option>
+              <option value="appointment">📅 Appointment Set</option>
+              <option value="follow-up">🔔 Follow-Up Needed</option>
+              <option value="sold">✅ Sold on Door</option>
+            </select>
+          </div>
+          <div class="field" id="followUpDateField" style="display:none"><label>Follow-Up Date</label><input type="text" id="fFollowUpDate" placeholder="e.g. Tuesday, Jun 12"></div>
+        </div>
+        <div id="soldSection" style="display:none;background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.2);border-left:3px solid #16a34a;padding:14px 16px;margin-bottom:14px">
+          <div style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#22c55e;margin-bottom:12px">🏆 Door Sale Details</div>
+          <div class="field-row">
+            <div class="field"><label>Job Sold</label><input type="text" id="fJobSold" placeholder="Water heater, drain clean…"></div>
+            <div class="field"><label>Amount Sold ($)</label><input type="number" id="fAmountSold" placeholder="0" min="0"></div>
+          </div>
+        </div>
+        <div id="apptSection" style="display:none;background:rgba(167,139,250,.05);border:1px solid rgba(167,139,250,.2);border-left:3px solid #7c3aed;padding:14px 16px;margin-bottom:14px">
+          <div style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#a78bfa;margin-bottom:12px">📅 Appointment Details</div>
+          <div class="field-row">
+            <div class="field"><label>Date / Time</label><input type="text" id="fApptDate" placeholder="Tue Jun 11, 2pm"></div>
+            <div class="field"><label>Contact Name</label><input type="text" id="fContactName" placeholder="Homeowner name"></div>
+          </div>
+          <div class="field"><label>Issue / Interest</label><input type="text" id="fIssue" placeholder="Low water pressure, old water heater…"></div>
+        </div>
+        <!-- CUSTOMER INFO — shown when someone answers -->
+        <div id="customerSection" style="display:none;background:rgba(96,165,250,.05);border:1px solid rgba(96,165,250,.2);border-left:3px solid #3b82f6;padding:14px 16px;margin-bottom:14px">
+          <div style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#60a5fa;margin-bottom:12px">👤 Customer Info</div>
+          <div class="field-row">
+            <div class="field"><label>Customer Name</label><input type="text" id="fCustName" placeholder="John Smith"></div>
+            <div class="field"><label>Phone Number</label><input type="tel" id="fCustPhone" placeholder="(801) 555-1234"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Best Time to Call</label>
+              <select id="fBestTime">
+                <option value="">— Any time —</option>
+                <option value="morning">Morning (8am–12pm)</option>
+                <option value="afternoon">Afternoon (12pm–5pm)</option>
+                <option value="evening">Evening (5pm–8pm)</option>
+              </select>
+            </div>
+            <div class="field"><label>Home Type</label>
+              <select id="fHomeType">
+                <option value="">— Select —</option>
+                <option value="single-family">Single Family</option>
+                <option value="condo">Condo / Townhome</option>
+                <option value="mobile">Mobile Home</option>
+                <option value="rental">Rental / Tenant</option>
+                <option value="commercial">Commercial</option>
+              </select>
+            </div>
+          </div>
+          <div class="field"><label>Plumbing Issue / Interest</label><input type="text" id="fCustIssue" placeholder="Old water heater, slow drain, low pressure, wants quote…"></div>
+        </div>
+
+        <div class="field">
+          <label>Notes <span style="color:var(--faint);font-size:10px;font-weight:400;letter-spacing:normal;text-transform:none">(optional)</span></label>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <textarea id="fNotes" rows="2" placeholder="Dog at door, asked about pricing…" style="resize:vertical;flex:1"></textarea>
+            <button type="button" class="voice-btn" id="voiceBtn">🎤 Voice</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <button class="btn btn-red" id="saveDoorBtn">Save Door</button>
+          <button class="btn btn-outline" id="cancelDoorBtn">Cancel</button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <button class="filter-chip active" data-filter="today">Today</button>
+        <button class="filter-chip" data-filter="all">All Time</button>
+        <button class="filter-chip" data-filter="not-home">Not Home</button>
+        <button class="filter-chip" data-filter="soft-lead">Soft Leads</button>
+        <button class="filter-chip" data-filter="hot-lead">Hot Leads</button>
+        <button class="filter-chip" data-filter="appointment">Appointments</button>
+        <button class="filter-chip" data-filter="sold">Sold</button>
+        <input type="text" class="search-input" id="searchInput" placeholder="Search address…">
+      </div>
+      <div id="doorList"></div>
+    </div>
+  </div>
+
+  <!-- LIVE MAP -->
+  <div id="tab-map" style="display:none">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="map-controls">
+        <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text)">Live Field Map</div>
+        <button class="map-chip active" data-map-filter="all">All Doors</button>
+        <button class="map-chip" data-map-filter="hot-lead">🔥 Hot</button>
+        <button class="map-chip" data-map-filter="appointment">📅 Appts</button>
+        <button class="map-chip" data-map-filter="follow-up">🔔 Follow-Up</button>
+        <button class="map-chip" data-map-filter="sold">✅ Sold</button>
+        <button class="map-chip" data-map-filter="today">Today Only</button>
+        <div class="map-count" id="mapCount">0 pins</div>
+      </div>
+      <div id="mapContainer"><div id="doorMap"></div></div>
+      <div class="map-legend">
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#6b7280"></div>Not Home</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#ef4444"></div>Not Interested</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#f59e0b"></div>Soft Lead</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#f97316"></div>Hot Lead</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#8b5cf6"></div>Appointment</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#3b82f6"></div>Follow-Up</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#22c55e"></div>Sold</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOLLOW-UPS -->
+  <div id="tab-followup" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🔔 Follow-Up Queue</div>
+        <div id="overdueCount" style="font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)"></div>
+      </div>
+      <div id="followUpList"></div>
+    </div>
+  </div>
+
+  <!-- STREETS -->
+  <div id="tab-streets" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📍 Street Coverage</div>
+        <div style="font-size:12px;color:var(--faint);font-family:'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase">Whole team</div>
+      </div>
+      <div id="streetList"></div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div id="tab-stats" style="display:none">
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header">
+        <div class="card-title">🏆 Team Leaderboard — Today</div>
+        <div id="leaderboardDate" style="font-size:12px;color:var(--faint);font-family:'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase"></div>
+      </div>
+      <div id="leaderboardList"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📊 My Stats</div>
+        <div id="myStatsName" style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--red)"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px">
+        <div>
+          <div style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:14px">All-Time Totals</div>
+          <div id="allTimeStats"></div>
+        </div>
+        <div>
+          <div style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Conversion Rates</div>
+          <div id="conversionStats"></div>
+        </div>
+      </div>
+      <div style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Status Breakdown</div>
+      <div id="statusChart"></div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// FIREBASE INIT
+// ═══════════════════════════════════════════════════════════════════
+firebase.initializeApp({
+  apiKey:'AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU',
+  authDomain:'action-sales-tracker.firebaseapp.com',
+  databaseURL:'https://action-sales-tracker-default-rtdb.firebaseio.com',
+  projectId:'action-sales-tracker',
+  storageBucket:'action-sales-tracker.firebasestorage.app',
+  messagingSenderId:'686455834332',
+  appId:'1:686455834332:web:84e9b843f912522bbdd619'
+});
+const db = firebase.database();
+
+// ═══════════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════════
+const SESSION_KEY='ap_session', TIMEOUT_MS=30*60*1000;
+let _lt=null;
+function getSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY))}catch{return null}}
+function saveSession(s){localStorage.setItem(SESSION_KEY,JSON.stringify(s))}
+function clearSession(){localStorage.removeItem(SESSION_KEY);localStorage.removeItem('selectedPerson')}
+function resetTimer(){clearTimeout(_lt);_lt=setTimeout(()=>{clearSession();location.href='index.html'},TIMEOUT_MS);const s=getSession();if(s){s.lastActivity=Date.now();saveSession(s)}}
+['mousemove','keydown','click','touchstart','scroll'].forEach(e=>document.addEventListener(e,resetTimer,{passive:true}));
+const selected=localStorage.getItem('selectedPerson');
+if(!selected){location.href='index.html'}
+const _sess=getSession();
+if(!_sess||!_sess.personId||(Date.now()-(_sess.lastActivity||0))>=TIMEOUT_MS){clearSession();location.href='index.html'}
+resetTimer();
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let myDoors={};      // logged-in rep's doors: {doorId: door}
+let allDoors={};     // all reps: {repId: {doorId: door}}
+let people=[];       // [{id,name}]
+let myName='Me';
+let activeFilter='today', searchQuery='', mapFilter='all';
+let gMap=null, geocoder=null, markers={}, infoWindow=null, mapsReady=false;
+const today=new Date();
+const todayKey=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+const STATUS_COLORS={'not-home':'#6b7280','not-interested':'#ef4444','soft-lead':'#f59e0b','hot-lead':'#f97316','appointment':'#8b5cf6','follow-up':'#3b82f6','sold':'#22c55e'};
+const STATUSES=[
+  {val:'not-home',label:'Not Home',color:'#6b7280'},
+  {val:'not-interested',label:'Not Interested',color:'#ef4444'},
+  {val:'soft-lead',label:'Soft Lead',color:'#f59e0b'},
+  {val:'hot-lead',label:'Hot Lead',color:'#f97316'},
+  {val:'appointment',label:'Appointment',color:'#8b5cf6'},
+  {val:'follow-up',label:'Follow-Up',color:'#3b82f6'},
+  {val:'sold',label:'Sold',color:'#22c55e'}
+];
+function sLabel(v){return{'not-home':'Not Home','not-interested':'Not Interested','soft-lead':'Soft Lead','hot-lead':'Hot Lead','appointment':'Appt Set','follow-up':'Follow-Up','sold':'Sold'}[v]||v}
+
+// ═══════════════════════════════════════════════════════════════════
+// BOOT — load people, then start listeners
+// ═══════════════════════════════════════════════════════════════════
+db.ref('salespeople').once('value', snap=>{
+  const d=snap.val()||{};
+  people=Object.keys(d).filter(k=>!d[k].archived).map(k=>({id:k,name:d[k].name}));
+  const me=people.find(p=>p.id===selected);
+  myName=me?me.name:'Me';
+  document.getElementById('personName').textContent='Logging for: '+myName;
+  startListeners();
+});
+
+function startListeners(){
+  // My doors — drives log tab, stat strip
+  db.ref('doorKnocks/'+selected).on('value', snap=>{
+    myDoors=snap.val()||{};
+    allDoors[selected]=myDoors;
+    renderDoors();
+    renderStatStrip();
+    if(document.getElementById('tab-map').style.display!=='none') placeAllPins();
+  });
+  // All reps — drives map, leaderboard, streets (background)
+  db.ref('doorKnocks').on('value', snap=>{
+    allDoors=snap.val()||{};
+    myDoors=allDoors[selected]||{};
+    renderStatStrip();
+    if(document.getElementById('tab-map').style.display!=='none') placeAllPins();
+    if(document.getElementById('tab-stats').style.display!=='none') renderStats();
+    if(document.getElementById('tab-streets').style.display!=='none') renderStreets();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════════
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    ['log','map','followup','streets','stats'].forEach(id=>document.getElementById('tab-'+id).style.display='none');
+    document.getElementById('tab-'+t.dataset.tab).style.display='';
+    if(t.dataset.tab==='map')      renderMap();
+    if(t.dataset.tab==='followup') renderFollowUps();
+    if(t.dataset.tab==='streets')  renderStreets();
+    if(t.dataset.tab==='stats')    renderStats();
+  });
+});
+
+// Map filter chips
+document.querySelectorAll('[data-map-filter]').forEach(c=>{
+  c.addEventListener('click',()=>{
+    document.querySelectorAll('[data-map-filter]').forEach(x=>x.classList.remove('active'));
+    c.classList.add('active'); mapFilter=c.dataset.mapFilter; renderMap();
+  });
+});
+
+// Log filter chips
+document.querySelectorAll('.filter-chip').forEach(c=>{
+  c.addEventListener('click',()=>{
+    document.querySelectorAll('.filter-chip').forEach(x=>x.classList.remove('active'));
+    c.classList.add('active'); activeFilter=c.dataset.filter; renderDoors();
+  });
+});
+document.getElementById('searchInput').addEventListener('input',function(){searchQuery=this.value.trim().toLowerCase();renderDoors()});
+
+// ═══════════════════════════════════════════════════════════════════
+// GOOGLE MAPS
+// ═══════════════════════════════════════════════════════════════════
+window.gmapsReady=function(){
+  mapsReady=true;
+  gMap=new google.maps.Map(document.getElementById('doorMap'),{
+    center:{lat:40.7608,lng:-111.8910},zoom:11,mapTypeId:'roadmap',
+    styles:[
+      {featureType:'all',elementType:'geometry',stylers:[{color:'#1a1a1a'}]},
+      {featureType:'all',elementType:'labels.text.fill',stylers:[{color:'#aaa'}]},
+      {featureType:'all',elementType:'labels.text.stroke',stylers:[{color:'#111'}]},
+      {featureType:'road',elementType:'geometry',stylers:[{color:'#2d2d2d'}]},
+      {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#3d3d3d'}]},
+      {featureType:'water',elementType:'geometry',stylers:[{color:'#0d1a2b'}]},
+      {featureType:'landscape',elementType:'geometry',stylers:[{color:'#141414'}]},
+      {featureType:'poi',elementType:'geometry',stylers:[{color:'#1a1a1a'}]}
+    ],
+    zoomControl:true,mapTypeControl:false,streetViewControl:false,fullscreenControl:true
+  });
+  geocoder=new google.maps.Geocoder();
+  infoWindow=new google.maps.InfoWindow();
+  new google.maps.places.Autocomplete(document.getElementById('fAddress'),{types:['address'],componentRestrictions:{country:'us'}});
+  if(Object.keys(allDoors).length) placeAllPins();
+};
+
+function placeAllPins(){
+  if(!gMap) return;
+  Object.values(markers).forEach(m=>m.setMap(null)); markers={};
+  const flat=[];
+  Object.entries(allDoors).forEach(([repId,repDoors])=>{
+    Object.entries(repDoors||{}).forEach(([doorId,d])=>{
+      const rp=people.find(p=>p.id===repId);
+      flat.push({...d,id:doorId,repId,repName:rp?rp.name:'Unknown'});
+    });
+  });
+  if(!flat.length) return;
+  const bounds=new google.maps.LatLngBounds(); let pinCount=0;
+  flat.forEach(d=>{
+    if(!d.lat||!d.lng) return;
+    if(mapFilter==='today'&&d.dateKey!==todayKey) return;
+    if(mapFilter!=='all'&&mapFilter!=='today'&&d.status!==mapFilter) return;
+    pinCount++;
+    const pos={lat:parseFloat(d.lat),lng:parseFloat(d.lng)};
+    const color=STATUS_COLORS[d.status]||'#6b7280';
+    const isSold=d.status==='sold', isMe=d.repId===selected, id=d.id;
+    const szBig=d.status==='hot-lead'||d.status==='appointment';
+    const marker=new google.maps.Marker({
+      position:pos,map:gMap,title:d.address+' ('+d.repName+')',
+      icon:{url:isSold?makeSoldSVG():makePinSVG(color,szBig?18:13),anchor:new google.maps.Point(isSold?12:10,isSold?12:10)},
+      zIndex:isSold?10:szBig?8:1
+    });
+    marker.addListener('click',()=>{
+      const ts=d.ts?new Date(d.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'-';
+      infoWindow.setContent(
+        '<div class="iw-wrap">'+
+        '<div class="iw-addr">'+d.address+'</div>'+
+        '<div style="font-family:Oswald,sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#666;margin-bottom:4px">'+d.repName+(isMe?' (You)':'')+'</div>'+
+        '<div style="font-family:Oswald,sans-serif;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:'+color+';margin-bottom:6px">'+sLabel(d.status)+'</div>'+
+        '<div class="iw-meta">'+
+        (d.street?'<div>'+d.street+'</div>':'')+
+        '<div>'+(d.dateKey===todayKey?'Today':d.dateKey)+' &middot; '+ts+'</div>'+
+        (d.status==='sold'&&d.jobSold?'<div style="color:#16a34a;font-weight:700">'+d.jobSold+(d.amountSold?' &mdash; $'+d.amountSold.toLocaleString():'')+'</div>':'')+
+        (d.status==='appointment'&&d.apptDate?'<div style="color:#8b5cf6">'+d.apptDate+(d.contactName?' &mdash; '+d.contactName:'')+'</div>':'')+
+        (d.followUpDate?'<div style="color:#3b82f6">Follow up: '+d.followUpDate+'</div>':'')+
+        (d.custName?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid #e5e5e5;font-weight:700">👤 '+d.custName+(d.custPhone?' &nbsp; 📞 '+d.custPhone:'')+'</div>':'')+
+        (d.custIssue?'<div>🔧 '+d.custIssue+'</div>':'')+
+        '</div>'+
+        (d.notes?'<div class="iw-notes">&ldquo;'+d.notes+'&rdquo;</div>':'')+
+        (isMe?'<button class="iw-btn" onclick="editFromMap(\''+id+'\')">✏ Edit</button>':'')+
+        '</div>'
+      );
+      infoWindow.open(gMap,marker);
+    });
+    markers[id]=marker; bounds.extend(pos);
+  });
+  document.getElementById('mapCount').textContent=pinCount+' pin'+(pinCount!==1?'s':'');
+  if(pinCount>0) gMap.fitBounds(bounds);
+}
+function editFromMap(id){document.querySelector('[data-tab="log"]').click();setTimeout(()=>openEditForm(id),100)}
+function renderMap(){if(mapsReady)placeAllPins()}
+function makePinSVG(color,size){var s=size||14,tot=s+8;return'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="'+tot+'" height="'+tot+'"><circle cx="'+(tot/2)+'" cy="'+(tot/2)+'" r="'+(s/2)+'" fill="'+color+'" stroke="white" stroke-width="2"/></svg>')}
+function makeSoldSVG(){return'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9" fill="#22c55e" stroke="white" stroke-width="1.5"/></svg>')}
+
+// ═══════════════════════════════════════════════════════════════════
+// STAT STRIP
+// ═══════════════════════════════════════════════════════════════════
+function renderStatStrip(){
+  const flat=Object.values(allDoors).flatMap(r=>Object.values(r||{}));
+  const td=flat.filter(d=>d.dateKey===todayKey);
+  document.getElementById('statDoorsToday').textContent=td.length;
+  document.getElementById('statContacts').textContent=td.filter(d=>!['not-home','no-answer'].includes(d.status)).length;
+  document.getElementById('statLeads').textContent=td.filter(d=>['hot-lead','appointment'].includes(d.status)).length;
+  document.getElementById('statSold').textContent=td.filter(d=>d.status==='sold').length;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FORM
+// ═══════════════════════════════════════════════════════════════════
+document.getElementById('addDoorBtn').onclick=()=>{resetForm();document.getElementById('doorForm').classList.add('open');document.getElementById('fAddress').focus()};
+document.getElementById('cancelDoorBtn').onclick=()=>{document.getElementById('doorForm').classList.remove('open');resetForm()};
+function resetForm(){
+  document.getElementById('editId').value='';
+  document.getElementById('formTitle').textContent='New Door Log';
+  ['fAddress','fStreet','fNotes','fFollowUpDate','fJobSold','fAmountSold','fApptDate','fContactName','fIssue','fCustName','fCustPhone','fCustIssue'].forEach(id=>document.getElementById(id).value='');
+  ['fBestTime','fHomeType'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fStatus').value='not-home';
+  toggleSections('not-home');
+  const gs=document.getElementById('geocodeStatus');gs.style.display='none';gs.className='geocode-status';
+}
+document.getElementById('fStatus').addEventListener('change',function(){toggleSections(this.value)});
+function toggleSections(v){
+  document.getElementById('soldSection').style.display=v==='sold'?'':'none';
+  document.getElementById('apptSection').style.display=v==='appointment'?'':'none';
+  document.getElementById('followUpDateField').style.display=v==='follow-up'?'':'none';
+  // Show customer info whenever someone actually answered
+  const answered=!['not-home','not-interested'].includes(v);
+  document.getElementById('customerSection').style.display=answered?'':'none';
+}
+
+// Voice input
+const voiceBtn=document.getElementById('voiceBtn');
+if('webkitSpeechRecognition' in window||'SpeechRecognition' in window){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const recog=new SR();recog.continuous=false;recog.lang='en-US';
+  recog.onresult=e=>{const n=document.getElementById('fNotes');n.value=(n.value?n.value+' ':'')+e.results[0][0].transcript;voiceBtn.classList.remove('listening');voiceBtn.textContent='🎤 Voice'};
+  recog.onend=()=>{voiceBtn.classList.remove('listening');voiceBtn.textContent='🎤 Voice'};
+  voiceBtn.onclick=()=>{if(voiceBtn.classList.contains('listening')){recog.stop()}else{recog.start();voiceBtn.classList.add('listening');voiceBtn.textContent='Listening…'}};
+}else{voiceBtn.style.display='none'}
+
+// Save door
+document.getElementById('saveDoorBtn').onclick=async()=>{
+  const addr=document.getElementById('fAddress').value.trim();
+  if(!addr){document.getElementById('fAddress').style.borderColor='var(--red)';document.getElementById('fAddress').focus();return}
+  document.getElementById('fAddress').style.borderColor='';
+  const status=document.getElementById('fStatus').value;
+  const editId=document.getElementById('editId').value;
+  const gs=document.getElementById('geocodeStatus');
+  gs.textContent='📍 Locating address…';gs.className='geocode-status loading';gs.style.display='block';
+  const entry={
+    address:addr,street:document.getElementById('fStreet').value.trim(),status,
+    notes:document.getElementById('fNotes').value.trim(),followUpDate:document.getElementById('fFollowUpDate').value.trim(),
+    jobSold:document.getElementById('fJobSold').value.trim(),amountSold:parseFloat(document.getElementById('fAmountSold').value)||0,
+    apptDate:document.getElementById('fApptDate').value.trim(),contactName:document.getElementById('fContactName').value.trim(),
+    issue:document.getElementById('fIssue').value.trim(),
+    custName:document.getElementById('fCustName').value.trim(),
+    custPhone:document.getElementById('fCustPhone').value.trim(),
+    custIssue:document.getElementById('fCustIssue').value.trim(),
+    bestTime:document.getElementById('fBestTime').value,
+    homeType:document.getElementById('fHomeType').value,
+    dateKey:todayKey,ts:Date.now(),repId:selected,lat:null,lng:null
+  };
+  await new Promise(resolve=>{
+    if(!geocoder){gs.textContent='⚠ No map key — saved without pin.';gs.className='geocode-status err';gs.style.display='block';resolve();return}
+    geocoder.geocode({address:addr},function(results,status2){
+      if(status2==='OK'&&results[0]){const loc=results[0].geometry.location;entry.lat=loc.lat();entry.lng=loc.lng();gs.textContent='✓ Pinned to map.';gs.className='geocode-status ok'}
+      else{gs.textContent='⚠ Address not found — saved without pin.';gs.className='geocode-status err'}
+      gs.style.display='block';resolve();
+    });
+  });
+  const ref=editId?db.ref('doorKnocks/'+selected+'/'+editId):db.ref('doorKnocks/'+selected).push();
+  ref.set(entry).then(()=>setTimeout(()=>{document.getElementById('doorForm').classList.remove('open');resetForm()},800));
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER DOOR LIST (my doors only)
+// ═══════════════════════════════════════════════════════════════════
+function renderDoors(){
+  const list=document.getElementById('doorList');
+  let doors=Object.entries(myDoors).map(([id,d])=>({id,...d}));
+  if(activeFilter==='today') doors=doors.filter(d=>d.dateKey===todayKey);
+  else if(activeFilter!=='all') doors=doors.filter(d=>d.status===activeFilter);
+  if(searchQuery) doors=doors.filter(d=>(d.address||'').toLowerCase().includes(searchQuery)||(d.street||'').toLowerCase().includes(searchQuery));
+  doors.sort((a,b)=>(b.ts||0)-(a.ts||0));
+  if(!doors.length){list.innerHTML='<div class="empty"><span class="empty-icon">🚪</span>'+(activeFilter==='today'?'No doors logged yet today.':'No doors match this filter.')+'</div>';return}
+  list.innerHTML=doors.map(d=>doorCardHTML(d)).join('');
+  list.querySelectorAll('.door-edit-btn').forEach(btn=>btn.addEventListener('click',()=>openEditForm(btn.dataset.id)));
+  list.querySelectorAll('.door-del-btn').forEach(btn=>btn.addEventListener('click',()=>{if(confirm('Remove this door log?'))db.ref('doorKnocks/'+selected+'/'+btn.dataset.id).remove()}));
+  list.querySelectorAll('.door-status-btn').forEach(btn=>btn.addEventListener('click',()=>db.ref('doorKnocks/'+selected+'/'+btn.dataset.id+'/status').set(btn.dataset.status)));
+  list.querySelectorAll('.door-map-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    document.querySelector('[data-tab="map"]').click();
+    const d=myDoors[btn.dataset.id];
+    if(d&&d.lat&&d.lng&&gMap){gMap.panTo({lat:parseFloat(d.lat),lng:parseFloat(d.lng)});gMap.setZoom(17);setTimeout(()=>{if(markers[btn.dataset.id])google.maps.event.trigger(markers[btn.dataset.id],'click')},300)}
+  }));
+}
+
+function doorCardHTML(d){
+  const sc=d.status||'not-home';
+  const t=d.ts?new Date(d.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
+  const ds=d.dateKey&&d.dateKey!==todayKey?' · '+d.dateKey:'';
+  const hasPin=d.lat&&d.lng;
+  let extras='';
+  if(d.status==='sold'&&(d.jobSold||d.amountSold)) extras='<div style="font-family:Oswald,sans-serif;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#22c55e;margin-top:6px">'+(d.jobSold?'<span style="margin-right:12px">'+d.jobSold+'</span>':'')+(d.amountSold?'<span style="color:var(--text)">$'+d.amountSold.toLocaleString()+'</span>':'')+'</div>';
+  if(d.status==='appointment'&&d.apptDate) extras+='<div style="font-family:Oswald,sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#a78bfa;margin-top:6px">📅 '+d.apptDate+(d.contactName?' — '+d.contactName:'')+(d.issue?' · '+d.issue:'')+'</div>';
+  if(d.custName||d.custPhone){
+    extras+='<div style="display:flex;align-items:center;gap:12px;margin-top:8px;padding:8px 10px;background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.2);">';
+    if(d.custName) extras+='<span style="font-family:Oswald,sans-serif;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text)">👤 '+d.custName+'</span>';
+    if(d.custPhone) extras+='<a href="tel:'+d.custPhone+'" style="font-family:Oswald,sans-serif;font-size:12px;font-weight:600;letter-spacing:.06em;color:#60a5fa;text-decoration:none">📞 '+d.custPhone+'</a>';
+    if(d.homeType) extras+='<span style="font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)">'+d.homeType+'</span>';
+    if(d.bestTime) extras+='<span style="font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)">Best: '+d.bestTime+'</span>';
+    extras+='</div>';
+    if(d.custIssue) extras+='<div style="font-size:12px;color:var(--muted);margin-top:4px;padding-left:2px">🔧 '+d.custIssue+'</div>';
+  }
+  return '<div class="door-card '+sc+'">'+
+    '<div class="door-card-top">'+
+    '<div>'+
+    '<div class="door-card-addr">'+d.address+(hasPin?' <span style="font-size:11px;opacity:.5" title="Pinned on map">📍</span>':'')+'</div>'+
+    '<div class="door-card-meta">'+(d.street?d.street+' · ':'')+t+ds+'</div>'+
+    extras+
+    '</div>'+
+    '<div class="door-card-actions">'+
+    '<span class="rep-badge me">'+myName+'</span>'+
+    '<span class="status-badge '+sc+'">'+sLabel(d.status)+'</span>'+
+    (hasPin?'<button class="icon-btn door-map-btn" data-id="'+d.id+'" title="View on map">🗺</button>':'')+
+    '<button class="icon-btn door-edit-btn" data-id="'+d.id+'" title="Edit">✏</button>'+
+    '<button class="icon-btn danger door-del-btn" data-id="'+d.id+'" title="Delete">×</button>'+
+    '</div></div>'+
+    (d.notes?'<div class="door-card-notes">"'+d.notes+'"</div>':'')+
+    '<div class="door-card-footer">'+
+    (d.followUpDate?'<span class="door-follow-date">🔔 '+d.followUpDate+'</span>':'')+
+    quickBtns(d.id,d.status)+
+    '</div></div>';
+}
+
+function quickBtns(id,cur){
+  if(cur==='not-home') return '<button class="btn btn-outline btn-sm door-status-btn" data-id="'+id+'" data-status="soft-lead">→ Soft Lead</button><button class="btn btn-green btn-sm door-status-btn" data-id="'+id+'" data-status="appointment">→ Appt Set</button>';
+  if(cur==='soft-lead') return '<button class="btn btn-outline btn-sm door-status-btn" data-id="'+id+'" data-status="hot-lead">→ Hot Lead</button><button class="btn btn-green btn-sm door-status-btn" data-id="'+id+'" data-status="sold">✅ Mark Sold</button>';
+  if(cur==='hot-lead') return '<button class="btn btn-green btn-sm door-status-btn" data-id="'+id+'" data-status="sold">✅ Mark Sold</button>';
+  if(cur==='follow-up') return '<button class="btn btn-outline btn-sm door-status-btn" data-id="'+id+'" data-status="hot-lead">→ Hot Lead</button><button class="btn btn-green btn-sm door-status-btn" data-id="'+id+'" data-status="sold">✅ Mark Sold</button>';
+  return '';
+}
+
+function openEditForm(id){
+  const d=myDoors[id]; if(!d) return;
+  document.getElementById('editId').value=id;
+  document.getElementById('formTitle').textContent='Edit Door Log';
+  document.getElementById('fAddress').value=d.address||'';
+  document.getElementById('fStreet').value=d.street||'';
+  document.getElementById('fStatus').value=d.status||'not-home';
+  document.getElementById('fNotes').value=d.notes||'';
+  document.getElementById('fFollowUpDate').value=d.followUpDate||'';
+  document.getElementById('fJobSold').value=d.jobSold||'';
+  document.getElementById('fAmountSold').value=d.amountSold||'';
+  document.getElementById('fApptDate').value=d.apptDate||'';
+  document.getElementById('fContactName').value=d.contactName||'';
+  document.getElementById('fIssue').value=d.issue||'';
+  document.getElementById('fCustName').value=d.custName||'';
+  document.getElementById('fCustPhone').value=d.custPhone||'';
+  document.getElementById('fCustIssue').value=d.custIssue||'';
+  document.getElementById('fBestTime').value=d.bestTime||'';
+  document.getElementById('fHomeType').value=d.homeType||'';
+  toggleSections(d.status||'not-home');
+  if(document.getElementById('tab-log').style.display==='none') document.querySelector('[data-tab="log"]').click();
+  document.getElementById('doorForm').classList.add('open');
+  document.getElementById('doorForm').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FOLLOW-UPS
+// ═══════════════════════════════════════════════════════════════════
+function renderFollowUps(){
+  const list=document.getElementById('followUpList');
+  const arr=Object.entries(myDoors).map(([id,d])=>({id,...d})).filter(d=>d.followUpDate&&d.status!=='sold').sort((a,b)=>(a.ts||0)-(b.ts||0));
+  if(!arr.length){list.innerHTML='<div class="empty"><span class="empty-icon">🔔</span>No follow-ups scheduled.</div>';document.getElementById('overdueCount').textContent='';return}
+  document.getElementById('overdueCount').textContent=arr.length+' pending';
+  list.innerHTML=arr.map(d=>{
+    const isToday=d.followUpDate&&d.followUpDate.toLowerCase().includes('today');
+    return '<div class="followup-card '+(isToday?'followup-today':'')+'">'+
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">'+
+      '<div>'+
+      '<div class="followup-addr">'+d.address+'</div>'+
+      (d.street?'<div style="font-size:12px;color:var(--faint);margin-top:2px">'+d.street+'</div>':'')+
+      '<div class="followup-when '+(isToday?'today':'upcoming')+'">🔔 '+d.followUpDate+'</div>'+
+      (d.notes?'<div style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic">"'+d.notes+'"</div>':'')+
+      '</div>'+
+      '<div style="display:flex;gap:8px;flex-shrink:0;align-items:center">'+
+      '<span class="status-badge '+d.status+'">'+sLabel(d.status)+'</span>'+
+      '<button class="icon-btn fu-edit-btn" data-id="'+d.id+'">✏</button>'+
+      '</div></div>'+
+      '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'+
+      '<button class="btn btn-outline btn-sm fu-status-btn" data-id="'+d.id+'" data-status="hot-lead">→ Hot Lead</button>'+
+      '<button class="btn btn-green btn-sm fu-status-btn" data-id="'+d.id+'" data-status="sold">✅ Sold</button>'+
+      '<button class="btn btn-outline btn-sm fu-status-btn" data-id="'+d.id+'" data-status="not-interested" style="color:var(--faint)">❌ Not Interested</button>'+
+      '</div></div>';
+  }).join('');
+  list.querySelectorAll('.fu-edit-btn').forEach(btn=>btn.addEventListener('click',()=>{document.querySelector('[data-tab="log"]').click();setTimeout(()=>openEditForm(btn.dataset.id),80)}));
+  list.querySelectorAll('.fu-status-btn').forEach(btn=>btn.addEventListener('click',()=>db.ref('doorKnocks/'+selected+'/'+btn.dataset.id+'/status').set(btn.dataset.status)));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STREETS (whole team)
+// ═══════════════════════════════════════════════════════════════════
+function renderStreets(){
+  const list=document.getElementById('streetList');
+  const arr=Object.values(allDoors).flatMap(r=>Object.values(r||{}));
+  if(!arr.length){list.innerHTML='<div class="empty"><span class="empty-icon">📍</span>No doors logged yet.</div>';return}
+  const sm={};
+  arr.forEach(d=>{const s=d.street||'(No area tagged)';if(!sm[s])sm[s]={total:0,sold:0,hot:0,appt:0,lead:0,ni:0};sm[s].total++;if(d.status==='sold')sm[s].sold++;else if(d.status==='hot-lead')sm[s].hot++;else if(d.status==='appointment')sm[s].appt++;else if(d.status==='soft-lead')sm[s].lead++;else if(d.status==='not-interested')sm[s].ni++});
+  list.innerHTML=Object.entries(sm).sort((a,b)=>b[1].total-a[1].total).map(([name,s])=>'<div class="street-row"><div><div class="street-name">'+name+'</div><div style="font-size:11px;color:var(--faint);margin-top:3px">'+s.total+' door'+(s.total!==1?'s':'')+' knocked</div></div><div class="street-chips">'+(s.sold?'<span class="mini-chip" style="color:#22c55e;border-color:rgba(34,197,94,.4)">✅ '+s.sold+' sold</span>':'')+(s.appt?'<span class="mini-chip" style="color:#a78bfa;border-color:rgba(167,139,250,.4)">📅 '+s.appt+' appt</span>':'')+(s.hot?'<span class="mini-chip" style="color:#f97316;border-color:rgba(249,115,22,.4)">🔥 '+s.hot+' hot</span>':'')+(s.lead?'<span class="mini-chip" style="color:#f59e0b;border-color:rgba(245,158,11,.4)">💛 '+s.lead+' lead</span>':'')+(s.ni?'<span class="mini-chip" style="color:var(--faint);border-color:var(--wire2)">🚫 '+s.ni+'</span>':'')+'</div></div>').join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════════════════════
+function renderStats(){
+  // Leaderboard
+  document.getElementById('leaderboardDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}).toUpperCase();
+  const repStats={};
+  Object.entries(allDoors).forEach(([repId,repDoors])=>{
+    const td=Object.values(repDoors||{}).filter(d=>d.dateKey===todayKey);
+    if(!td.length) return;
+    const rp=people.find(p=>p.id===repId);
+    repStats[repId]={name:rp?rp.name:'Unknown',doors:td.length,contacts:td.filter(d=>!['not-home','no-answer'].includes(d.status)).length,sold:td.filter(d=>d.status==='sold').length,hot:td.filter(d=>['hot-lead','appointment'].includes(d.status)).length};
+  });
+  const sorted=Object.entries(repStats).sort((a,b)=>b[1].doors-a[1].doors);
+  const maxD=sorted.length?sorted[0][1].doors:1;
+  const lb=document.getElementById('leaderboardList');
+  if(!sorted.length){lb.innerHTML='<div style="color:var(--faint);font-size:13px;padding:20px;font-family:Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;text-align:center">No doors logged today yet.</div>'}
+  else lb.innerHTML=sorted.map(([repId,s],i)=>{
+    const isMe=repId===selected,rc=i===0?'gold':i===1?'silver':i===2?'bronze':'',pct=Math.round(s.doors/maxD*100);
+    return '<div class="lb-row '+(isMe?'me':'')+'"><div class="lb-rank '+rc+'">'+(i+1)+'</div><div class="lb-name">'+s.name+(isMe?'<span class="lb-you">YOU</span>':'')+'</div><div class="lb-stats"><div class="lb-stat"><div class="lb-stat-num">'+s.doors+'</div><div class="lb-stat-label">Doors</div></div><div class="lb-stat"><div class="lb-stat-num">'+s.contacts+'</div><div class="lb-stat-label">Contacts</div></div><div class="lb-stat"><div class="lb-stat-num '+(s.sold?'green':'')+'">'+s.sold+'</div><div class="lb-stat-label">Sold</div></div><div class="lb-stat"><div class="lb-stat-num">'+s.hot+'</div><div class="lb-stat-label">Hot</div></div></div><div class="lb-bar" style="width:'+pct+'%"></div></div>';
+  }).join('');
+  // My stats
+  document.getElementById('myStatsName').textContent=myName;
+  const arr=Object.values(myDoors),total=arr.length;
+  if(!total){document.getElementById('allTimeStats').innerHTML='<div style="color:var(--faint);font-size:13px;padding:16px 0">No data yet.</div>';document.getElementById('conversionStats').innerHTML='';document.getElementById('statusChart').innerHTML='';return}
+  const sc={};STATUSES.forEach(s=>sc[s.val]=0);arr.forEach(d=>{if(sc[d.status]!==undefined)sc[d.status]++});
+  const contacts=arr.filter(d=>!['not-home','no-answer'].includes(d.status)).length,sold=sc['sold'],ha=sc['hot-lead']+sc['appointment'];
+  const cr=total?Math.round(contacts/total*100):0,close=contacts?Math.round(sold/contacts*100):0;
+  const rev=arr.reduce((s,d)=>s+(parseFloat(d.amountSold)||0),0);
+  document.getElementById('allTimeStats').innerHTML=[['Doors Knocked',total,''],['Contacts Made',contacts,''],['Jobs Sold',sold,''],['Revenue','$'+rev.toLocaleString(),'']].map(bStat).join('');
+  document.getElementById('conversionStats').innerHTML=[['Contact Rate',cr+'%','Doors → Contacts'],['Close Rate',close+'%','Contacts → Sold'],['Hot / Appts',ha,'In pipeline']].map(bStat).join('');
+  const max=Math.max(...Object.values(sc),1);
+  document.getElementById('statusChart').innerHTML=STATUSES.map(s=>{const c=sc[s.val]||0;return'<div class="chart-bar-row"><div class="chart-bar-label">'+s.label+'</div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:'+Math.round(c/max*100)+'%;background:'+s.color+'"></div></div><div class="chart-bar-val">'+c+'</div></div>'}).join('');
+}
+function bStat(a){return'<div style="margin-bottom:14px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:36px;letter-spacing:1px;color:var(--text);line-height:1">'+a[1]+'</div><div style="font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)">'+a[0]+'</div>'+(a[2]?'<div style="font-size:11px;color:var(--faint)">'+a[2]+'</div>':'')+'</div>'}
+</script>
+</body>
+</html>
