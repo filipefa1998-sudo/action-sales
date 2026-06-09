@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Calls - Action Plumbing</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root { --red:#dc2626;--red2:#991b1b;--red3:#450a0a;--bg:#080808;--s1:#111111;--s2:#181818;--s3:#202020;--wire:rgba(255,255,255,0.06);--wire2:rgba(255,255,255,0.10);--muted:#aaa;--faint:#666;--text:#efefef; }
+
+/* ── LIGHT MODE ── */
+html.light{--bg:#f4f4f4;--s1:#ffffff;--s2:#ebebeb;--s3:#e0e0e0;--s4:#d4d4d4;--wire:rgba(0,0,0,0.08);--wire2:rgba(0,0,0,0.14);--wire3:rgba(0,0,0,0.22);--muted:#555555;--faint:#999999;--text:#111111;--red3:#fde8e8;}
+html.light body::after{display:none;}
+html.light input,html.light select,html.light textarea{background:var(--s3);border-color:var(--wire2);color:var(--text);}
+html.light input::placeholder,html.light textarea::placeholder{color:var(--faint);}
+
+        body { background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh; }
+        body::after { content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);pointer-events:none;z-index:999; }
+        .page { max-width:1400px;margin:0 auto;padding:24px 20px 60px; }
+        .page-header { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--wire); }
+        .page-title { font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,6vw,72px);line-height:0.9;letter-spacing:2px; }
+        .page-title em { font-style:normal;color:var(--red); }
+        .page-sub { font-family:'Oswald',sans-serif;font-size:12px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-top:6px; }
+        .back-btn { font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);border:1px solid var(--wire2);padding:10px 18px;text-decoration:none;transition:all 0.15s;white-space:nowrap;margin-top:8px;display:inline-block; }
+        .back-btn:hover { color:var(--text);border-color:var(--muted); }
+        .card { background:var(--s1);border:1px solid var(--wire);padding:24px 28px;margin-bottom:20px; }
+        .card-title { font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--text);margin-bottom:16px; }
+        .cal-nav { display:flex;align-items:center;justify-content:space-between;margin-bottom:20px; }
+        .cal-nav-btn { font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;color:var(--muted);background:var(--s2);border:1px solid var(--wire);padding:10px 20px;cursor:pointer;transition:all 0.15s; }
+        .cal-nav-btn:hover { color:var(--text);border-color:var(--red); }
+        .cal-range { font-family:'Oswald',sans-serif;font-size:18px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text); }
+        .cal-days-header { display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px; }
+        .cal-day-label { font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);text-align:center;padding:6px 0; }
+        .cal-grid { display:grid;grid-template-columns:repeat(7,1fr);gap:4px; }
+        .cal-day { background:var(--s2);border:1px solid var(--wire);border-top:2px solid transparent;padding:14px 8px;cursor:pointer;transition:all 0.15s;text-align:left;width:100%; }
+        .cal-day:hover { border-top-color:var(--red);background:var(--s3); }
+        .cal-day.has-calls { border-top-color:var(--red);background:rgba(68,10,10,0.4); }
+        .cal-day.selected { border-color:rgba(220,38,38,0.5);border-top-color:var(--red);background:var(--red3);box-shadow:0 0 0 1px var(--red); }
+        .cal-day-num { font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--text);line-height:1; }
+        .cal-day-stat { font-family:'Oswald',sans-serif;font-size:12px;font-weight:500;letter-spacing:0.06em;color:var(--red);margin-top:4px; }
+        .cal-day-empty { font-size:13px;color:var(--muted);margin-top:4px; }
+        .calls-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:20px; }
+        .btn { font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;padding:10px 20px;border:none;cursor:pointer;transition:all 0.15s; }
+        .btn-red { background:var(--red);color:#fff; }
+        .btn-red:hover { background:var(--red2); }
+        .btn-red:active { transform:scale(0.97); }
+        .call-card { background:var(--s2);border:1px solid var(--wire);border-left:3px solid var(--red);padding:20px;margin-bottom:12px; }
+        .call-card-header { display:flex;justify-content:space-between;align-items:center;margin-bottom:16px; }
+        .call-label { font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted); }
+        .del-call { font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--red);background:var(--red3);border:1px solid rgba(220,38,38,0.3);padding:6px 14px;cursor:pointer;transition:all 0.15s; }
+        .del-call:hover { background:var(--red);color:#fff; }
+        .field { margin-bottom:12px; }
+        .field label { font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px; }
+        input[type=text], input[type=number], input[type=tel], textarea, select { background:var(--s3);border:1px solid var(--wire2);color:var(--text);padding:10px 14px;width:100%;font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color 0.15s; }
+        input::placeholder, textarea::placeholder { color:var(--muted); }
+        input:focus, textarea:focus, select:focus { border-color:var(--red); }
+        select option { background:var(--s3);color:var(--text); }
+        .check-row { display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s3);border:1px solid var(--wire);margin-bottom:6px;cursor:pointer;transition:border-color 0.15s; }
+        .check-row:hover { border-color:var(--wire2); }
+        .check-row input[type=checkbox] { width:16px;height:16px;accent-color:var(--red);flex-shrink:0; }
+        .check-row span { font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--text); }
+        .subsection { background:var(--s1);border:1px solid var(--wire2);border-left:3px solid var(--red);padding:16px;margin:12px 0; }
+        .subsection-title { font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--red);margin-bottom:12px; }
+        .money-owed-display { background:var(--red3);border:1px solid rgba(220,38,38,0.3);padding:14px;margin-top:10px; }
+        .money-owed-label { font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;color:var(--red);margin-bottom:4px; }
+        .money-owed-val { font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--text);letter-spacing:2px; }
+        .trade-grid { display:grid;grid-template-columns:1fr 1fr;gap:6px; }
+        .divider { border:none;border-top:1px solid var(--wire);margin:16px 0; }
+        .section-label { font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:10px; }
+        /* ── FLOATING ADD BUTTON ── */
+        .fab { position:fixed;bottom:28px;right:24px;z-index:1000;background:var(--red);color:#fff;font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;padding:14px 24px;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(220,38,38,0.5);transition:all 0.15s;display:none;align-items:center;gap:8px; }
+        .fab:hover { background:var(--red2);box-shadow:0 4px 28px rgba(220,38,38,0.7); }
+        .fab:active { transform:scale(0.97); }
+        /* ── BOTTOM ADD BUTTON ── */
+        .add-call-bottom { width:100%;background:transparent;border:2px dashed rgba(220,38,38,0.3);color:var(--red);font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;padding:16px;cursor:pointer;transition:all 0.15s;margin-top:8px; }
+        .add-call-bottom:hover { background:var(--red3);border-color:var(--red); }
+    </style>
+</head>
+<body>
+<div id="themeToggleWrap" style="position:fixed;top:12px;right:16px;z-index:9999;">
+  <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--s2);border:1px solid var(--wire2);color:var(--muted);font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:7px 12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;">
+    <span id="themeIcon">☀️</span><span id="themeLabel">LIGHT</span>
+  </button>
+</div>
+<script>
+(function(){var t=localStorage.getItem('apTheme')||'dark';applyTheme(t);})();
+function applyTheme(t){localStorage.setItem('apTheme',t);if(t==='light'){document.documentElement.classList.add('light');var i=document.getElementById('themeIcon');var l=document.getElementById('themeLabel');if(i)i.textContent='🌙';if(l)l.textContent='DARK';}else{document.documentElement.classList.remove('light');var i=document.getElementById('themeIcon');var l=document.getElementById('themeLabel');if(i)i.textContent='☀️';if(l)l.textContent='LIGHT';}}
+function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyTheme(cur==='dark'?'light':'dark');}
+</script>
+
+<!-- FLOATING ADD CALL BUTTON -->
+<button class="fab" id="fabAddCall">+ Add Call</button>
+
+<div class="page">
+    <div class="page-header">
+        <div>
+            <div class="page-title">Log <em>Calls</em></div>
+            <div id="personName" class="page-sub"></div>
+        </div>
+        <a href="index.html" class="back-btn">← Dashboard</a>
+    </div>
+    <div class="card">
+        <div class="cal-nav">
+            <button class="cal-nav-btn" id="prevWeek">←</button>
+            <div id="weekRange" class="cal-range"></div>
+            <button class="cal-nav-btn" id="nextWeek">→</button>
+        </div>
+        <div class="cal-days-header">
+            <div class="cal-day-label">Mon</div><div class="cal-day-label">Tue</div><div class="cal-day-label">Wed</div><div class="cal-day-label">Thu</div><div class="cal-day-label">Fri</div><div class="cal-day-label">Sat</div><div class="cal-day-label">Sun</div>
+        </div>
+        <div class="cal-grid" id="calendarDays"></div>
+    </div>
+    <div id="callsSection" style="display:none;">
+        <div class="card">
+            <div class="calls-header">
+                <div class="card-title">Call Logs</div>
+                <button class="btn btn-red" id="addCallBtn">+ Add Call</button>
+            </div>
+            <div id="callsList"></div>
+            <button class="add-call-bottom" id="addCallBottom" style="display:none;">+ Add Another Call</button>
+        </div>
+    </div>
+</div>
+<script>
+    firebase.initializeApp({apiKey:"AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",authDomain:"action-sales-tracker.firebaseapp.com",databaseURL:"https://action-sales-tracker-default-rtdb.firebaseio.com",projectId:"action-sales-tracker",storageBucket:"action-sales-tracker.firebasestorage.app",messagingSenderId:"686455834332",appId:"1:686455834332:web:84e9b843f912522bbdd619"});
+    const db=firebase.database(),selected=localStorage.getItem('selectedPerson');
+    let currentDate=new Date(),selectedDate=null,people=[];
+    if(!selected)window.location.href='index.html';
+    db.ref('salespeople').on('value',snap=>{const d=snap.val();people=d?Object.keys(d).map(k=>({id:k,name:d[k].name})):[];const p=people.find(p=>p.id===selected);if(p)document.getElementById('personName').textContent='Logging for: '+p.name;});
+    const dk=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const dataKey=d=>`${selected}_${dk(d)}`;
+    function getWeek(date){const day=date.getDay(),diff=date.getDate()-day+(day===0?-6:1),mon=new Date(date);mon.setDate(diff);return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});}
+    function renderCalendar(){
+        const week=getWeek(currentDate);
+        document.getElementById('weekRange').textContent=`${week[0].toLocaleDateString('en-US',{month:'short',day:'numeric'})} — ${week[6].toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`.toUpperCase();
+        const grid=document.getElementById('calendarDays');grid.innerHTML='';
+        // Pre-create all 7 slots so async fills go to the correct index
+        week.forEach((_,i)=>{
+            const slot=document.createElement('button');
+            slot.className='cal-day';
+            slot.innerHTML='<div class="cal-day-num" style="opacity:.2">—</div>';
+            grid.appendChild(slot);
+        });
+        week.forEach((d,i)=>{
+            db.ref(`callLogs/${dataKey(d)}`).once('value',snap=>{
+                const calls=snap.val(),arr=calls?Object.values(calls):[];
+                const sold=arr.filter(c=>c.jobSold).length,rev=arr.reduce((s,c)=>s+(parseFloat(c.amountSold)||0),0);
+                const dateKey=dk(d),isSelected=selectedDate===dateKey;
+                const btn=grid.children[i]; // target the pre-created slot by index
+                btn.className='cal-day'+(arr.length>0?' has-calls':'')+(isSelected?' selected':'');
+                btn.innerHTML=`<div class="cal-day-num">${d.getDate()}</div>${arr.length>0?`<div class="cal-day-stat">${sold} sold · $${Math.round(rev/1000*10)/10}k</div>`:`<div class="cal-day-empty">—</div>`}`;
+                btn.onclick=()=>{selectedDate=isSelected?null:dateKey;renderCalendar();if(selectedDate)renderCalls(d);else document.getElementById('callsSection').style.display='none';};
+            });
+        });
+    }
+    function calculateMoneyOwed(sold,collected){return Math.max(0,(parseFloat(sold)||0)-(parseFloat(collected)||0));}
+    function renderCalls(date){
+        document.getElementById('callsSection').style.display='block';
+        // Show FAB and bottom button when calls section is open
+        document.getElementById('fabAddCall').style.display='flex';
+        document.getElementById('addCallBottom').style.display='block';
+        const key=dataKey(date);
+        db.ref(`callLogs/${key}`).on('value',snap=>{
+            const calls=snap.val(),arr=calls?Object.keys(calls).map(id=>({id,...calls[id]})):[];
+            const container=document.getElementById('callsList');
+            if(!arr.length){container.innerHTML='<p style="color:var(--muted);text-align:center;padding:32px;font-family:Oswald,sans-serif;letter-spacing:0.1em;text-transform:uppercase;font-size:13px;">No calls logged for this day</p>';return;}
+            container.innerHTML=arr.map(c=>`
+                <div class="call-card">
+                    <div class="call-card-header"><div class="call-label">Call Entry</div><button class="del-call" onclick="deleteCall('${c.id}')">Delete</button></div>
+                    <div class="field"><label>Customer Name</label><input type="text" value="${c.customerName||''}" onchange="updateCall('${c.id}','customerName',this.value)" placeholder="Customer Name" /></div>
+                    <div class="field"><label>Job Number</label><input type="text" value="${c.jobNumber||''}" onchange="updateCall('${c.id}','jobNumber',this.value)" placeholder="Job Number" /></div>
+                    <div class="field"><label>Phone</label><input type="tel" value="${c.customerPhone||''}" onchange="updateCall('${c.id}','customerPhone',this.value)" placeholder="Customer Phone" /></div>
+                    <label class="check-row"><input type="checkbox" ${c.jobSold?'checked':''} onchange="updateCall('${c.id}','jobSold',this.checked)"><span>💰 Job Sold</span></label>
+                    ${c.jobSold?`<div class="subsection"><div class="subsection-title">Sale Details</div>
+                        <div class="field"><label>Amount Sold ($)</label><input id="amountSold_${c.id}" type="number" value="${c.amountSold||''}" onchange="handleAmountChange('${c.id}')" placeholder="0.00" /></div>
+                        <div class="field"><label>Amount Collected ($)</label><input id="amountCollected_${c.id}" type="number" value="${c.amountCollected||''}" onchange="handleAmountChange('${c.id}')" placeholder="0.00" /></div>
+                        <div class="money-owed-display"><div class="money-owed-label">Money Still Owed</div><div id="moneyOwed_${c.id}" class="money-owed-val">$${calculateMoneyOwed(c.amountSold,c.amountCollected).toLocaleString()}</div></div>
+                        <div class="field" style="margin-top:12px;"><label>💳 Payment Method</label>
+                        <select onchange="updateCall('${c.id}','paymentMethod',this.value)">
+                            <option value="">Select payment method...</option>
+                            <option value="card" ${c.paymentMethod==='card'?'selected':''}>💳 Card</option>
+                            <option value="cash" ${c.paymentMethod==='cash'?'selected':''}>💵 Cash</option>
+                            <option value="check" ${c.paymentMethod==='check'?'selected':''}>📄 Check</option>
+                            <option value="financing" ${c.paymentMethod==='financing'?'selected':''}>🏦 Financing</option>
+                            <option value="mixed" ${c.paymentMethod==='mixed'?'selected':''}>🔀 Mixed</option>
+                        </select></div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+                            <label class="check-row"><input type="checkbox" ${c.hasParts?'checked':''} onchange="updateCall('${c.id}','hasParts',this.checked)"><span>🔩 Parts</span></label>
+                            <label class="check-row"><input type="checkbox" ${c.hasLabor?'checked':''} onchange="updateCall('${c.id}','hasLabor',this.checked)"><span>🛠️ Labor</span></label>
+                            <label class="check-row"><input type="checkbox" ${c.isNewCustomer?'checked':''} onchange="updateCall('${c.id}','isNewCustomer',this.checked)"><span>🆕 New Customer</span></label>
+                        </div>
+                        <label class="check-row" style="margin-top:8px;"><input type="checkbox" ${c.soldFromTurnover?'checked':''} onchange="updateCall('${c.id}','soldFromTurnover',this.checked)"><span>🔄 Sold from Turnover</span></label>
+                        ${c.soldFromTurnover?`<div class="field" style="margin-top:8px;"><label>Turnover from</label><select onchange="updateCall('${c.id}','turnoverFrom',this.value)"><option value="">Select...</option>${people.filter(p=>p.id!==selected).map(p=>`<option value="${p.id}"${c.turnoverFrom===p.id?' selected':''}>${p.name}</option>`).join('')}</select></div>`:''}</div>`:''}
+                    <label class="check-row"><input type="checkbox" ${c.jobCancelled?'checked':''} onchange="updateCall('${c.id}','jobCancelled',this.checked)"><span>❌ Job Cancelled</span></label>
+                    ${c.jobCancelled?`<div class="field"><label>Reason</label><textarea onchange="updateCall('${c.id}','cancelReason',this.value)" rows="2">${c.cancelReason||''}</textarea></div>`:''}
+                    <label class="check-row"><input type="checkbox" ${c.leftEstimate?'checked':''} onchange="updateCall('${c.id}','leftEstimate',this.checked)"><span>📋 Left Estimate</span></label>
+                    ${c.leftEstimate?`<div class="field"><label>Estimate Amount ($)</label><input type="number" value="${c.estimateAmount||''}" onchange="updateCall('${c.id}','estimateAmount',parseFloat(this.value)||0)" /></div>`:''}
+                    <hr class="divider"><div class="section-label">Trade Type</div>
+                    <div class="trade-grid">
+                        <label class="check-row"><input type="checkbox" ${c.tradePlumbing?'checked':''} onchange="updateCall('${c.id}','tradePlumbing',this.checked)"><span>🔧 Plumbing</span></label>
+                        <label class="check-row"><input type="checkbox" ${c.tradeElectrical?'checked':''} onchange="updateCall('${c.id}','tradeElectrical',this.checked)"><span>⚡ Electrical</span></label>
+                        <label class="check-row"><input type="checkbox" ${c.tradeHVAC?'checked':''} onchange="updateCall('${c.id}','tradeHVAC',this.checked)"><span>🌡️ HVAC</span></label>
+                        <label class="check-row"><input type="checkbox" ${c.tradeCameras?'checked':''} onchange="updateCall('${c.id}','tradeCameras',this.checked)"><span>📹 Cameras</span></label>
+                    </div>
+                    <hr class="divider"><div class="section-label">Performance</div>
+                    <div class="trade-grid">
+                        <label class="check-row"><input type="checkbox" ${c.reviewCompleted?'checked':''} onchange="updateCall('${c.id}','reviewCompleted',this.checked)"><span>✅ Review</span></label>
+                        <label class="check-row"><input type="checkbox" ${c.restorationLead?'checked':''} onchange="updateCall('${c.id}','restorationLead',this.checked)"><span>🏠 Restoration</span></label>
+                        <label class="check-row"><input type="checkbox" ${c.turnoverAttempted?'checked':''} onchange="updateCall('${c.id}','turnoverAttempted',this.checked)"><span>🔄 TO Attempt</span></label>
+                        <label class="check-row"><input type="checkbox" ${c.turnoverAccepted?'checked':''} onchange="updateCall('${c.id}','turnoverAccepted',this.checked)" ${!c.turnoverAttempted?'disabled':''}><span>✔️ TO Accepted</span></label>
+                        <label class="check-row"><input type="checkbox" ${c.threeDoorKnocks?'checked':''} onchange="updateCall('${c.id}','threeDoorKnocks',this.checked)"><span>🚪 Door Knocks</span></label>
+                        <label class="check-row"><input type="checkbox" ${c.membershipPlanSold?'checked':''} onchange="updateCall('${c.id}','membershipPlanSold',this.checked)"><span>🛡️ Membership</span></label>
+                        <label class="check-row"><input type="checkbox" ${c.upsellCompleted?'checked':''} onchange="updateCall('${c.id}','upsellCompleted',this.checked)"><span>⬆️ Upsell</span></label>
+                        <label class="check-row"><input type="checkbox" ${c.jobComplete?'checked':''} onchange="updateCall('${c.id}','jobComplete',this.checked)"><span>✔️ Complete</span></label>
+                    </div>
+                    ${c.upsellCompleted?`<div class="field" style="margin-top:8px;"><label>Upsell Amount ($)</label><input type="number" value="${c.upsellAmount||''}" onchange="updateCall('${c.id}','upsellAmount',parseFloat(this.value)||0)" /></div>`:''}
+                    <hr class="divider">
+                    <div class="field"><label>Objection</label>
+                    <select onchange="updateCall('${c.id}','objection',this.value)">
+                        <option value="">No objection</option>
+                        <option value="price" ${c.objection==='price'?'selected':''}>💰 Price too high</option>
+                        <option value="think" ${c.objection==='think'?'selected':''}>🤔 Need to think</option>
+                        <option value="spouse" ${c.objection==='spouse'?'selected':''}>💑 Spouse approval</option>
+                        <option value="someone" ${c.objection==='someone'?'selected':''}>👷 Have someone</option>
+                        <option value="quotes" ${c.objection==='quotes'?'selected':''}>📋 Multiple quotes</option>
+                        <option value="timing" ${c.objection==='timing'?'selected':''}>⏰ Not now</option>
+                        <option value="trust" ${c.objection==='trust'?'selected':''}>⚠️ Trust/Reviews</option>
+                    </select></div>
+                </div>`).join('');
+        });
+        const newCallPayload={customerName:'',jobNumber:'',customerPhone:'',reviewCompleted:false,restorationLead:false,turnoverAttempted:false,turnoverAccepted:false,threeDoorKnocks:false,membershipPlanSold:false,upsellCompleted:false,upsellAmount:0,jobComplete:false,jobSold:false,amountSold:0,amountCollected:0,moneyOwed:0,paymentMethod:'',hasParts:false,hasLabor:false,isNewCustomer:false,leftEstimate:false,estimateAmount:0,jobCancelled:false,cancelReason:'',tradePlumbing:false,tradeHVAC:false,tradeElectrical:false,tradeCameras:false,objection:'',soldFromTurnover:false,turnoverFrom:'',timestamp:Date.now(),timeOfDay:new Date().getHours()};
+        const doAddCall=()=>{ db.ref(`callLogs/${key}`).push().set({...newCallPayload,timestamp:Date.now(),timeOfDay:new Date().getHours()}).then(ref=>{ setTimeout(()=>{ const cards=document.querySelectorAll('.call-card'); if(cards.length) cards[cards.length-1].scrollIntoView({behavior:'smooth',block:'start'}); },200); }); };
+        document.getElementById('addCallBtn').onclick=doAddCall;
+        document.getElementById('addCallBottom').onclick=doAddCall;
+        document.getElementById('fabAddCall').onclick=doAddCall;
+    }
+    function handleAmountChange(callId){const key=dataKey(getWeek(currentDate).find(d=>dk(d)===selectedDate));const sold=parseFloat(document.getElementById(`amountSold_${callId}`).value)||0,collected=parseFloat(document.getElementById(`amountCollected_${callId}`).value)||0,owed=calculateMoneyOwed(sold,collected);db.ref(`callLogs/${key}/${callId}`).update({amountSold:sold,amountCollected:collected,moneyOwed:owed});document.getElementById(`moneyOwed_${callId}`).textContent=`$${owed.toLocaleString()}`;}
+    function updateCall(callId,field,value){const key=dataKey(getWeek(currentDate).find(d=>dk(d)===selectedDate));db.ref(`callLogs/${key}/${callId}/${field}`).set(value);}
+    function deleteCall(callId){if(confirm('Delete this call?')){const key=dataKey(getWeek(currentDate).find(d=>dk(d)===selectedDate));db.ref(`callLogs/${key}/${callId}`).remove();}}
+    const hideExtras=()=>{ document.getElementById('callsSection').style.display='none'; document.getElementById('fabAddCall').style.display='none'; document.getElementById('addCallBottom').style.display='none'; };
+    document.getElementById('prevWeek').onclick=()=>{currentDate=new Date(currentDate.getTime()-7*24*60*60*1000);selectedDate=null;hideExtras();renderCalendar();};
+    document.getElementById('nextWeek').onclick=()=>{currentDate=new Date(currentDate.getTime()+7*24*60*60*1000);selectedDate=null;hideExtras();renderCalendar();};
+    renderCalendar();
+</script>
+</body>
+</html>
