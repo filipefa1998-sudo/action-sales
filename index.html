@@ -1,952 +1,237 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Action Plumbing — Sales Tracker</title>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080808">
+<title>Action Fleet — Vehicle & Maintenance Checks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root{
+        --bg:#080808; --s1:#111; --s2:#161616; --s3:#202020;
+        --line:rgba(255,255,255,.07); --text:#efefef; --muted:#7a7a7a;
+        --red:#dc2626; --green:#22c55e; --amber:#f59e0b;
+        --disp:'Bebas Neue',sans-serif; --lab:'Oswald',sans-serif; --body:'Inter',sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{background:var(--bg);color:var(--text);font-family:var(--body);
+        min-height:100vh;-webkit-font-smoothing:antialiased}
+    .wrap{max-width:760px;margin:0 auto;padding:0 18px 60px}
 
-        :root {
-            --red:    #dc2626;
-            --red2:   #991b1b;
-            --red3:   #450a0a;
-            --bg:     #080808;
-            --s1:     #111111;
-            --s2:     #181818;
-            --s3:     #202020;
-            --wire:   rgba(255,255,255,0.06);
-            --wire2:  rgba(255,255,255,0.10);
-            --muted:  #666;
-            --faint:  #333;
-            --text:   #efefef;
-        }
+    /* header */
+    header{border-top:3px solid var(--red);padding:26px 0 18px;text-align:center}
+    .kicker{font-family:var(--lab);font-size:11px;font-weight:600;letter-spacing:.32em;
+        text-transform:uppercase;color:var(--red);margin-bottom:6px}
+    h1{font-family:var(--disp);font-size:clamp(46px,13vw,78px);line-height:.86;letter-spacing:2px}
+    h1 span{color:var(--muted)}
+    .tag{font-family:var(--lab);font-size:12px;font-weight:500;letter-spacing:.22em;
+        text-transform:uppercase;color:var(--muted);margin-top:8px}
 
-/* ── LIGHT MODE ── */
-html.light{--bg:#f4f4f4;--s1:#ffffff;--s2:#ebebeb;--s3:#e0e0e0;--s4:#d4d4d4;--wire:rgba(0,0,0,0.08);--wire2:rgba(0,0,0,0.14);--wire3:rgba(0,0,0,0.22);--muted:#555555;--faint:#999999;--text:#111111;--red3:#fde8e8;}
-html.light body::after{display:none;}
-html.light input,html.light select,html.light textarea{background:var(--s3);border-color:var(--wire2);color:var(--text);}
-html.light input::placeholder,html.light textarea::placeholder{color:var(--faint);}
-html.light .nav-card.training-card{background:#ffffff;border-left-color:rgba(220,38,38,0.3);}
-html.light .nav-card.training-card:hover{background:#fff5f5;}
-html.light .nav-card.training-card .nav-card-title{color:#111111;}
-html.light .nav-card.mgr-card{background:#f5f5f5;}
-html.light .nav-card.mgr-card:hover{background:#ebebeb;}
-html.light .nav-card.mgr-card .nav-card-title{color:var(--muted);}
+    /* readiness strip — the signature element: an inspection-sticker bar */
+    .ready{margin:22px 0 28px;background:var(--s1);border:1px solid var(--line);
+        border-left:3px solid var(--green);padding:16px 18px;display:flex;
+        align-items:center;justify-content:space-between;gap:14px}
+    .ready.warn{border-left-color:var(--amber)}
+    .ready .big{font-family:var(--disp);font-size:40px;line-height:1;letter-spacing:1px}
+    .ready .lbl{font-family:var(--lab);font-size:10.5px;font-weight:600;letter-spacing:.2em;
+        text-transform:uppercase;color:var(--muted);margin-top:3px}
+    .ready .right{text-align:right}
+    .ready .date{font-family:var(--lab);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+    .ready .flag{font-family:var(--lab);font-size:13px;font-weight:600;letter-spacing:.1em;
+        text-transform:uppercase;margin-top:4px;color:var(--green)}
+    .ready.warn .flag{color:var(--amber)}
 
-        html { scroll-behavior: smooth; }
+    .eyebrow{font-family:var(--lab);font-size:11px;font-weight:600;letter-spacing:.26em;
+        text-transform:uppercase;color:var(--muted);margin:0 2px 14px}
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', sans-serif;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
+    /* crew tiles */
+    .tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media(max-width:520px){.tiles{grid-template-columns:1fr}}
+    .tile{position:relative;background:var(--s1);border:1px solid var(--line);
+        border-top:3px solid var(--accent);padding:22px 20px 20px;cursor:pointer;
+        text-decoration:none;color:inherit;display:block;overflow:hidden;
+        transition:transform .12s ease,background .15s ease}
+    .tile:active{transform:scale(.985)}
+    .tile:hover{background:var(--s2)}
+    .tile .glyph{font-size:30px;line-height:1;margin-bottom:14px;filter:saturate(.9)}
+    .tile .name{font-family:var(--disp);font-size:30px;letter-spacing:1px;line-height:.9}
+    .tile .sub{font-family:var(--lab);font-size:10.5px;font-weight:500;letter-spacing:.18em;
+        text-transform:uppercase;color:var(--muted);margin-top:7px}
+    .tile .cad{display:inline-block;margin-top:16px;font-family:var(--lab);font-size:10px;
+        font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+        padding:5px 10px;border:1px solid var(--line);color:var(--accent)}
+    .tile .stat{position:absolute;top:18px;right:18px;text-align:right}
+    .tile .stat .n{font-family:var(--disp);font-size:26px;line-height:1}
+    .tile .stat .of{font-family:var(--lab);font-size:9.5px;letter-spacing:.16em;
+        text-transform:uppercase;color:var(--muted)}
+    .tile .arrow{position:absolute;bottom:18px;right:18px;color:var(--muted);
+        font-size:20px;transition:transform .15s,color .15s}
+    .tile:hover .arrow{transform:translateX(3px);color:var(--accent)}
 
-        /* ── SCAN LINE OVERLAY ── */
-        body::after {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 2px,
-                rgba(0,0,0,0.08) 2px,
-                rgba(0,0,0,0.08) 4px
-            );
-            pointer-events: none;
-            z-index: 999;
-        }
+    /* manager */
+    .mgr{margin-top:14px;display:flex;align-items:center;justify-content:space-between;
+        background:var(--s1);border:1px solid var(--line);padding:18px 20px;
+        text-decoration:none;color:inherit;transition:background .15s}
+    .mgr:hover{background:var(--s2)}
+    .mgr .l{display:flex;align-items:center;gap:14px}
+    .mgr .ico{font-size:22px}
+    .mgr .t{font-family:var(--disp);font-size:24px;letter-spacing:1px;line-height:.9}
+    .mgr .d{font-family:var(--lab);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+    .mgr .arrow{color:var(--muted);font-size:18px}
 
-        .page { max-width: 1320px; margin: 0 auto; padding: 24px 20px 60px; }
-
-        /* ── HERO HEADER ── */
-        .hero {
-            position: relative;
-            padding: 0 0 32px;
-            margin-bottom: 32px;
-            border-bottom: 1px solid var(--wire);
-            overflow: hidden;
-        }
-
-        .hero-bg-text {
-            position: absolute;
-            top: -20px;
-            left: -8px;
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 180px;
-            line-height: 1;
-            color: rgba(220,38,38,0.04);
-            letter-spacing: -4px;
-            pointer-events: none;
-            user-select: none;
-            white-space: nowrap;
-        }
-
-        .hero-inner {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            gap: 20px;
-        }
-
-        .hero-left { display: flex; flex-direction: column; gap: 4px; }
-
-        .hero-eyebrow {
-            font-family: 'Oswald', sans-serif;
-            font-size: 11px;
-            font-weight: 500;
-            letter-spacing: 0.25em;
-            color: var(--red);
-            text-transform: uppercase;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .hero-eyebrow::before {
-            content: '';
-            display: inline-block;
-            width: 20px;
-            height: 2px;
-            background: var(--red);
-        }
-
-        .hero-title {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: clamp(56px, 8vw, 96px);
-            line-height: 0.9;
-            letter-spacing: 2px;
-            color: var(--text);
-        }
-        .hero-title em {
-            font-style: normal;
-            color: var(--red);
-        }
-
-        .hero-sub {
-            font-size: 13px;
-            font-weight: 500;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: var(--muted);
-            margin-top: 4px;
-        }
-
-        .hero-date {
-            text-align: right;
-            flex-shrink: 0;
-        }
-        .hero-date .d-label {
-            font-size: 10px;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            color: var(--faint);
-            margin-bottom: 4px;
-        }
-        .hero-date .d-value {
-            font-family: 'Oswald', sans-serif;
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--muted);
-            letter-spacing: 0.05em;
-        }
-
-        /* ── LIVE INDICATOR ── */
-        .live-dot {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-family: 'Oswald', sans-serif;
-            font-size: 11px;
-            letter-spacing: 0.15em;
-            color: var(--red);
-            text-transform: uppercase;
-        }
-        .live-dot::before {
-            content: '';
-            width: 7px; height: 7px;
-            border-radius: 50%;
-            background: var(--red);
-            animation: pulse 2s ease-in-out infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(0.8); }
-        }
-
-        /* ── STAT STRIP ── */
-        .stat-strip {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 32px;
-        }
-
-        .stat-block {
-            background: var(--s1);
-            border: 1px solid var(--wire);
-            border-top: 2px solid var(--red);
-            padding: 24px 28px;
-            position: relative;
-            overflow: hidden;
-            transition: border-color 0.2s;
-        }
-        .stat-block:hover { border-color: var(--red); }
-        .stat-block::after {
-            content: '';
-            position: absolute;
-            right: -30px; bottom: -30px;
-            width: 100px; height: 100px;
-            background: var(--red);
-            opacity: 0.04;
-            transform: rotate(45deg);
-        }
-
-        .stat-label {
-            font-family: 'Oswald', sans-serif;
-            font-size: 11px;
-            font-weight: 500;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            color: var(--muted);
-            margin-bottom: 8px;
-        }
-        .stat-num {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 64px;
-            line-height: 1;
-            color: var(--text);
-            letter-spacing: 2px;
-        }
-        .stat-meta {
-            font-size: 11px;
-            color: var(--faint);
-            margin-top: 4px;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-        }
-
-        /* ── DIVIDER LABEL ── */
-        .section-divider {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 20px;
-        }
-        .section-divider .sdl {
-            font-family: 'Oswald', sans-serif;
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            color: var(--muted);
-            white-space: nowrap;
-        }
-        .section-divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--wire);
-        }
-
-        /* ── CARD WRAPPER ── */
-        .card {
-            background: var(--s1);
-            border: 1px solid var(--wire);
-            padding: 28px 32px;
-            margin-bottom: 32px;
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 24px;
-        }
-        .card-title {
-            font-family: 'Oswald', sans-serif;
-            font-size: 20px;
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--text);
-        }
-
-        /* ── ADD FORM ── */
-        .add-form {
-            background: var(--s2);
-            border: 1px solid rgba(220,38,38,0.3);
-            border-left: 3px solid var(--red);
-            padding: 18px 20px;
-            margin-bottom: 20px;
-            display: none;
-        }
-        .add-row { display: flex; gap: 10px; }
-        .add-form input {
-            flex: 1;
-            background: var(--s3);
-            border: 1px solid var(--wire2);
-            color: var(--text);
-            padding: 10px 16px;
-            font-family: 'Inter', sans-serif;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.15s;
-        }
-        .add-form input:focus { border-color: var(--red); }
-        .add-form input::placeholder { color: var(--faint); }
-
-        /* ── BUTTONS ── */
-        .btn {
-            font-family: 'Oswald', sans-serif;
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            padding: 10px 20px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-        .btn-primary { background: var(--red); color: #fff; }
-        .btn-primary:hover { background: var(--red2); }
-        .btn-primary:active { transform: scale(0.97); }
-        .btn-outline {
-            background: transparent;
-            color: var(--muted);
-            border: 1px solid var(--wire2);
-        }
-        .btn-outline:hover { color: var(--text); border-color: var(--muted); }
-
-        /* ── PEOPLE GRID ── */
-        .people-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 10px;
-        }
-
-        .person-wrap { position: relative; }
-
-        .person-btn {
-            width: 100%;
-            background: var(--s2);
-            border: 1px solid var(--wire);
-            border-top: 2px solid transparent;
-            color: var(--muted);
-            font-family: 'Oswald', sans-serif;
-            font-size: 16px;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            padding: 18px 12px 14px;
-            cursor: pointer;
-            transition: all 0.15s;
-            text-align: center;
-        }
-        .person-btn:hover {
-            border-top-color: var(--red);
-            color: var(--text);
-            background: var(--s3);
-        }
-        .person-btn.selected {
-            border-top-color: var(--red);
-            border-color: rgba(220,38,38,0.4);
-            background: var(--red3);
-            color: var(--text);
-        }
-        .person-check {
-            display: block;
-            font-family: 'Oswald', sans-serif;
-            font-size: 10px;
-            letter-spacing: 0.2em;
-            color: var(--red);
-            margin-top: 4px;
-        }
-
-        .del-btn {
-            position: absolute;
-            top: -6px; right: -6px;
-            width: 20px; height: 20px;
-            background: #dc2626;
-            color: #fff;
-            border: 2px solid var(--bg);
-            border-radius: 50%;
-            font-size: 12px;
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.15s;
-            display: flex; align-items: center; justify-content: center;
-            line-height: 1;
-        }
-        .person-wrap:hover .del-btn { opacity: 1; }
-
-        /* ── NAV GRID ── */
-        .nav-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 2px;
-            background: var(--wire);
-        }
-        @media (max-width: 860px) { .nav-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 520px) { .nav-grid { grid-template-columns: 1fr; } .stat-strip { grid-template-columns: 1fr; } }
-
-        .nav-card {
-            background: var(--s1);
-            padding: 28px 24px;
-            display: block;
-            text-decoration: none;
-            color: var(--text);
-            position: relative;
-            overflow: hidden;
-            transition: background 0.2s;
-        }
-        .nav-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 2px;
-            background: var(--red);
-            transform: scaleX(0);
-            transform-origin: left;
-            transition: transform 0.25s ease;
-        }
-        .nav-card:hover { background: var(--s2); }
-        .nav-card:hover::before { transform: scaleX(1); }
-
-        .nav-card .card-num {
-            position: absolute;
-            bottom: -10px; right: 8px;
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 80px;
-            color: rgba(255,255,255,0.03);
-            line-height: 1;
-            pointer-events: none;
-            user-select: none;
-        }
-
-        .nav-card-icon {
-            font-size: 28px;
-            margin-bottom: 12px;
-            display: block;
-        }
-        .nav-card-title {
-            font-family: 'Oswald', sans-serif;
-            font-size: 20px;
-            font-weight: 700;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--text);
-            margin-bottom: 6px;
-        }
-        .nav-card-desc {
-            font-size: 12px;
-            color: var(--muted);
-            line-height: 1.5;
-            margin-bottom: 16px;
-        }
-        .nav-chips {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-        .chip {
-            font-family: 'Oswald', sans-serif;
-            font-size: 10px;
-            font-weight: 500;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--red);
-            border: 1px solid rgba(220,38,38,0.3);
-            padding: 3px 8px;
-        }
-
-        .nav-card.mgr-card { background: #0d0d0d; }
-        .nav-card.mgr-card::before { background: var(--muted); }
-        .nav-card.mgr-card:hover { background: #141414; }
-        .nav-card.mgr-card .chip { color: var(--faint); border-color: var(--wire2); }
-        .nav-card.mgr-card .nav-card-title { color: var(--muted); }
-
-        /* ── TRAINING CARD SPECIAL ── */
-        .nav-card.training-card {
-            background: #0d0b0b;
-            border-left: 2px solid rgba(220,38,38,0.4);
-        }
-        .nav-card.training-card::before { background: var(--red); }
-        .nav-card.training-card:hover { background: #130909; }
-        .nav-card.training-card .nav-card-title { color: var(--text); }
-        .nav-card.training-card .chip { color: var(--red); border-color: rgba(220,38,38,0.3); }
-        .training-new {
-            display: inline-block;
-            background: var(--red);
-            color: #fff;
-            font-family: 'Oswald', sans-serif;
-            font-size: 9px;
-            font-weight: 700;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            padding: 2px 6px;
-            margin-left: 8px;
-            vertical-align: middle;
-            position: relative;
-            top: -1px;
-        }
-
-        /* ── SELECT PROMPT ── */
-        .select-prompt {
-            border: 1px solid var(--wire);
-            border-left: 3px solid var(--red);
-            padding: 20px 28px;
-            font-family: 'Oswald', sans-serif;
-            font-size: 16px;
-            font-weight: 500;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--muted);
-        }
-
-        #emptyMsg {
-            padding: 32px;
-            text-align: center;
-            font-size: 13px;
-            color: var(--faint);
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        /* ── ANIMATIONS ── */
-        .fade-up {
-            animation: fadeUp 0.4s ease both;
-        }
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(12px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        .nav-card:nth-child(1) { animation-delay: 0.05s; }
-        .nav-card:nth-child(2) { animation-delay: 0.10s; }
-        .nav-card:nth-child(3) { animation-delay: 0.15s; }
-        .nav-card:nth-child(4) { animation-delay: 0.20s; }
-        .nav-card:nth-child(5) { animation-delay: 0.25s; }
-        .nav-card:nth-child(6) { animation-delay: 0.30s; }
-        .nav-card:nth-child(7) { animation-delay: 0.35s; }
-        .nav-card:nth-child(8) { animation-delay: 0.40s; }
-        .nav-card:nth-child(9) { animation-delay: 0.45s; }
-        .nav-card:nth-child(10) { animation-delay: 0.50s; }
-    </style>
+    footer{text-align:center;margin-top:36px;font-family:var(--lab);font-size:10px;
+        letter-spacing:.2em;text-transform:uppercase;color:#3a3a3a}
+    .err{background:#3a1212;border:1px solid #dc2626;color:#fca5a5;font-family:var(--lab);
+        font-size:12px;letter-spacing:.06em;padding:12px 14px;margin:18px 0;display:none}
+</style>
 </head>
 <body>
-<div id="themeToggleWrap" style="position:fixed;top:12px;right:16px;z-index:9999;">
-  <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--s2);border:1px solid var(--wire2);color:var(--muted);font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:7px 12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;">
-    <span id="themeIcon">☀️</span><span id="themeLabel">LIGHT</span>
-  </button>
-</div>
-<script>
-(function(){var t=localStorage.getItem('apTheme')||'dark';applyTheme(t);})();
-function applyTheme(t){localStorage.setItem('apTheme',t);if(t==='light'){document.documentElement.classList.add('light');var i=document.getElementById('themeIcon');var l=document.getElementById('themeLabel');if(i)i.textContent='🌙';if(l)l.textContent='DARK';}else{document.documentElement.classList.remove('light');var i=document.getElementById('themeIcon');var l=document.getElementById('themeLabel');if(i)i.textContent='☀️';if(l)l.textContent='LIGHT';}}
-function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyTheme(cur==='dark'?'light':'dark');}
-</script>
+<div class="wrap">
+    <header>
+        <div class="kicker">Action Plumbing</div>
+        <h1>FLEET<span>CHECK</span></h1>
+        <div class="tag">Vehicle Safety &amp; Maintenance</div>
+    </header>
 
-<div class="page">
+    <div id="cfgErr" class="err">
+        Firebase isn't connected yet. Open <b>firebase-config.js</b> and paste your project credentials.
+    </div>
 
-    <!-- HERO -->
-    <div class="hero">
-        <div class="hero-bg-text">ACTION</div>
-        <div class="hero-inner">
-            <div class="hero-left">
-                <div class="hero-eyebrow">
-                    <span class="live-dot">Live</span>
-                </div>
-                <div class="hero-title">Action<br><em>Plumbing</em></div>
-                <div class="hero-sub">Sales Performance Tracker</div>
-            </div>
-            <div class="hero-date">
-                <div class="d-label">Today</div>
-                <div id="currentDate" class="d-value"></div>
-            </div>
+    <div class="ready" id="readyStrip">
+        <div>
+            <div class="big" id="readyNum">—</div>
+            <div class="lbl">Rigs cleared</div>
+        </div>
+        <div class="right">
+            <div class="date" id="todayDate"></div>
+            <div class="flag" id="readyFlag">Loading…</div>
         </div>
     </div>
 
-    <!-- ANNOUNCEMENTS -->
-    <div id="announcementBanner" style="display:none;margin-bottom:16px"></div>
+    <div class="eyebrow">Choose your crew</div>
+    <div class="tiles" id="tiles"></div>
 
-    <!-- STATS -->
-    <div class="stat-strip">
-        <div class="stat-block">
-            <div class="stat-label">Today's Calls</div>
-            <div id="todayCalls" class="stat-num">0</div>
-            <div class="stat-meta">All team members</div>
-        </div>
-        <div class="stat-block">
-            <div class="stat-label">Today's Revenue</div>
-            <div id="todayRevenue" class="stat-num">$0</div>
-            <div class="stat-meta">Team total</div>
-        </div>
-    </div>
-
-    <!-- TEAM -->
-    <div class="card">
-        <div class="card-header">
-            <div class="card-title">Team Roster</div>
-            <button class="btn btn-primary" id="addBtn">+ Add Rep</button>
-        </div>
-
-        <div class="add-form" id="addForm">
-            <div class="add-row">
-                <input id="nameInput" type="text" placeholder="Salesperson name" />
-                <button class="btn btn-primary" id="saveBtn">Add</button>
-                <button class="btn btn-outline" id="cancelBtn">Cancel</button>
+    <a class="mgr" href="manager.html">
+        <div class="l">
+            <span class="ico">🔒</span>
+            <div>
+                <div class="t">Manager</div>
+                <div class="d">Roster · Compliance · Alerts</div>
             </div>
         </div>
+        <span class="arrow">→</span>
+    </a>
 
-        <div class="people-grid" id="peopleList"></div>
-        <div id="emptyMsg" style="display:none;">Loading roster...</div>
+    <div id="lbWrap" style="display:none;margin-top:26px">
+        <div class="eyebrow">🔥 Top Streaks</div>
+        <div id="lbStrip"></div>
     </div>
 
-    <!-- NAV -->
-    <div id="navigation" style="display:none;">
-        <div class="section-divider"><span class="sdl">Quick Access</span></div>
-        <div class="nav-grid">
-
-            <a href="calls.html" class="nav-card fade-up">
-                <span class="nav-card-icon">📞</span>
-                <div class="nav-card-title">Log Calls</div>
-                <div class="nav-card-desc">Add daily calls and track sales</div>
-                <div class="nav-chips"><span class="chip">Quick entry</span><span class="chip">Calendar</span></div>
-                <span class="card-num">01</span>
-            </a>
-
-            <a href="goals.html" class="nav-card fade-up">
-                <span class="nav-card-icon">🎯</span>
-                <div class="nav-card-title">My Report</div>
-                <div class="nav-card-desc">Personal performance metrics</div>
-                <div class="nav-chips"><span class="chip">Goals</span><span class="chip">Forecasts</span></div>
-                <span class="card-num">02</span>
-            </a>
-
-            <a href="reports.html" class="nav-card fade-up">
-                <span class="nav-card-icon">📊</span>
-                <div class="nav-card-title">Team Report</div>
-                <div class="nav-card-desc">Team metrics and leaderboards</div>
-                <div class="nav-chips"><span class="chip">Leaderboard</span><span class="chip">Goals</span></div>
-                <span class="card-num">03</span>
-            </a>
-
-            <a href="money.html" class="nav-card fade-up">
-                <span class="nav-card-icon">💰</span>
-                <div class="nav-card-title">Money Owed</div>
-                <div class="nav-card-desc">Track outstanding payments</div>
-                <div class="nav-chips"><span class="chip">Payments</span><span class="chip">Follow-ups</span></div>
-                <span class="card-num">04</span>
-            </a>
-
-            <a href="competition.html" class="nav-card fade-up">
-                <span class="nav-card-icon">🏆</span>
-                <div class="nav-card-title">Competition</div>
-                <div class="nav-card-desc">Monthly team competition</div>
-                <div class="nav-chips"><span class="chip">Team vs Team</span><span class="chip">Rankings</span></div>
-                <span class="card-num">05</span>
-            </a>
-
-            <a href="manager.html" class="nav-card mgr-card fade-up">
-                <span class="nav-card-icon">🏢</span>
-                <div class="nav-card-title">Manager</div>
-                <div class="nav-card-desc">PIN-protected manager portal</div>
-                <div class="nav-chips"><span class="chip">Huddle</span><span class="chip">Intel</span></div>
-                <span class="card-num">06</span>
-            </a>
-
-            <a href="turnin.html" class="nav-card fade-up">
-                <span class="nav-card-icon">📋</span>
-                <div class="nav-card-title">Daily Turn-In</div>
-                <div class="nav-card-desc">Auto-filled turn-in sheet from sold jobs</div>
-                <div class="nav-chips"><span class="chip">Print</span><span class="chip">Calendar</span></div>
-                <span class="card-num">07</span>
-            </a>
-
-            <a href="doors.html" class="nav-card fade-up">
-                <span class="nav-card-icon">🚪</span>
-                <div class="nav-card-title">Door Knock</div>
-                <div class="nav-card-desc">Log every door, track leads, follow-ups, and sales from the field</div>
-                <div class="nav-chips"><span class="chip">Leads</span><span class="chip">Follow-Ups</span><span class="chip">Streets</span></div>
-                <span class="card-num">08</span>
-            </a>
-
-            <a href="training.html" class="nav-card training-card fade-up" style="border-top:2px solid var(--red);">
-                <span class="nav-card-icon">🎓</span>
-                <div class="nav-card-title">Sales Academy <span class="training-new">New</span></div>
-                <div class="nav-card-desc">Full training system — scripts, objection handlers, AI roleplay, workbooks, daily drills, certification & more</div>
-                <div class="nav-chips"><span class="chip">AI Roleplay</span><span class="chip">Workbooks</span><span class="chip">Drills</span><span class="chip">Cert</span></div>
-                <span class="card-num">09</span>
-            </a>
-
-        </div>
-    </div>
-
-    <div id="selectMsg" style="display:none;" class="select-prompt">
-        ↑ Select a team member to continue
-    </div>
-
+    <footer>Action Army · Fleet Maintenance</footer>
 </div>
 
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="checklists.js"></script>
 <script>
-    firebase.initializeApp({
-        apiKey: "AIzaSyD9POKxbl9hSt2FNtzdv3RPVnAb0wWsNbU",
-        authDomain: "action-sales-tracker.firebaseapp.com",
-        databaseURL: "https://action-sales-tracker-default-rtdb.firebaseio.com",
-        projectId: "action-sales-tracker",
-        storageBucket: "action-sales-tracker.firebasestorage.app",
-        messagingSenderId: "686455834332",
-        appId: "1:686455834332:web:84e9b843f912522bbdd619"
+(function(){
+    document.getElementById('todayDate').textContent =
+        new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+
+    // build tiles immediately (counts fill in once data loads)
+    const tilesEl = document.getElementById('tiles');
+    CREW_ORDER.forEach(id=>{
+        const c = CREWS[id];
+        const a = document.createElement('a');
+        a.className = 'tile';
+        a.href = 'inspection.html?crew=' + id;
+        a.style.setProperty('--accent', c.accent);
+        a.innerHTML = `
+            <div class="stat"><div class="n" id="n_${id}">·</div><div class="of" id="of_${id}"></div></div>
+            <div class="glyph">${c.glyph}</div>
+            <div class="name">${c.label}</div>
+            <div class="sub">${c.sub}</div>
+            <div class="cad">${c.cadence === 'daily' ? 'Daily check' : 'Weekly · Mon'}</div>
+            <span class="arrow">→</span>`;
+        tilesEl.appendChild(a);
     });
 
-    const db = firebase.database();
-    let people = [], selected = null, logs = {};
-
-    // ── SESSION / AUTO-LOGOUT ──────────────────────────────────────
-    const SESSION_KEY = 'ap_session';
-    const TIMEOUT_MS  = 30 * 60 * 1000;
-    let _logoutTimer  = null;
-
-    function getSession() {
-        try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
-    }
-    function saveSession(s) { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
-    function clearSession() { localStorage.removeItem(SESSION_KEY); localStorage.removeItem('selectedPerson'); }
-
-    function resetLogoutTimer() {
-        clearTimeout(_logoutTimer);
-        _logoutTimer = setTimeout(autoLogout, TIMEOUT_MS);
-        const s = getSession();
-        if (s) { s.lastActivity = Date.now(); saveSession(s); }
-    }
-    function bindActivityTracking() {
-        ['mousemove','keydown','click','touchstart','scroll'].forEach(e =>
-            document.addEventListener(e, resetLogoutTimer, { passive: true })
-        );
-    }
-    function autoLogout() {
-        clearSession();
-        showLoginScreen('Session expired after 30 minutes of inactivity.');
+    // guard: not configured yet
+    if (typeof db === 'undefined' || firebaseConfig.databaseURL.includes('PASTE_')) {
+        document.getElementById('cfgErr').style.display = 'block';
+        document.getElementById('readyFlag').textContent = 'Not connected';
+        return;
     }
 
-    // ── LOGIN SCREEN ───────────────────────────────────────────────
-    function showLoginScreen(message) {
-        document.querySelector('.page').style.display = 'none';
-        const old = document.getElementById('ap-login-overlay');
-        if (old) old.remove();
+    // load employees + inspections, compute readiness
+    Promise.all([
+        fleetRef('employees').once('value'),
+        fleetRef('inspections').once('value')
+    ]).then(([empSnap, inspSnap])=>{
+        const emps = empSnap.val() || {};
+        const insp = inspSnap.val() || {};
+        const perCrew = {}; CREW_ORDER.forEach(c=>perCrew[c]={total:0,cleared:0});
+        let total=0, cleared=0;
 
-        const overlay = document.createElement('div');
-        overlay.id = 'ap-login-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px';
-        overlay.innerHTML = `
-            <div style="background:var(--s1);border:1px solid var(--wire);border-top:3px solid var(--red);padding:52px 44px;width:100%;max-width:400px;text-align:center">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:72px;line-height:1;letter-spacing:2px;color:var(--red);margin-bottom:2px">AP</div>
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:4px;color:var(--text);margin-bottom:4px">SIGN IN</div>
-                <div style="font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:32px">Action Plumbing Sales Tracker</div>
-                ${message ? `<div style="background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.3);color:#ef4444;font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 14px;margin-bottom:20px">${message}</div>` : ''}
-                <input id="ap-u" type="text" autocomplete="username" placeholder="Username"
-                    style="width:100%;background:var(--s3);border:1px solid var(--wire2);color:var(--text);padding:14px;font-family:'Inter',sans-serif;font-size:14px;outline:none;margin-bottom:10px;display:block;transition:border-color .15s" />
-                <input id="ap-p" type="password" autocomplete="current-password" placeholder="Password"
-                    style="width:100%;background:var(--s3);border:1px solid var(--wire2);color:var(--text);padding:14px;font-family:'Inter',sans-serif;font-size:14px;outline:none;margin-bottom:6px;display:block;transition:border-color .15s" />
-                <p id="ap-err" style="font-size:12px;color:#ef4444;font-family:'Oswald',sans-serif;letter-spacing:.08em;margin-bottom:12px;min-height:18px;text-align:left"></p>
-                <button id="ap-btn" style="width:100%;background:var(--red);color:#fff;font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;padding:15px;border:none;cursor:pointer;transition:background .15s;margin-bottom:20px">
-                    UNLOCK
-                </button>
-                <a href="manager.html" style="font-size:12px;color:var(--faint);text-decoration:none;font-family:'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;transition:color .15s" onmouseover="this.style.color='var(--muted)'" onmouseout="this.style.color='var(--faint)'">Manager Portal →</a>
-            </div>`;
-        document.body.appendChild(overlay);
-
-        const uEl  = overlay.querySelector('#ap-u');
-        const pEl  = overlay.querySelector('#ap-p');
-        const errEl= overlay.querySelector('#ap-err');
-        const btn  = overlay.querySelector('#ap-btn');
-
-        [uEl, pEl].forEach(el => {
-            el.addEventListener('focus', () => el.style.borderColor = 'var(--red)');
-            el.addEventListener('blur',  () => el.style.borderColor = 'var(--wire2)');
+        Object.entries(emps).forEach(([id,e])=>{
+            if (!e.active) return;
+            if (!CREWS[e.crew]) return;
+            const comp = complianceFor(e, insp[id]);
+            perCrew[e.crew].total++;
+            total++;
+            if (comp.status === 'cleared'){ perCrew[e.crew].cleared++; cleared++; }
         });
 
-        setTimeout(() => uEl.focus(), 80);
-
-        const doLogin = () => {
-            const user = uEl.value.trim().toLowerCase();
-            const pass = pEl.value;
-            errEl.textContent = '';
-            if (!user || !pass) { errEl.textContent = 'Enter username and password.'; return; }
-            btn.textContent = 'CHECKING…';
-            btn.disabled = true;
-
-            db.ref('techLogins').once('value', snap => {
-                const logins = snap.val() || {};
-                let matched = null;
-                Object.entries(logins).forEach(([id, rec]) => {
-                    if (!rec.disabled && rec.username && rec.username.toLowerCase() === user && rec.password === pass) {
-                        matched = { loginId: id, personId: rec.personId, name: rec.name || rec.username, username: rec.username };
-                    }
-                });
-
-                if (matched) {
-                    const session = { ...matched, lastActivity: Date.now() };
-                    saveSession(session);
-                    localStorage.setItem('selectedPerson', matched.personId);
-                    selected = matched.personId;
-                    overlay.remove();
-                    document.querySelector('.page').style.display = '';
-                    bindActivityTracking();
-                    resetLogoutTimer();
-                    initApp();
-                } else {
-                    errEl.textContent = 'Incorrect username or password.';
-                    btn.textContent = 'UNLOCK';
-                    btn.disabled = false;
-                    pEl.value = '';
-                    pEl.focus();
-                }
+        // top streaks (motivation strip)
+        const ranked = Object.entries(emps)
+            .filter(([id,e])=>e.active && CREWS[e.crew])
+            .map(([id,e])=>({ e, st:streakFor(e, insp[id]) }))
+            .filter(r=>r.st.current>0)
+            .sort((a,b)=>b.st.current-a.st.current)
+            .slice(0,5);
+        if (ranked.length){
+            document.getElementById('lbWrap').style.display='block';
+            const strip=document.getElementById('lbStrip');
+            strip.innerHTML='';
+            ranked.forEach((r,i)=>{
+                const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+                const row=document.createElement('div');
+                row.style.cssText='display:flex;align-items:center;gap:12px;background:var(--s1);border:1px solid var(--line);'
+                    +'border-left:3px solid '+(i===0?'#f5c542':'var(--s3)')+';padding:11px 15px;margin-bottom:6px';
+                row.innerHTML='<span style="font-family:var(--disp);font-size:22px;min-width:30px;text-align:center">'+medal+'</span>'
+                    +'<span style="font-family:var(--disp);font-size:22px;letter-spacing:.4px">'+r.e.name+'</span>'
+                    +'<span style="margin-left:auto;font-family:var(--disp);font-size:24px;color:var(--amber)">🔥 '+r.st.current+'</span>'
+                    +'<span style="font-family:var(--lab);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">'+r.st.unit+'s</span>';
+                strip.appendChild(row);
             });
-        };
+        }
 
-        btn.onclick = doLogin;
-        [uEl, pEl].forEach(el => el.addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); }));
-    }
+        CREW_ORDER.forEach(c=>{
+            document.getElementById('n_'+c).textContent = perCrew[c].cleared;
+            document.getElementById('of_'+c).textContent = '/ ' + perCrew[c].total + ' ready';
+        });
 
-    // ── BOOT ───────────────────────────────────────────────────────
-    (function boot() {
-        const s = getSession();
-        if (s && s.personId && (Date.now() - (s.lastActivity || 0)) < TIMEOUT_MS) {
-            selected = s.personId;
-            localStorage.setItem('selectedPerson', selected);
-            bindActivityTracking();
-            resetLogoutTimer();
-            initApp();
+        document.getElementById('readyNum').textContent = cleared + ' / ' + total;
+        const strip = document.getElementById('readyStrip');
+        const flag  = document.getElementById('readyFlag');
+        if (total === 0){
+            flag.textContent = 'Add crew in Manager';
+            strip.classList.add('warn');
+        } else if (cleared === total){
+            flag.textContent = '✓ All rigs cleared';
         } else {
-            clearSession();
-            showLoginScreen();
+            flag.textContent = (total - cleared) + ' still due';
+            strip.classList.add('warn');
         }
-    })();
-
-    // ── APP INIT ───────────────────────────────────────────────────
-    function initApp() {
-        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' }).toUpperCase();
-
-        if (!document.getElementById('logoutBtn')) {
-            const wrap = document.getElementById('themeToggleWrap');
-            const logoutBtn = document.createElement('button');
-            logoutBtn.id = 'logoutBtn';
-            logoutBtn.textContent = '🔒 Log Out';
-            logoutBtn.style.cssText = "background:transparent;border:1px solid var(--wire2);color:var(--muted);font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:7px 12px;cursor:pointer;margin-right:6px;transition:all .15s";
-            logoutBtn.onmouseover = () => { logoutBtn.style.color = 'var(--text)'; logoutBtn.style.borderColor = 'var(--muted)'; };
-            logoutBtn.onmouseout  = () => { logoutBtn.style.color = 'var(--muted)'; logoutBtn.style.borderColor = 'var(--wire2)'; };
-            logoutBtn.onclick = () => { clearTimeout(_logoutTimer); clearSession(); showLoginScreen(); };
-            wrap.insertBefore(logoutBtn, wrap.firstChild);
-        }
-
-        const s = getSession();
-        if (s) {
-            if (!document.getElementById('loggedInName')) {
-                const nameTag = document.createElement('div');
-                nameTag.id = 'loggedInName';
-                nameTag.style.cssText = "font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:8px 0 0 0";
-                nameTag.innerHTML = `Signed in as <strong style="color:var(--text)">${s.name}</strong>`;
-                document.querySelector('.hero-sub').insertAdjacentElement('afterend', nameTag);
-            }
-        }
-
-        document.getElementById('addBtn').onclick = () => { document.getElementById('addForm').style.display = 'block'; document.getElementById('nameInput').focus(); };
-        document.getElementById('cancelBtn').onclick = () => { document.getElementById('addForm').style.display = 'none'; document.getElementById('nameInput').value = ''; };
-        document.getElementById('saveBtn').onclick = () => {
-            const name = document.getElementById('nameInput').value.trim();
-            if (name) { db.ref('salespeople').push().set({ name }); document.getElementById('nameInput').value = ''; document.getElementById('addForm').style.display = 'none'; }
-        };
-        document.getElementById('nameInput').onkeypress = e => { if (e.key === 'Enter') document.getElementById('saveBtn').click(); };
-
-        db.ref('salespeople').on('value', snap => {
-            const data = snap.val();
-            people = data ? Object.keys(data).filter(k => !data[k].archived).map(k => ({ id: k, name: data[k].name })) : [];
-            if (selected && !people.find(p => p.id === selected) && people.length) {
-                selected = people[0].id;
-                localStorage.setItem('selectedPerson', selected);
-            }
-            renderPeople(); renderNav();
-        });
-
-        db.ref('callLogs').on('value', snap => { logs = snap.val() || {}; renderStats(); });
-
-        // ── ANNOUNCEMENTS ──────────────────────────────────────────
-        const icons={info:'📢',fire:'🔥',win:'🏆',warning:'⚠️'};
-        const borders={info:'rgba(255,255,255,0.15)',fire:'#dc2626',win:'#d97706',warning:'#f97316'};
-        db.ref('announcements').on('value', snap => {
-            const data = snap.val() || {};
-            const all = Object.values(data).sort((a,b) => new Date(b.date) - new Date(a.date));
-            const banner = document.getElementById('announcementBanner');
-            if (!all.length) { banner.style.display = 'none'; return; }
-            banner.style.display = 'block';
-            banner.innerHTML = all.map(a => `
-                <div style="background:#111;border:1px solid rgba(255,255,255,0.08);border-left:3px solid ${borders[a.type]||borders.info};padding:14px 18px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px">
-                    <span style="font-size:20px;flex-shrink:0">${icons[a.type]||'📢'}</span>
-                    <div>
-                        <div style="font-size:14px;color:#efefef;line-height:1.5;font-family:'Inter',sans-serif">${a.text}</div>
-                        <div style="font-size:13px;color:#999;margin-top:4px;font-family:'Oswald',sans-serif;letter-spacing:.06em;text-transform:uppercase">${new Date(a.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
-                    </div>
-                </div>`).join('');
-        });
-    }
-
-    function renderStats() {
-        const today = new Date();
-        const dk = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-        let calls = 0, rev = 0;
-        people.forEach(p => {
-            const c = logs[`${p.id}_${dk}`];
-            if (c) { const arr = Object.values(c); calls += arr.length; rev += arr.reduce((s,x) => s+(parseFloat(x.amountSold)||0), 0); }
-        });
-        document.getElementById('todayCalls').textContent = calls;
-        document.getElementById('todayRevenue').textContent = '$' + Math.round(rev).toLocaleString();
-    }
-
-    function renderPeople() {
-        if (!people.length) {
-            document.getElementById('peopleList').style.display = 'none';
-            document.getElementById('emptyMsg').style.display = 'block';
-            return;
-        }
-        document.getElementById('peopleList').style.display = 'grid';
-        document.getElementById('emptyMsg').style.display = 'none';
-        document.getElementById('peopleList').innerHTML = people.map(p => `
-            <div class="person-wrap">
-                <button class="person-btn ${selected===p.id?'selected':''}" data-id="${p.id}">
-                    ${p.name}
-                    ${selected===p.id?'<span class="person-check">✓ Active</span>':''}
-                </button>
-                <button class="del-btn" data-id="${p.id}">×</button>
-            </div>`).join('');
-
-        document.querySelectorAll('.person-btn').forEach(b => {
-            b.onclick = () => { selected = b.dataset.id; localStorage.setItem('selectedPerson', selected); renderPeople(); renderNav(); };
-        });
-        document.querySelectorAll('.del-btn').forEach(b => {
-            b.onclick = e => {
-                e.stopPropagation();
-                const p = people.find(x => x.id === b.dataset.id);
-                if (confirm(`Remove ${p.name}?`)) {
-                    db.ref(`salespeople/${b.dataset.id}`).remove();
-                    if (selected === b.dataset.id) { selected = null; localStorage.removeItem('selectedPerson'); }
-                }
-            };
-        });
-    }
-
-    function renderNav() {
-        const show = !!selected;
-        document.getElementById('navigation').style.display = show ? 'block' : 'none';
-        document.getElementById('selectMsg').style.display = !show && people.length ? 'block' : 'none';
-    }
+    }).catch(()=>{
+        document.getElementById('readyFlag').textContent = 'Connection error';
+        document.getElementById('readyStrip').classList.add('warn');
+    });
+})();
 </script>
 </body>
 </html>

@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080808">
+<title>Run a Check — Action Fleet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root{
+        --bg:#080808; --s1:#111; --s2:#161616; --s3:#202020;
+        --line:rgba(255,255,255,.07); --text:#efefef; --muted:#7a7a7a;
+        --red:#dc2626; --green:#22c55e; --amber:#f59e0b;
+        --disp:'Bebas Neue',sans-serif; --lab:'Oswald',sans-serif; --body:'Inter',sans-serif;
+        --accent:#dc2626;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;-webkit-font-smoothing:antialiased}
+    .wrap{max-width:680px;margin:0 auto;padding:0 16px 120px}
+
+    header{border-top:3px solid var(--accent);padding:18px 0 14px;display:flex;
+        align-items:center;justify-content:space-between;gap:10px}
+    .back{font-family:var(--lab);font-size:12px;font-weight:600;letter-spacing:.14em;
+        text-transform:uppercase;color:var(--muted);text-decoration:none;
+        border:1px solid var(--line);padding:9px 13px;background:var(--s1)}
+    .back:active{background:var(--s2)}
+    .crewname{font-family:var(--disp);font-size:30px;letter-spacing:1px;line-height:.9;color:var(--accent)}
+    .crewname small{display:block;font-family:var(--lab);font-size:10px;font-weight:500;
+        letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+
+    .step-h{font-family:var(--lab);font-size:11px;font-weight:600;letter-spacing:.26em;
+        text-transform:uppercase;color:var(--muted);margin:22px 2px 12px}
+
+    /* name picker */
+    .names{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media(max-width:480px){.names{grid-template-columns:1fr}}
+    .namecard{background:var(--s1);border:1px solid var(--line);border-left:3px solid var(--s3);
+        padding:18px 18px;text-align:left;cursor:pointer;color:inherit;display:flex;
+        align-items:center;justify-content:space-between;gap:10px;transition:background .12s,border-color .12s}
+    .namecard:active{background:var(--s2)}
+    .namecard:hover{border-left-color:var(--accent)}
+    .namecard .nm{font-family:var(--disp);font-size:24px;letter-spacing:.5px;line-height:.95}
+    .namecard .rg{font-family:var(--lab);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+    .namecard .chip{font-family:var(--lab);font-size:9.5px;font-weight:600;letter-spacing:.12em;
+        text-transform:uppercase;padding:4px 8px;white-space:nowrap}
+    .chip.ok{color:var(--green);border:1px solid rgba(34,197,94,.4)}
+    .chip.due{color:var(--amber);border:1px solid rgba(245,158,11,.4)}
+
+    /* rig banner */
+    .rig{background:var(--s1);border:1px solid var(--line);border-left:3px solid var(--accent);
+        padding:16px 18px;margin-bottom:6px;display:flex;flex-wrap:wrap;gap:18px 26px;align-items:center}
+    .rig .who{font-family:var(--disp);font-size:30px;letter-spacing:.5px;line-height:.9;margin-right:auto}
+    .rig .f{min-width:64px}
+    .rig .f .k{font-family:var(--lab);font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+    .rig .f .v{font-family:var(--lab);font-size:15px;font-weight:600;letter-spacing:.04em;margin-top:2px}
+    .rigsel{display:flex;flex-wrap:wrap;gap:12px;width:100%}
+    .rigsel .f2{flex:1;min-width:150px}
+    .rigsel label{display:block;font-family:var(--lab);font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+    .rigsel select{width:100%;background:var(--s3);border:1px solid var(--line);color:var(--text);font-family:var(--body);font-size:14px;padding:11px 12px;outline:none}
+    .rigsel select:focus{border-color:var(--accent)}
+
+    /* run-type toggle (underground) */
+    .runtypes{display:flex;gap:10px;margin:8px 0 4px}
+    .rt{flex:1;background:var(--s1);border:1px solid var(--line);padding:14px;text-align:center;cursor:pointer;
+        font-family:var(--lab);font-size:13px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+        color:var(--muted);transition:.12s}
+    .rt small{display:block;font-size:9.5px;letter-spacing:.1em;color:#555;margin-top:3px;font-weight:500}
+    .rt.active{border-color:var(--accent);color:var(--text);background:var(--s2);border-left:3px solid var(--accent)}
+
+    /* hauling toggle */
+    .haul{display:flex;align-items:center;justify-content:space-between;gap:12px;
+        background:var(--s1);border:1px solid var(--line);padding:14px 18px;margin:10px 0}
+    .haul .q{font-family:var(--lab);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+    .haul .q small{display:block;font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:none;margin-top:2px;font-weight:400}
+    .yn{display:flex;gap:0;border:1px solid var(--line)}
+    .yn button{font-family:var(--lab);font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+        padding:10px 16px;background:transparent;color:var(--muted);border:none;cursor:pointer}
+    .yn button.on{background:var(--accent);color:#fff}
+
+    /* checklist sections */
+    .section{margin-top:18px;border:1px solid var(--line);background:var(--s1)}
+    .section.haul-hide{display:none}
+    .sec-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
+        padding:13px 16px;border-bottom:1px solid var(--line);background:var(--s2)}
+    .sec-title{font-family:var(--lab);font-size:13px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+    .markall{font-family:var(--lab);font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+        color:var(--green);border:1px solid rgba(34,197,94,.4);padding:7px 11px;background:transparent;cursor:pointer}
+    .markall:active{background:rgba(34,197,94,.12)}
+
+    .item{padding:13px 16px;border-bottom:1px solid var(--line)}
+    .item:last-child{border-bottom:none}
+    .item-row{display:flex;align-items:center;gap:12px}
+    .item-label{flex:1;font-size:14px;line-height:1.35}
+    .item-label .crit{display:inline-block;font-family:var(--lab);font-size:8.5px;font-weight:600;
+        letter-spacing:.1em;color:var(--red);border:1px solid rgba(220,38,38,.4);padding:1px 5px;
+        margin-left:6px;vertical-align:middle;text-transform:uppercase}
+    .toggle{display:flex;border:1px solid var(--line);flex-shrink:0}
+    .toggle button{font-family:var(--lab);font-size:11px;font-weight:600;letter-spacing:.06em;
+        text-transform:uppercase;padding:9px 12px;background:transparent;color:#666;border:none;cursor:pointer;min-width:46px}
+    .toggle button.ok.on{background:var(--green);color:#04140a}
+    .toggle button.bad.on{background:var(--red);color:#fff}
+    .toggle button.na.on{background:var(--s3);color:var(--text)}
+    .defect-note{margin-top:10px;display:none}
+    .defect-note.show{display:block}
+    .defect-note textarea{width:100%;background:var(--s3);border:1px solid rgba(220,38,38,.35);
+        color:var(--text);font-family:var(--body);font-size:13px;padding:10px 12px;outline:none;resize:vertical;min-height:46px}
+    .photo-row{display:flex;align-items:center;gap:12px;margin-top:9px}
+    .addphoto{display:inline-flex;align-items:center;gap:7px;font-family:var(--lab);font-size:11px;font-weight:600;
+        letter-spacing:.08em;text-transform:uppercase;color:var(--accent);border:1px solid var(--line);
+        padding:9px 13px;cursor:pointer;background:var(--s3)}
+    .addphoto:active{background:var(--s2)}
+    .thumb-wrap{position:relative;display:none}
+    .thumb-wrap.show{display:block}
+    .thumb-wrap img{height:54px;width:54px;object-fit:cover;border:1px solid var(--line);display:block}
+    .thumb-wrap .x{position:absolute;top:-8px;right:-8px;width:22px;height:22px;border-radius:50%;
+        background:var(--red);color:#fff;border:none;font-size:13px;cursor:pointer;line-height:1}
+
+    .meta{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap}
+    .meta .fld{flex:1;min-width:140px}
+    .meta label{display:block;font-family:var(--lab);font-size:10px;font-weight:600;letter-spacing:.14em;
+        text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+    .meta input,.meta textarea{width:100%;background:var(--s1);border:1px solid var(--line);
+        color:var(--text);font-family:var(--body);font-size:14px;padding:12px;outline:none}
+    .meta input:focus,.meta textarea:focus,.defect-note textarea:focus{border-color:var(--accent)}
+
+    /* progress + submit (sticky) */
+    .dock{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(to top,var(--bg) 70%,transparent);
+        padding:14px 16px 18px;z-index:50}
+    .dock-inner{max-width:680px;margin:0 auto}
+    .prog{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-family:var(--lab);
+        font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+    .bar{flex:1;height:5px;background:var(--s3);overflow:hidden}
+    .bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+    .submit{width:100%;background:var(--accent);color:#fff;font-family:var(--lab);font-size:15px;
+        font-weight:600;letter-spacing:.16em;text-transform:uppercase;padding:16px;border:none;cursor:pointer;transition:.15s}
+    .submit:disabled{background:var(--s3);color:#666;cursor:not-allowed}
+    .submit.crit{background:#7f1d1d}
+
+    /* done screen */
+    .done{display:none;text-align:center;padding:60px 20px}
+    .done .ck{font-size:60px}
+    .done.crit .ck{filter:none}
+    .done h2{font-family:var(--disp);font-size:48px;letter-spacing:1px;margin:14px 0 6px}
+    .done p{color:var(--muted);font-size:14px;max-width:340px;margin:0 auto 26px;line-height:1.5}
+    .done .pill{display:inline-block;font-family:var(--lab);font-size:12px;font-weight:600;letter-spacing:.14em;
+        text-transform:uppercase;padding:8px 14px;margin-bottom:24px}
+    .pill.green{color:var(--green);border:1px solid rgba(34,197,94,.4)}
+    .pill.red{color:#fca5a5;border:1px solid var(--red);background:#3a1212}
+    .done a.again{display:inline-block;font-family:var(--lab);font-size:13px;font-weight:600;letter-spacing:.14em;
+        text-transform:uppercase;color:var(--text);border:1px solid var(--line);padding:13px 22px;text-decoration:none}
+
+    .hidden{display:none!important}
+    .err{background:#3a1212;border:1px solid #dc2626;color:#fca5a5;font-family:var(--lab);
+        font-size:12px;letter-spacing:.06em;padding:12px 14px;margin:14px 0;display:none}
+
+    /* PIN keypad overlay */
+    #pinOv{position:fixed;inset:0;z-index:120;background:var(--bg);display:none;
+        flex-direction:column;align-items:center;justify-content:center;padding:24px}
+    #pinOv.show{display:flex}
+    #pinOv .who{font-family:var(--disp);font-size:40px;letter-spacing:1px;line-height:.9;text-align:center}
+    #pinOv .ask{font-family:var(--lab);font-size:11px;font-weight:600;letter-spacing:.2em;
+        text-transform:uppercase;color:var(--muted);margin:8px 0 22px}
+    .dots{display:flex;gap:16px;margin-bottom:8px}
+    .dots .d{width:16px;height:16px;border-radius:50%;border:2px solid var(--muted);transition:.12s}
+    .dots .d.on{background:var(--accent);border-color:var(--accent)}
+    #pinOv.bad .dots{animation:shake .35s}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-9px)}75%{transform:translateX(9px)}}
+    #pinErr{font-family:var(--lab);font-size:12px;letter-spacing:.08em;color:#ef4444;min-height:18px;margin-bottom:14px;text-transform:uppercase}
+    .keypad{display:grid;grid-template-columns:repeat(3,76px);gap:12px}
+    .keypad button{height:76px;background:var(--s1);border:1px solid var(--line);color:var(--text);
+        font-family:var(--disp);font-size:30px;cursor:pointer;transition:background .1s}
+    .keypad button:active{background:var(--s3)}
+    .keypad button.act{font-family:var(--lab);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    #pinCancel{margin-top:22px;font-family:var(--lab);font-size:12px;font-weight:600;letter-spacing:.14em;
+        text-transform:uppercase;color:var(--muted);background:none;border:none;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <a class="back" href="index.html" id="backBtn">← Back</a>
+        <div class="crewname" id="crewName">—<small id="crewSub"></small></div>
+    </header>
+
+    <div id="cfgErr" class="err">Firebase isn't connected. Paste your credentials into firebase-config.js.</div>
+
+    <!-- STEP 1: name picker -->
+    <div id="stepName">
+        <div class="step-h">Tap your name</div>
+        <div class="names" id="nameGrid"></div>
+        <div id="noNames" class="err" style="display:none">
+            No active crew here yet. Add people in the Manager tab.
+        </div>
+    </div>
+
+    <!-- STEP 2: the check -->
+    <div id="stepCheck" class="hidden">
+        <div class="rig" id="rigBanner"></div>
+
+        <div id="runTypeWrap" class="hidden">
+            <div class="step-h">What are you running?</div>
+            <div class="runtypes" id="runTypes"></div>
+        </div>
+
+        <div id="haulWrap" class="haul hidden">
+            <div class="q">Hauling the excavator today?
+                <small>Adds the DOT securement check</small></div>
+            <div class="yn">
+                <button id="haulYes" class="on">Yes</button>
+                <button id="haulNo">No</button>
+            </div>
+        </div>
+
+        <div id="sections"></div>
+
+        <div class="meta">
+            <div class="fld">
+                <label>Odometer / Hours</label>
+                <input id="odo" type="number" inputmode="numeric" placeholder="e.g. 84210">
+            </div>
+            <div class="fld" style="flex-basis:100%">
+                <label>Notes for the shop (optional)</label>
+                <textarea id="notes" rows="2" placeholder="Anything the mechanic should know"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- DONE -->
+    <div id="stepDone" class="done">
+        <div class="ck" id="doneCk">✅</div>
+        <h2 id="doneTitle">Logged</h2>
+        <div class="pill green" id="donePill">Rig cleared</div>
+        <p id="doneMsg"></p>
+        <div id="streakPill" style="display:none;font-family:var(--disp);font-size:34px;letter-spacing:1px;color:var(--amber);margin:6px 0 8px"></div>
+        <p id="alertMsg" style="font-family:var(--lab);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:-14px 0 22px"></p>
+        <a class="again" href="index.html">Done</a>
+    </div>
+</div>
+
+<!-- PIN keypad overlay -->
+<div id="pinOv">
+    <div class="who" id="pinWho">—</div>
+    <div class="ask">Enter your PIN</div>
+    <div class="dots" id="pinDots">
+        <span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span>
+    </div>
+    <div id="pinErr"></div>
+    <div class="keypad" id="keypad"></div>
+    <button id="pinCancel">Cancel</button>
+</div>
+
+<!-- sticky submit -->
+<div class="dock" id="dock">
+    <div class="dock-inner">
+        <div class="prog">
+            <span id="progText">0 / 0 checked</span>
+            <span class="bar"><i id="progBar"></i></span>
+        </div>
+        <button class="submit" id="submitBtn" disabled>Answer all items</button>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="firebase-config.js"></script>
+<script src="alerts-config.js"></script>
+<script src="checklists.js"></script>
+<script>
+(function(){
+    const params = new URLSearchParams(location.search);
+    const PRESELECT_TRUCK = params.get('truck');
+    let crewId = params.get('crew');
+
+    // QR sticker links can carry only ?truck= — resolve its crew, then re-enter
+    if (!crewId && PRESELECT_TRUCK){
+        if (typeof db !== 'undefined' && !firebaseConfig.databaseURL.includes('PASTE_')){
+            fleetRef('assets/'+PRESELECT_TRUCK+'/crew').once('value').then(s=>{
+                const c=s.val();
+                location.replace(c ? ('inspection.html?crew='+c+'&truck='+encodeURIComponent(PRESELECT_TRUCK)) : 'index.html');
+            }).catch(()=>{ location.href='index.html'; });
+        } else { location.href='index.html'; }
+        return;
+    }
+
+    const crew = CREWS[crewId];
+    if (!crew){ location.href = 'index.html'; return; }
+
+    document.documentElement.style.setProperty('--accent', crew.accent);
+    document.getElementById('crewName').firstChild.textContent = crew.label;
+    document.getElementById('crewSub').textContent = crew.sub;
+
+    if (typeof db === 'undefined' || firebaseConfig.databaseURL.includes('PASTE_')){
+        document.getElementById('cfgErr').style.display = 'block';
+        document.getElementById('dock').style.display = 'none';
+        return;
+    }
+    document.getElementById('dock').style.display = 'none'; // shown after name pick
+
+    let state = {
+        emp:null, empId:null, runType:'daily', hauling:true,
+        answers:{}, defectNotes:{}, defectPhotos:{}, assetSel:{}
+    };
+
+    // resize + compress a camera photo to a small JPEG dataURL for storage
+    function compressImage(file, maxDim, quality){
+        return new Promise((resolve,reject)=>{
+            const reader=new FileReader();
+            reader.onload=()=>{
+                const img=new Image();
+                img.onload=()=>{
+                    let w=img.width, h=img.height;
+                    const scale=Math.min(1, maxDim/Math.max(w,h));
+                    w=Math.round(w*scale); h=Math.round(h*scale);
+                    const c=document.createElement('canvas'); c.width=w; c.height=h;
+                    c.getContext('2d').drawImage(img,0,0,w,h);
+                    resolve(c.toDataURL('image/jpeg', quality));
+                };
+                img.onerror=reject; img.src=reader.result;
+            };
+            reader.onerror=reject; reader.readAsDataURL(file);
+        });
+    }
+
+    // ── load crew roster ─────────────────────────────────────────────
+    let ASSETS = {};
+    Promise.all([
+        fleetRef('employees').once('value'),
+        fleetRef('inspections').once('value'),
+        fleetRef('assets').once('value')
+    ]).then(([empSnap, inspSnap, assetSnap])=>{
+        const emps = empSnap.val() || {};
+        const insp = inspSnap.val() || {};
+        ASSETS = assetSnap.val() || {};
+        const list = Object.entries(emps)
+            .filter(([id,e])=>e.active && e.crew===crewId)
+            .sort((a,b)=>(a[1].name||'').localeCompare(b[1].name||''));
+
+        const grid = document.getElementById('nameGrid');
+        if (!list.length){ document.getElementById('noNames').style.display='block'; return; }
+
+        list.forEach(([id,e])=>{
+            const comp = complianceFor(e, insp[id]);
+            const st = streakFor(e, insp[id]);
+            const card = document.createElement('button');
+            card.className = 'namecard';
+            const chip = comp.status==='cleared'
+                ? '<span class="chip ok">✓ Done</span>'
+                : '<span class="chip due">Due</span>';
+            const sub = st.current>0 ? ('🔥 '+st.current+' '+st.unit+' streak')
+                                     : (comp.status==='cleared'?'Checked today':'Tap to start');
+            card.innerHTML = `<div><div class="nm">${e.name}</div>
+                <div class="rg">${sub}</div></div>${chip}`;
+            card.onclick = ()=>requirePin(id,e);
+            grid.appendChild(card);
+        });
+    }).catch(()=>{ document.getElementById('cfgErr').style.display='block'; });
+
+    // ── PIN gate (per person) ────────────────────────────────────────
+    let _pinBuf='', _pinTarget=null;
+    (function buildKeypad(){
+        const kp=document.getElementById('keypad');
+        ['1','2','3','4','5','6','7','8','9','del','0','ok'].forEach(k=>{
+            const b=document.createElement('button');
+            if(k==='del'){ b.className='act'; b.textContent='⌫'; }
+            else if(k==='ok'){ b.className='act'; b.textContent='Enter'; }
+            else b.textContent=k;
+            b.onclick=()=>pinPress(k);
+            kp.appendChild(b);
+        });
+    })();
+    function pinPress(k){
+        const ov=document.getElementById('pinOv');
+        ov.classList.remove('bad'); document.getElementById('pinErr').textContent='';
+        if(k==='del'){ _pinBuf=_pinBuf.slice(0,-1); }
+        else if(k==='ok'){ submitPin(); return; }
+        else if(_pinBuf.length<4){ _pinBuf+=k; }
+        paintDots();
+        if(_pinBuf.length===4) setTimeout(submitPin,120);  // auto-submit on 4th digit
+    }
+    function paintDots(){
+        document.querySelectorAll('#pinDots .d').forEach((d,i)=>d.classList.toggle('on', i<_pinBuf.length));
+    }
+    function submitPin(){
+        if(_pinBuf.length<4) return;
+        if(_pinBuf===String(_pinTarget.e.pin)){
+            closePin(); pickPerson(_pinTarget.id, _pinTarget.e);
+        } else {
+            const ov=document.getElementById('pinOv');
+            ov.classList.add('bad');
+            document.getElementById('pinErr').textContent='Wrong PIN — try again';
+            _pinBuf=''; paintDots();
+        }
+    }
+    function requirePin(id,e){
+        if(!e.pin){ pickPerson(id,e); return; }   // no PIN set → straight through
+        _pinTarget={id,e}; _pinBuf='';
+        document.getElementById('pinWho').textContent=e.name;
+        document.getElementById('pinErr').textContent='';
+        paintDots();
+        document.getElementById('pinOv').classList.add('show');
+    }
+    function closePin(){ document.getElementById('pinOv').classList.remove('show','bad'); _pinBuf=''; _pinTarget=null; }
+    document.getElementById('pinCancel').onclick=closePin;
+
+    // ── person picked ────────────────────────────────────────────────
+    function pickPerson(id,e){
+        state.emp=e; state.empId=id;
+        document.getElementById('stepName').classList.add('hidden');
+        document.getElementById('stepCheck').classList.remove('hidden');
+        document.getElementById('dock').style.display='block';
+        document.getElementById('backBtn').textContent='← Names';
+        document.getElementById('backBtn').href='#';
+        document.getElementById('backBtn').onclick=(ev)=>{ ev.preventDefault(); location.reload(); };
+
+        // rig banner + vehicle picker
+        const rig = document.getElementById('rigBanner');
+        state.assetSel = {};
+        const types = CREW_ASSET_TYPES[crewId] || ['truck'];
+        const crewAssets = Object.entries(ASSETS)
+            .filter(([aid,a])=>a.active!==false && a.crew===crewId);
+
+        let html = `<div class="who">${e.name}</div>`;
+        if (!crewAssets.length){
+            html += `<div class="f"><div class="k">Vehicle</div><div class="v" style="color:var(--amber)">None set up — ask your manager</div></div>`;
+            rig.innerHTML = html;
+        } else {
+            html += `<div class="rigsel" id="rigSel"></div>`;
+            rig.innerHTML = html;
+            const sel = document.getElementById('rigSel');
+            types.forEach(tp=>{
+                const opts = crewAssets.filter(([aid,a])=>a.type===tp);
+                if(!opts.length) return;
+                const T = ASSET_TYPES[tp];
+                const optional = (tp!=='truck'); // truck is the primary pick
+                const wrap=document.createElement('div'); wrap.className='f2';
+                let optHtml = optional ? `<option value="">— none —</option>` : '';
+                opts.sort((a,b)=>String(a[1].number||'').localeCompare(String(b[1].number||''),undefined,{numeric:true}))
+                    .forEach(([aid,a])=>{ optHtml += `<option value="${aid}">${T.label} ${a.number||''}${a.name?(' · '+a.name):''}</option>`; });
+                wrap.innerHTML = `<label>${T.glyph} ${T.label}</label><select data-type="${tp}">${optHtml}</select>`;
+                const s=wrap.querySelector('select');
+                // if arrived via a truck QR, preselect that vehicle
+                if (PRESELECT_TRUCK && opts.some(([aid])=>aid===PRESELECT_TRUCK)) s.value=PRESELECT_TRUCK;
+                const setSel=()=>{
+                    const aid=s.value;
+                    state.assetSel[tp] = aid ? {id:aid, ...ASSETS[aid]} : null;
+                };
+                s.onchange=setSel; setSel(); // default to first option
+                sel.appendChild(wrap);
+            });
+        }
+
+        // run type
+        if (crew.cadence==='daily'){
+            state.runType='daily';
+            document.getElementById('runTypeWrap').classList.remove('hidden');
+            buildRunTypes();
+        } else {
+            state.runType='weekly';
+        }
+        renderSections();
+    }
+    function field(k,v){
+        return `<div class="f"><div class="k">${k}</div><div class="v">${v||'—'}</div></div>`;
+    }
+
+    function buildRunTypes(){
+        const wrap = document.getElementById('runTypes');
+        wrap.innerHTML='';
+        const opts=[
+            {id:'daily', t:'Daily Check', s:'Pre-trip + securement'},
+            {id:'weekly',t:'Weekly Maint.', s:'Fluids + running gear'}
+        ];
+        opts.forEach(o=>{
+            const b=document.createElement('button');
+            b.className='rt'+(o.id===state.runType?' active':'');
+            b.innerHTML=`${o.t}<small>${o.s}</small>`;
+            b.onclick=()=>{ state.runType=o.id; [...wrap.children].forEach(c=>c.classList.remove('active'));
+                b.classList.add('active'); renderSections(); };
+            wrap.appendChild(b);
+        });
+    }
+
+    // ── render checklist ─────────────────────────────────────────────
+    function renderSections(){
+        state.answers={}; state.defectNotes={}; state.defectPhotos={};
+        const tpl = templateFor(state.runType);
+        const haulWrap = document.getElementById('haulWrap');
+        const showHaul = (state.runType==='daily' && crew.hauls);
+        haulWrap.classList.toggle('hidden', !showHaul);
+        if (showHaul) bindHaul();
+
+        const root = document.getElementById('sections');
+        root.innerHTML='';
+        tpl.forEach(sec=>{
+            const sectionEl=document.createElement('div');
+            sectionEl.className='section';
+            sectionEl.dataset.secId=sec.id;
+            if (sec.haulOnly && (!showHaul || !state.hauling)) sectionEl.classList.add('haul-hide');
+
+            sectionEl.innerHTML=`<div class="sec-head">
+                <span class="sec-title">${sec.title}</span>
+                <button class="markall">✓ All OK</button></div>`;
+            sec.items.forEach(it=>{
+                const item=document.createElement('div');
+                item.className='item';
+                item.dataset.itemId=it.id;
+                item.innerHTML=`
+                    <div class="item-row">
+                        <div class="item-label">${it.label}${it.critical?'<span class="crit">Critical</span>':''}</div>
+                        <div class="toggle">
+                            <button class="ok"  data-v="ok">OK</button>
+                            <button class="bad" data-v="defect">✕</button>
+                            <button class="na"  data-v="na">N/A</button>
+                        </div>
+                    </div>
+                    <div class="defect-note">
+                        <textarea placeholder="What's wrong? (helps the mechanic)"></textarea>
+                        <div class="photo-row">
+                            <label class="addphoto">📷 Add photo
+                                <input type="file" accept="image/*" capture="environment" hidden>
+                            </label>
+                            <div class="thumb-wrap"><img alt=""><button class="x" type="button">×</button></div>
+                        </div>
+                    </div>`;
+                const toggle=item.querySelector('.toggle');
+                toggle.querySelectorAll('button').forEach(btn=>{
+                    btn.onclick=()=>setAnswer(item, sec.id, it.id, btn.dataset.v);
+                });
+                item.querySelector('textarea').oninput=(e)=>{ state.defectNotes[it.id]=e.target.value; };
+                // photo wiring
+                const fileIn=item.querySelector('input[type=file]');
+                const thumbWrap=item.querySelector('.thumb-wrap');
+                const thumbImg=thumbWrap.querySelector('img');
+                fileIn.onchange=async(e)=>{
+                    const f=e.target.files&&e.target.files[0]; if(!f) return;
+                    try{
+                        const data=await compressImage(f,1024,0.6);
+                        state.defectPhotos[it.id]=data;
+                        thumbImg.src=data; thumbWrap.classList.add('show');
+                    }catch(_){ /* ignore */ }
+                    fileIn.value='';
+                };
+                thumbWrap.querySelector('.x').onclick=()=>{
+                    delete state.defectPhotos[it.id]; thumbImg.src=''; thumbWrap.classList.remove('show');
+                };
+                sectionEl.appendChild(item);
+            });
+            sectionEl.querySelector('.markall').onclick=()=>{
+                sec.items.forEach(it=>{
+                    const item=sectionEl.querySelector(`[data-item-id="${it.id}"]`);
+                    if (item.classList.contains('haul-hide')) return;
+                    setAnswer(item, sec.id, it.id, 'ok');
+                });
+            };
+            root.appendChild(sectionEl);
+        });
+        updateProgress();
+    }
+
+    function bindHaul(){
+        const yes=document.getElementById('haulYes'), no=document.getElementById('haulNo');
+        const apply=()=>{
+            document.querySelectorAll('.section').forEach(s=>{
+                const tpl=templateFor(state.runType);
+                const sec=tpl.find(x=>x.id===s.dataset.secId);
+                if (sec && sec.haulOnly) s.classList.toggle('haul-hide', !state.hauling);
+            });
+            // clear answers for hidden section so they don't block submit
+            const tpl=templateFor(state.runType);
+            tpl.filter(x=>x.haulOnly).forEach(sec=>sec.items.forEach(it=>{
+                if (!state.hauling) delete state.answers[it.id];
+            }));
+            updateProgress();
+        };
+        yes.onclick=()=>{ state.hauling=true; yes.classList.add('on'); no.classList.remove('on'); apply(); };
+        no.onclick =()=>{ state.hauling=false; no.classList.add('on'); yes.classList.remove('on'); apply(); };
+    }
+
+    function setAnswer(item, secId, itemId, val){
+        state.answers[itemId]=val;
+        const toggle=item.querySelector('.toggle');
+        toggle.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.v===val));
+        item.querySelector('.defect-note').classList.toggle('show', val==='defect');
+        if (val!=='defect'){
+            delete state.defectNotes[itemId];
+            delete state.defectPhotos[itemId];
+            const tw=item.querySelector('.thumb-wrap');
+            if(tw){ tw.classList.remove('show'); tw.querySelector('img').src=''; }
+        }
+        updateProgress();
+    }
+
+    // ── progress + submit gating ─────────────────────────────────────
+    function visibleItems(){
+        const tpl=templateFor(state.runType);
+        let items=[];
+        tpl.forEach(sec=>{
+            if (sec.haulOnly && (!(state.runType==='daily'&&crew.hauls) || !state.hauling)) return;
+            sec.items.forEach(it=>items.push(it));
+        });
+        return items;
+    }
+    function updateProgress(){
+        const items=visibleItems();
+        const answered=items.filter(it=>state.answers[it.id]).length;
+        const total=items.length;
+        document.getElementById('progText').textContent=`${answered} / ${total} checked`;
+        document.getElementById('progBar').style.width=(total?(answered/total*100):0)+'%';
+        const btn=document.getElementById('submitBtn');
+        const allDone=answered===total && total>0;
+        const anyDefect=items.some(it=>state.answers[it.id]==='defect');
+        btn.disabled=!allDone;
+        btn.classList.toggle('crit', allDone && anyDefect);
+        btn.textContent = !allDone ? `Answer all items (${total-answered} left)`
+                        : anyDefect ? 'Submit — flag defects' : 'Submit — all clear';
+    }
+
+    // ── submit ───────────────────────────────────────────────────────
+    document.getElementById('submitBtn').onclick=submit;
+    function submit(){
+        const items=visibleItems();
+        const defects=[];
+        let criticalCount=0;
+        const tpl=templateFor(state.runType);
+        const critMap={}; tpl.forEach(s=>s.items.forEach(it=>critMap[it.id]=!!it.critical));
+
+        items.forEach(it=>{
+            if (state.answers[it.id]==='defect'){
+                if (critMap[it.id]) criticalCount++;
+                const d={ item:it.label, note:(state.defectNotes[it.id]||'').trim(), critical:!!critMap[it.id] };
+                if (state.defectPhotos[it.id]) d.photo=state.defectPhotos[it.id];
+                defects.push(d);
+            }
+        });
+
+        const sel=state.assetSel||{};
+        const truck=sel.truck||sel.van||null;
+        const run={
+            type:state.runType,
+            hauling: (state.runType==='daily'&&crew.hauls) ? state.hauling : null,
+            truckId:    truck ? truck.id : null,
+            truckNumber:truck ? (truck.number||null) : null,
+            truckLabel: truck ? assetLabel(truck) : null,
+            trailerId:    sel.trailer ? sel.trailer.id : null,
+            trailerLabel: sel.trailer ? assetLabel(sel.trailer) : null,
+            excavatorId:    sel.excavator ? sel.excavator.id : null,
+            excavatorLabel: sel.excavator ? assetLabel(sel.excavator) : null,
+            answers:state.answers,
+            defects:defects,
+            defectCount:defects.length,
+            criticalCount:criticalCount,
+            odometer:document.getElementById('odo').value||null,
+            notes:document.getElementById('notes').value.trim()||null,
+            submittedBy:state.emp.name,
+            submittedAt:Date.now()
+        };
+
+        const today=dateKey();
+        const path=`inspections/${state.empId}/${today}`;
+        const key = state.runType==='daily' ? 'daily' : 'weekly';
+
+        const btn=document.getElementById('submitBtn');
+        btn.disabled=true; btn.textContent='Saving…';
+
+        fleetRef(path).child(key).set(run).then(()=>{
+            if (criticalCount>0) sendCriticalAlert(run, defects);   // fire-and-forget
+            showDone(criticalCount, defects.length);
+            // celebrate the streak (re-read this person's history including the run just saved)
+            fleetRef('inspections/'+state.empId).once('value').then(s=>{
+                const st=streakFor(state.emp, s.val());
+                const el=document.getElementById('streakPill');
+                if(el && st.current>1){ el.textContent='🔥 '+st.current+'-'+st.unit+' streak!'; el.style.display='block'; }
+            }).catch(()=>{});
+        }).catch(()=>{
+            btn.disabled=false; btn.textContent='Retry — save failed';
+        });
+    }
+
+    // ── critical-defect email alert (EmailJS, no backend) ─────────────
+    function sendCriticalAlert(run, defects){
+        if (typeof emailjs==='undefined' || typeof alertsConfigured!=='function' || !alertsConfigured()) return;
+        Promise.all([
+            fleetRef('config/alertEmails').once('value'),
+            fleetRef('config/alertEmail').once('value')
+        ]).then(([a,b])=>{
+            let list=[];
+            const v=a.val();
+            if(Array.isArray(v)) list=v.filter(Boolean);
+            else if(v && typeof v==='object') list=Object.values(v).filter(Boolean);
+            if(!list.length && b.val()) list=[b.val()];   // fallback to old single email
+            if(!list.length) return;
+
+            const critItems=defects.filter(d=>d.critical)
+                .map(d=>'• '+d.item+(d.note?(' — '+d.note):'')).join('\n');
+            const base={
+                driver:   run.submittedBy,
+                crew:     crew.label,
+                truck:    run.truckLabel || run.truckNumber || '(no truck selected)',
+                items:    critItems,
+                notes:    run.notes||'(none)',
+                when:     new Date().toLocaleString('en-US')
+            };
+            list.forEach(to=>{
+                emailjs.send(EMAILJS.serviceId, EMAILJS.templateId, { ...base, to_email:to })
+                    .catch(err=>console.warn('Alert email failed for', to, err));
+            });
+            const m=document.getElementById('alertMsg');
+            if(m) m.textContent='📧 Manager alerted by email';
+        });
+    }
+
+    function showDone(criticalCount, defectCount){
+        document.getElementById('stepCheck').classList.add('hidden');
+        document.getElementById('dock').style.display='none';
+        const d=document.getElementById('stepDone');
+        d.style.display='block';
+        const pill=document.getElementById('donePill');
+        if (criticalCount>0){
+            document.getElementById('doneCk').textContent='⛔';
+            document.getElementById('doneTitle').textContent='Rig Down';
+            pill.className='pill red'; pill.textContent=criticalCount+' critical defect'+(criticalCount>1?'s':'');
+            document.getElementById('doneMsg').textContent=
+                'Do NOT operate until repaired. The shop has been flagged. Tell your manager now.';
+        } else if (defectCount>0){
+            document.getElementById('doneCk').textContent='⚠️';
+            document.getElementById('doneTitle').textContent='Logged';
+            pill.className='pill red'; pill.textContent=defectCount+' defect'+(defectCount>1?'s':'')+' flagged';
+            document.getElementById('doneMsg').textContent=
+                'Non-critical issues logged for the shop. You\'re cleared to roll, but get these fixed.';
+        } else {
+            document.getElementById('doneCk').textContent='✅';
+            document.getElementById('doneTitle').textContent='Cleared';
+            pill.className='pill green'; pill.textContent='All clear';
+            document.getElementById('doneMsg').textContent='Good to go. Drive safe.';
+        }
+    }
+})();
+</script>
+</body>
+</html>
