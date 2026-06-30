@@ -209,6 +209,7 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
                     <hr class="divider"><div class="section-label">Performance</div>
                     <div class="trade-grid">
                         <label class="check-row"><input type="checkbox" ${c.reviewCompleted?'checked':''} onchange="updateCall('${c.id}','reviewCompleted',this.checked)"><span>✅ Review</span></label>
+                        <label class="check-row"><input type="checkbox" ${c.reviewWithPic?'checked':''} onchange="updateCall('${c.id}','reviewWithPic',this.checked)"><span>📸 Pic Review</span></label>
                         <label class="check-row"><input type="checkbox" ${c.restorationLead?'checked':''} onchange="updateCall('${c.id}','restorationLead',this.checked)"><span>🏠 Restoration</span></label>
                         <label class="check-row"><input type="checkbox" ${c.turnoverAttempted?'checked':''} onchange="updateCall('${c.id}','turnoverAttempted',this.checked)"><span>🔄 TO Attempt</span></label>
                         <label class="check-row"><input type="checkbox" ${c.turnoverAccepted?'checked':''} onchange="updateCall('${c.id}','turnoverAccepted',this.checked)" ${!c.turnoverAttempted?'disabled':''}><span>✔️ TO Accepted</span></label>
@@ -233,7 +234,7 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
                     </select></div>
                 </div>`).join('');
         });
-        const newCallPayload={customerName:'',jobNumber:'',customerPhone:'',reviewCompleted:false,restorationLead:false,turnoverAttempted:false,turnoverAccepted:false,threeDoorKnocks:false,membershipPlanSold:false,upsellCompleted:false,upsellAmount:0,jobComplete:false,jobSold:false,amountSold:0,amountCollected:0,moneyOwed:0,paymentMethod:'',hasParts:false,hasLabor:false,isNewCustomer:false,leftEstimate:false,estimateAmount:0,jobCancelled:false,cancelReason:'',tradePlumbing:false,tradeHVAC:false,tradeElectrical:false,tradeCameras:false,actionThermostat:false,objection:'',soldFromTurnover:false,turnoverFrom:'',timestamp:Date.now(),timeOfDay:new Date().getHours()};
+        const newCallPayload={customerName:'',jobNumber:'',customerPhone:'',reviewCompleted:false,reviewWithPic:false,restorationLead:false,turnoverAttempted:false,turnoverAccepted:false,threeDoorKnocks:false,membershipPlanSold:false,upsellCompleted:false,upsellAmount:0,jobComplete:false,jobSold:false,amountSold:0,amountCollected:0,moneyOwed:0,paymentMethod:'',hasParts:false,hasLabor:false,isNewCustomer:false,leftEstimate:false,estimateAmount:0,jobCancelled:false,cancelReason:'',tradePlumbing:false,tradeHVAC:false,tradeElectrical:false,tradeCameras:false,actionThermostat:false,objection:'',soldFromTurnover:false,turnoverFrom:'',timestamp:Date.now(),timeOfDay:new Date().getHours()};
         const doAddCall=()=>{ db.ref(`callLogs/${key}`).push().set({...newCallPayload,timestamp:Date.now(),timeOfDay:new Date().getHours()}).then(ref=>{ setTimeout(()=>{ const cards=document.querySelectorAll('.call-card'); if(cards.length) cards[cards.length-1].scrollIntoView({behavior:'smooth',block:'start'}); },200); }); };
         document.getElementById('addCallBtn').onclick=doAddCall;
         document.getElementById('addCallBottom').onclick=doAddCall;
