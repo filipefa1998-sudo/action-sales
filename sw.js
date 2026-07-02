@@ -1,71 +1,47 @@
-// Action Plumbing Sales Tracker — Service Worker
-// Caches the app shell so it loads fast even on bad signal.
-// Data always comes from Firebase (live), never cached.
+/* ══════════════════════════════════════════════════════════════════
+   ACTION ARMY — SERVICE WORKER
+   Strategy: network-first for everything (so GitHub Pages deploys
+   show up immediately), falling back to the last cached copy when
+   offline. Firebase SDK + Google Fonts get cached too, so the app
+   shell opens with no signal — live data syncs when Firebase
+   reconnects.
+   Bump CACHE_VERSION any time you want to force-clear old caches.
+   ══════════════════════════════════════════════════════════════════ */
+const CACHE_VERSION = 'action-army-v2';
 
-const CACHE_NAME = 'action-tracker-v1';
-const SHELL = [
-  '/action-sales/index.html',
-  '/action-sales/calls.html',
-  '/action-sales/goals.html',
-  '/action-sales/reports.html',
-  '/action-sales/money.html',
-  '/action-sales/competition.html',
-  '/action-sales/manager.html',
-  '/action-sales/turnin.html',
-  '/action-sales/action_workbook.html',
-  '/action-sales/team_workbook.html',
-  '/action-sales/manifest.json',
-  '/action-sales/icon-192x192.png',
-  '/action-sales/icon-512x512.png'
-];
-
-// Install — cache the app shell
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL))
-  );
-  self.skipWaiting();
+self.addEventListener('install', (e) => {
+    self.skipWaiting();
 });
 
-// Activate — clean up old caches
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+self.addEventListener('activate', (e) => {
+    e.waitUntil(
+        caches.keys().then(keys =>
+            Promise.all(keys.filter(k => k !== CACHE_VERSION).map(k => caches.delete(k)))
+        ).then(() => self.clients.claim())
+    );
 });
 
-// Fetch — network first for Firebase, cache first for app shell
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
+self.addEventListener('fetch', (e) => {
+    const req = e.request;
+    if (req.method !== 'GET') return;
 
-  // Always go network for Firebase / external APIs
-  if (
-    url.hostname.includes('firebase') ||
-    url.hostname.includes('firebaseio') ||
-    url.hostname.includes('googleapis') ||
-    url.hostname.includes('gstatic') ||
-    url.hostname.includes('fonts') ||
-    url.hostname.includes('anthropic') ||
-    url.hostname.includes('workers.dev')
-  ) {
-    return; // let browser handle it normally
-  }
+    // Never intercept Firebase Realtime Database traffic
+    const url = new URL(req.url);
+    if (url.hostname.endsWith('firebaseio.com') || url.hostname.endsWith('firebasedatabase.app')) return;
 
-  // Cache-first for local app files
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(response => {
-        // Cache new local files on the fly
-        if (response && response.status === 200 && e.request.method === 'GET') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-        }
-        return response;
-      });
-    })
-  );
+    e.respondWith(
+        fetch(req)
+            .then(res => {
+                if (res && (res.ok || res.type === 'opaque')) {
+                    const copy = res.clone();
+                    caches.open(CACHE_VERSION).then(c => c.put(req, copy)).catch(() => {});
+                }
+                return res;
+            })
+            .catch(() =>
+                caches.match(req).then(hit =>
+                    hit || (req.mode === 'navigate' ? caches.match('index.html') : Response.error())
+                )
+            )
+    );
 });

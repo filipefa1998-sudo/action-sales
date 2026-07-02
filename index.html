@@ -1,13 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#080808">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Action Plumbing — Sales Tracker</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -185,7 +190,7 @@ html.light .nav-card.mgr-card .nav-card-title{color:var(--muted);}
         /* ── STAT STRIP ── */
         .stat-strip {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(4, 1fr);
             gap: 12px;
             margin-bottom: 32px;
         }
@@ -396,7 +401,31 @@ html.light .nav-card.mgr-card .nav-card-title{color:var(--muted);}
             background: var(--wire);
         }
         @media (max-width: 860px) { .nav-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 520px) { .nav-grid { grid-template-columns: 1fr; } .stat-strip { grid-template-columns: 1fr; } }
+        /* ── LIVE TILE CHIPS ── */
+        .live-chip {
+            margin-top: 10px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 10.5px;
+            font-weight: 600;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .live-chip::before {
+            content: '';
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--red);
+            animation: lcPulse 2.2s ease-in-out infinite;
+            flex: none;
+        }
+        .live-chip b { color: var(--text); font-weight: 700; }
+        @keyframes lcPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+        @media (max-width: 820px) { .stat-strip { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 520px) { .nav-grid { grid-template-columns: 1fr; } }
 
         .nav-card {
             background: var(--s1);
@@ -587,6 +616,16 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
             <div class="stat-label">Today's Revenue</div>
             <div id="todayRevenue" class="stat-num">$0</div>
             <div class="stat-meta">Team total</div>
+        </div>
+        <div class="stat-block">
+            <div class="stat-label">Sold Today</div>
+            <div id="todaySold" class="stat-num">0</div>
+            <div class="stat-meta">Jobs closed</div>
+        </div>
+        <div class="stat-block">
+            <div class="stat-label">Close Rate Today</div>
+            <div id="todayClose" class="stat-num">—</div>
+            <div class="stat-meta">Team, sold ÷ calls</div>
         </div>
     </div>
 
@@ -955,6 +994,218 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
         document.getElementById('navigation').style.display = show ? 'block' : 'none';
         document.getElementById('selectMsg').style.display = !show && people.length ? 'block' : 'none';
     }
+</script>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   LIVE DASHBOARD — today strip extras + live chips on nav tiles
+   Piggybacks on the page's existing callLogs/salespeople listeners
+   by wrapping renderStats/renderNav. Gym counts come from a shallow
+   REST read (keys only) so we never download gym photos here.
+   ══════════════════════════════════════════════════════════════ */
+(function(){
+    const CHIPS = [
+        ['calls.html',       'lcCalls'],
+        ['goals.html',       'lcMine'],
+        ['reports.html',     'lcTeam'],
+        ['turnin.html',      'lcTurnin'],
+        ['money.html',       'lcMoney'],
+        ['competition.html', 'lcComp'],
+        ['gym.html',         'lcGym']
+    ];
+    CHIPS.forEach(([href, id]) => {
+        const card = document.querySelector(`.nav-card[href="${href}"]`);
+        if (!card || document.getElementById(id)) return;
+        const el = document.createElement('div');
+        el.className = 'live-chip';
+        el.id = id;
+        el.innerHTML = '&hellip;';
+        const num = card.querySelector('.card-num');
+        card.insertBefore(el, num || null);
+    });
+    const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+
+    const pad = n => String(n).padStart(2, '0');
+    const dkOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const mkOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+
+    let compCfg = null;
+    let gymKeys = [];   // ["pid_YYYY-MM-DD", ...] for current month via shallow REST
+
+    const monthKey = mkOf(new Date());
+    db.ref(`monthlyCompetition/${monthKey}`).on('value', s => { compCfg = s.val(); renderLive(); });
+
+    fetch('https://action-sales-tracker-default-rtdb.firebaseio.com/gymLogs.json?shallow=true')
+        .then(r => r.json())
+        .then(k => { gymKeys = k ? Object.keys(k) : []; renderLive(); })
+        .catch(() => {});
+
+    function monthEntries() {
+        const out = [];
+        const mk = monthKey;
+        Object.keys(logs || {}).forEach(key => {
+            const us = key.lastIndexOf('_');
+            if (us < 0) return;
+            const date = key.slice(us + 1), pid = key.slice(0, us);
+            if (date.slice(0, 7) !== mk) return;
+            Object.values(logs[key]).forEach(c => out.push({ pid, date, c }));
+        });
+        return out;
+    }
+
+    function competitionLeader(entries) {
+        if (!compCfg) return null;
+        const teams = [1,2,3,4].map(n => {
+            const t = compCfg[`team${n}`] || {};
+            const members = [t.captain, ...(t.members || [])].filter(Boolean);
+            return { n, captain: t.captain, members };
+        }).filter(t => t.members.length);
+        if (!teams.length) return null;
+        const excl = new Set(compCfg.excludeClose || []);
+        const gymDaysByPid = {};
+        gymKeys.forEach(k => {
+            const us = k.lastIndexOf('_');
+            if (us < 0 || k.slice(us + 1, us + 8) !== monthKey) return;
+            const pid = k.slice(0, us);
+            (gymDaysByPid[pid] = gymDaysByPid[pid] || new Set()).add(k.slice(us + 1));
+        });
+        const stats = teams.map(t => {
+            const s = { turnoverRevenue:0, reviewPoints:0, closeCalls:0, closeSold:0, actionStats:0, gymSessions:0 };
+            const mset = new Set(t.members);
+            entries.forEach(({ pid, c }) => {
+                if (!mset.has(pid)) return;
+                if (c.actionThermostat) s.actionStats++;
+                if (c.reviewWithPic) s.reviewPoints += 2; else if (c.reviewCompleted) s.reviewPoints += 1;
+                if (!excl.has(pid)) { s.closeCalls++; if (c.jobSold) s.closeSold++; }
+                if (c.jobSold && c.soldFromTurnover && c.turnoverFrom) s.turnoverRevenue += parseFloat(c.amountSold) || 0;
+            });
+            t.members.forEach(pid => { s.gymSessions += (gymDaysByPid[pid] ? gymDaysByPid[pid].size : 0); });
+            s.closePercent = s.closeCalls ? s.closeSold / s.closeCalls * 100 : 0;
+            return { ...t, ...s, pts: 0 };
+        });
+        const CATS = [
+            ['turnoverRevenue', 25, 12.5], ['reviewPoints', 25, 12.5],
+            ['closePercent', 25, 12.5], ['gymSessions', 25, 12.5], ['actionStats', 10, 5]
+        ];
+        CATS.forEach(([key, first, second]) => {
+            const vals = [...new Set(stats.map(s => s[key]))].sort((a, b) => b - a);
+            if (vals[0] > 0) stats.forEach(s => { if (s[key] === vals[0]) s.pts += first; });
+            if (vals.length > 1 && vals[1] > 0) stats.forEach(s => { if (s[key] === vals[1]) s.pts += second; });
+        });
+        stats.sort((a, b) => b.pts - a.pts);
+        const lead = stats[0];
+        if (!lead || !lead.pts) return null;
+        const name = (people.find(p => p.id === lead.captain) || {}).name || `Team ${lead.n}`;
+        return { name, pts: lead.pts };
+    }
+
+    window.renderLive = function() {
+        try {
+            const todayK = dkOf(new Date());
+            let tCalls = 0, tSold = 0;
+            (people || []).forEach(p => {
+                const c = (logs || {})[`${p.id}_${todayK}`];
+                if (c) Object.values(c).forEach(x => { tCalls++; if (x.jobSold) tSold++; });
+            });
+            const tc = document.getElementById('todaySold');
+            if (tc) tc.textContent = tSold;
+            const tcl = document.getElementById('todayClose');
+            if (tcl) tcl.textContent = tCalls ? Math.round(tSold / tCalls * 100) + '%' : '\u2014';
+
+            const entries = monthEntries();
+            let mCalls = 0, mSold = 0, mRev = 0, mOwed = 0;
+            entries.forEach(({ c }) => {
+                mCalls++;
+                if (c.jobSold) { mSold++; mRev += parseFloat(c.amountSold) || 0; }
+                mOwed += parseFloat(c.moneyOwed) || 0;
+            });
+            const close = mCalls ? Math.round(mSold / mCalls * 100) : 0;
+            const revK = mRev >= 1000 ? (mRev / 1000).toFixed(1) + 'k' : Math.round(mRev);
+
+            set('lcCalls', `<b>${tCalls}</b>&nbsp;calls today`);
+            set('lcTurnin', `<b>${tSold}</b>&nbsp;sold today`);
+            set('lcTeam', `MTD&nbsp;<b>${close}%</b>&nbsp;close &middot; <b>$${revK}</b>`);
+            set('lcMoney', `<b>$${Math.round(mOwed).toLocaleString()}</b>&nbsp;outstanding`);
+
+            const gymMTD = gymKeys.filter(k => { const us = k.lastIndexOf('_'); return us > -1 && k.slice(us + 1, us + 8) === monthKey; }).length;
+            set('lcGym', `<b>${gymMTD}</b>&nbsp;gym days MTD`);
+
+            if (selected) {
+                let pc = 0, ps = 0;
+                entries.forEach(({ pid, c }) => { if (pid === selected) { pc++; if (c.jobSold) ps++; } });
+                set('lcMine', pc ? `You: <b>${Math.round(ps / pc * 100)}%</b>&nbsp;close MTD` : 'No calls yet this month');
+            }
+
+            const lead = competitionLeader(entries);
+            set('lcComp', lead ? `&#127942; <b>${lead.name}</b>&nbsp;leading &middot; +${lead.pts}%` : 'Teams not set');
+        } catch (e) { /* dashboard chips are best-effort */ }
+    };
+
+    const _rs = renderStats; renderStats = function(){ _rs(); renderLive(); };
+    const _rn = renderNav;   renderNav   = function(){ _rn(); renderLive(); };
+    renderLive();
+})();
+</script>
+<style>
+#abn,#abn-sheet,#abn-scrim{display:none}
+@media(max-width:900px){
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom))!important}
+#abn{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:99990;
+background:rgba(10,10,10,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+border-top:1px solid rgba(255,255,255,.09);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+html.light #abn{background:rgba(250,250,250,.94);border-top-color:rgba(0,0,0,.1)}
+.abn-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+padding:6px 2px;text-decoration:none;color:#8a8a8a;position:relative;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent;font:inherit}
+.abn-ico{font-size:19px;line-height:1}
+.abn-lab{font-family:'Oswald',sans-serif;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+.abn-tab.on{color:#dc2626}
+.abn-tab.on::before{content:'';position:absolute;top:-7px;left:25%;right:25%;height:2px;background:#dc2626}
+#abn-scrim.open{display:block;position:fixed;inset:0;z-index:99991;background:rgba(0,0,0,.55)}
+#abn-sheet.open{display:block;position:fixed;left:0;right:0;bottom:0;z-index:99992;
+background:#111;border-top:2px solid #dc2626;padding:18px 16px calc(20px + env(safe-area-inset-bottom))}
+html.light #abn-sheet.open{background:#fff}
+.abn-sh{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#7a7a7a;margin-bottom:12px}
+.abn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.abn-item{display:flex;align-items:center;gap:10px;padding:13px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);text-decoration:none;color:#e8e8e8}
+html.light .abn-item{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.08);color:#111}
+.abn-item .i{font-size:18px}
+.abn-item .t{font-family:'Oswald',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+}
+</style>
+<nav id="abn">
+ <a class="abn-tab" href="index.html" data-p="index.html"><span class="abn-ico">&#127968;</span><span class="abn-lab">Home</span></a>
+ <a class="abn-tab" href="calls.html" data-p="calls.html"><span class="abn-ico">&#128222;</span><span class="abn-lab">Calls</span></a>
+ <a class="abn-tab" href="goals.html" data-p="goals.html"><span class="abn-ico">&#127919;</span><span class="abn-lab">My Report</span></a>
+ <a class="abn-tab" href="turnin.html" data-p="turnin.html"><span class="abn-ico">&#128203;</span><span class="abn-lab">Turn-In</span></a>
+ <button class="abn-tab" id="abn-more" type="button"><span class="abn-ico">&#9776;</span><span class="abn-lab">More</span></button>
+</nav>
+<div id="abn-scrim"></div>
+<div id="abn-sheet">
+ <div class="abn-sh">More</div>
+ <div class="abn-grid">
+  <a class="abn-item" href="reports.html"><span class="i">&#128202;</span><span class="t">Team Report</span></a>
+  <a class="abn-item" href="money.html"><span class="i">&#128176;</span><span class="t">Money Owed</span></a>
+  <a class="abn-item" href="competition.html"><span class="i">&#127942;</span><span class="t">Competition</span></a>
+  <a class="abn-item" href="doors.html"><span class="i">&#128682;</span><span class="t">Door Knock</span></a>
+  <a class="abn-item" href="gym.html"><span class="i">&#127947;&#65039;</span><span class="t">Log Gym</span></a>
+  <a class="abn-item" href="training.html"><span class="i">&#127891;</span><span class="t">Sales Academy</span></a>
+  <a class="abn-item" href="manager.html"><span class="i">&#129517;</span><span class="t">Manager</span></a>
+ </div>
+</div>
+<script>
+(function(){
+ var p=(location.pathname.split('/').pop()||'index.html');
+ document.querySelectorAll('.abn-tab[data-p]').forEach(function(t){if(t.getAttribute('data-p')===p)t.classList.add('on');});
+ var more=['reports.html','money.html','competition.html','doors.html','gym.html','training.html','manager.html','action_workbook.html','team_workbook.html'];
+ if(more.indexOf(p)>-1)document.getElementById('abn-more').classList.add('on');
+ var sheet=document.getElementById('abn-sheet'),scrim=document.getElementById('abn-scrim');
+ document.getElementById('abn-more').onclick=function(){sheet.classList.toggle('open');scrim.classList.toggle('open');};
+ scrim.onclick=function(){sheet.classList.remove('open');scrim.classList.remove('open');};
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
 </script>
 </body>
 </html>
