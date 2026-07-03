@@ -1,8 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#080808">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Competition — Action Plumbing</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -100,7 +106,7 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
         </div>
         <div style="background:var(--s2);border:1px solid var(--wire);border-left:3px solid var(--red);padding:14px 16px;margin-bottom:20px">
             <div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text);margin-bottom:6px">🏆 How the Bonus Works</div>
-            <div style="font-size:13px;color:var(--muted);line-height:1.5">Four core categories pay <strong style="color:var(--text)">25%</strong> to the team that wins and <strong style="color:var(--text)">12.5%</strong> for second: Turnover Revenue (credited to the giver's team) · Certified Reviews (1 pt review / 2 pts photo review) · Close % (non-runners excludable) · Gym (most sessions). <strong style="color:var(--text)">Action Stats</strong> (most sold) is a bonus category worth <strong style="color:var(--text)">10%</strong> for first and <strong style="color:var(--text)">5%</strong> for second. Whichever team wins the most categories takes the crown.</div>
+            <div style="font-size:13px;color:var(--muted);line-height:1.5">Four core categories pay <strong style="color:var(--text)">25%</strong> to the team that wins and <strong style="color:var(--text)">12.5%</strong> for second: Turnover Revenue · Certified Reviews (1 pt review / 2 pts photo review) · Close % (non-runners excludable) · Gym (most sessions). <strong style="color:var(--text)">Action Stats</strong> (most sold) is a bonus category worth <strong style="color:var(--text)">10%</strong> for first and <strong style="color:var(--text)">5%</strong> for second. Whichever team wins the most categories takes the crown.</div>
         </div>
         <!-- Team Setup -->
         <div class="sec-label">Team Setup</div>
@@ -173,12 +179,12 @@ document.getElementById('saveTeams').onclick=()=>{const config={team1:{captain:d
 function getMDates(date){const y=date.getFullYear(),m=date.getMonth(),last=new Date(y,m+1,0).getDate();return Array.from({length:last},(_,i)=>new Date(y,m,i+1));}
 function getCalls(pid,d){const key=`${pid}_${dk(d)}`;const l=logs[key];return l?Object.values(l):[];}
 function getGym(pid,d){const key=`${pid}_${dk(d)}`;const l=gymLogs[key];return l?Object.values(l):[];}
-function calcTeamStats(memberIds,dates,excludeSet,turnoverByGiver){const s={revenue:0,reviews:0,reviewPoints:0,totalCalls:0,callsSold:0,turnoverRevenue:0,actionStats:0,gymSessions:0,gymMinutes:0};memberIds.forEach(pid=>{const excl=excludeSet&&excludeSet.has(pid);const gymDays=new Set();dates.forEach(d=>{getCalls(pid,d).forEach(c=>{if(!excl)s.totalCalls++;if(c.actionThermostat)s.actionStats++;if(c.reviewWithPic){s.reviewPoints+=2;s.reviews++;}else if(c.reviewCompleted){s.reviewPoints+=1;s.reviews++;}if(c.jobSold){if(!excl)s.callsSold++;s.revenue+=parseFloat(c.amountSold)||0;}});const gs=getGym(pid,d);if(gs.length){gymDays.add(dk(d));gs.forEach(g=>{s.gymMinutes+=parseFloat(g.durationMin)||0;});}});s.gymSessions+=gymDays.size;});s.turnoverRevenue=memberIds.reduce((a,pid)=>a+((turnoverByGiver&&turnoverByGiver[pid])||0),0);s.closePercent=s.totalCalls>0?(s.callsSold/s.totalCalls*100):0;return s;}
-function calcPersonStats(pid,dates,turnoverByGiver){const s={turnoverRevenue:0,reviewPoints:0,actionStats:0,gymSessions:0,callsSold:0,totalCalls:0};const gymDays=new Set();dates.forEach(d=>{getCalls(pid,d).forEach(c=>{s.totalCalls++;if(c.actionThermostat)s.actionStats++;if(c.reviewWithPic)s.reviewPoints+=2;else if(c.reviewCompleted)s.reviewPoints+=1;if(c.jobSold)s.callsSold++;});if(getGym(pid,d).length)gymDays.add(dk(d));});s.gymSessions=gymDays.size;s.turnoverRevenue=(turnoverByGiver&&turnoverByGiver[pid])||0;s.closePercent=s.totalCalls>0?(s.callsSold/s.totalCalls*100):0;return s;}
+function calcTeamStats(memberIds,dates,excludeSet){const s={revenue:0,reviews:0,reviewPoints:0,totalCalls:0,callsSold:0,turnoverRevenue:0,actionStats:0,gymSessions:0,gymMinutes:0};memberIds.forEach(pid=>{const excl=excludeSet&&excludeSet.has(pid);const gymDays=new Set();dates.forEach(d=>{getCalls(pid,d).forEach(c=>{if(!excl)s.totalCalls++;if(c.actionThermostat)s.actionStats++;if(c.reviewWithPic){s.reviewPoints+=2;s.reviews++;}else if(c.reviewCompleted){s.reviewPoints+=1;s.reviews++;}if(c.jobSold){if(!excl)s.callsSold++;s.revenue+=parseFloat(c.amountSold)||0;}});const gs=getGym(pid,d);if(gs.length){gymDays.add(dk(d));gs.forEach(g=>{s.gymMinutes+=parseFloat(g.durationMin)||0;});}});s.gymSessions+=gymDays.size;});const tmset=new Set(memberIds);dates.forEach(d=>{people.forEach(p=>{getCalls(p.id,d).forEach(c=>{if(c.jobSold&&c.soldFromTurnover&&c.turnoverFrom&&tmset.has(c.turnoverFrom))s.turnoverRevenue+=parseFloat(c.amountSold)||0;});});});s.closePercent=s.totalCalls>0?(s.callsSold/s.totalCalls*100):0;return s;}
+function calcPersonStats(pid,dates){const s={turnoverRevenue:0,reviewPoints:0,actionStats:0,gymSessions:0,callsSold:0,totalCalls:0};const gymDays=new Set();dates.forEach(d=>{getCalls(pid,d).forEach(c=>{s.totalCalls++;if(c.actionThermostat)s.actionStats++;if(c.reviewWithPic)s.reviewPoints+=2;else if(c.reviewCompleted)s.reviewPoints+=1;if(c.jobSold)s.callsSold++;});people.forEach(p=>{getCalls(p.id,d).forEach(c=>{if(c.jobSold&&c.soldFromTurnover&&c.turnoverFrom===pid)s.turnoverRevenue+=parseFloat(c.amountSold)||0;});});if(getGym(pid,d).length)gymDays.add(dk(d));});s.gymSessions=gymDays.size;s.closePercent=s.totalCalls>0?(s.callsSold/s.totalCalls*100):0;return s;}
 const CATS=[{key:'turnoverRevenue',label:'Turnover Rev',first:25,second:12.5,fmt:v=>'$'+Math.round(v).toLocaleString()},{key:'reviewPoints',label:'Cert. Reviews',first:25,second:12.5,fmt:v=>v+' pts'},{key:'closePercent',label:'Close %',first:25,second:12.5,fmt:v=>v.toFixed(1)+'%'},{key:'gymSessions',label:'Gym',first:25,second:12.5,fmt:v=>v+' days'},{key:'actionStats',label:'Action Stats',first:10,second:5,fmt:v=>v}];
 const teamColors=['sc-t1','sc-t2','sc-t3','sc-t4'];
 const teamAccents=['#93c5fd','#86efac','#fcd34d','#c4b5fd'];
-function renderStats(){document.getElementById('monthYear').textContent=currentDate.toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();const dates=getMDates(currentDate);const turnoverByGiver={};people.forEach(p=>{dates.forEach(d=>{getCalls(p.id,d).forEach(c=>{if(c.jobSold&&c.soldFromTurnover&&c.turnoverFrom)turnoverByGiver[c.turnoverFrom]=(turnoverByGiver[c.turnoverFrom]||0)+(parseFloat(c.amountSold)||0);});});});const teams=[{num:1,captain:teamConfig.team1?.captain,members:[teamConfig.team1?.captain,...(teamConfig.team1?.members||[])].filter(Boolean)},{num:2,captain:teamConfig.team2?.captain,members:[teamConfig.team2?.captain,...(teamConfig.team2?.members||[])].filter(Boolean)},{num:3,captain:teamConfig.team3?.captain,members:[teamConfig.team3?.captain,...(teamConfig.team3?.members||[])].filter(Boolean)},{num:4,captain:teamConfig.team4?.captain,members:[teamConfig.team4?.captain,...(teamConfig.team4?.members||[])].filter(Boolean)}];const excludeSet=new Set(teamConfig.excludeClose||[]);let teamStats=teams.map(team=>{const stats=calcTeamStats(team.members,dates,excludeSet,turnoverByGiver);const captainName=people.find(p=>p.id===team.captain)?.name||'No Captain';return{...team,...stats,captainName,points:0};}).filter(t=>t.members.length>0);if(!teamStats.length){document.getElementById('leaderboard').innerHTML='<div style="font-family:Oswald,sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:20px">Set up teams above to start the competition</div>';document.getElementById('detailedStats').innerHTML='';document.getElementById('gapToFirst').innerHTML='';document.getElementById('individualContrib').innerHTML='';document.getElementById('lockArea').innerHTML='';return;}
+function renderStats(){document.getElementById('monthYear').textContent=currentDate.toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();const dates=getMDates(currentDate);const teams=[{num:1,captain:teamConfig.team1?.captain,members:[teamConfig.team1?.captain,...(teamConfig.team1?.members||[])].filter(Boolean)},{num:2,captain:teamConfig.team2?.captain,members:[teamConfig.team2?.captain,...(teamConfig.team2?.members||[])].filter(Boolean)},{num:3,captain:teamConfig.team3?.captain,members:[teamConfig.team3?.captain,...(teamConfig.team3?.members||[])].filter(Boolean)},{num:4,captain:teamConfig.team4?.captain,members:[teamConfig.team4?.captain,...(teamConfig.team4?.members||[])].filter(Boolean)}];const excludeSet=new Set(teamConfig.excludeClose||[]);let teamStats=teams.map(team=>{const stats=calcTeamStats(team.members,dates,excludeSet);const captainName=people.find(p=>p.id===team.captain)?.name||'No Captain';return{...team,...stats,captainName,points:0};}).filter(t=>t.members.length>0);if(!teamStats.length){document.getElementById('leaderboard').innerHTML='<div style="font-family:Oswald,sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:20px">Set up teams above to start the competition</div>';document.getElementById('detailedStats').innerHTML='';document.getElementById('gapToFirst').innerHTML='';document.getElementById('individualContrib').innerHTML='';document.getElementById('lockArea').innerHTML='';return;}
 teamStats.forEach(t=>{t.bonus=0;t.wins=0;});CATS.forEach(cat=>{const ranked=[...teamStats].filter(t=>(t[cat.key]||0)>0).sort((a,b)=>b[cat.key]-a[cat.key]);if(!ranked.length)return;const topVal=ranked[0][cat.key];const firsts=ranked.filter(t=>t[cat.key]===topVal);firsts.forEach(t=>{const w=teamStats.find(x=>x.num===t.num);w.bonus+=cat.first;w.wins++;});if(firsts.length===1){const rest=ranked.filter(t=>t[cat.key]<topVal);if(rest.length){const secVal=rest[0][cat.key];rest.filter(t=>t[cat.key]===secVal).forEach(t=>{const r=teamStats.find(x=>x.num===t.num);r.bonus+=cat.second;});}}});teamStats.sort((a,b)=>b.wins-a.wins||b.bonus-a.bonus||b.turnoverRevenue-a.turnoverRevenue);
 const lockedSnap=savedResults[currentMonthKey];
 lastLiveStats=teamStats.map(t=>({num:t.num,captainName:t.captainName,members:t.members,revenue:t.revenue,turnoverRevenue:t.turnoverRevenue,reviewPoints:t.reviewPoints,closePercent:t.closePercent,gymSessions:t.gymSessions,actionStats:t.actionStats,bonus:t.bonus,wins:t.wins}));
@@ -188,7 +194,7 @@ document.getElementById('detailedStats').innerHTML=`<div class="sec-label" style
 // ── Gap to First ──
 const gapHtml=CATS.map(cat=>{const ranked=[...teamStats].sort((a,b)=>b[cat.key]-a[cat.key]);const leadVal=ranked[0]?.[cat.key]||0;const leadName=ranked[0]?.captainName||'—';const lAccent=ranked[0]?teamAccents[ranked[0].num-1]:'var(--muted)';const chasers=teamStats.filter(t=>t.num!==ranked[0]?.num).sort((a,b)=>b[cat.key]-a[cat.key]).map(t=>{const gap=leadVal-(t[cat.key]||0);return`<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-top:1px solid var(--wire)"><span style="color:var(--muted)">Team ${t.captainName}</span><span style="font-family:'Oswald',sans-serif;font-weight:600;color:${gap<=0?'var(--green)':'var(--text)'}">${gap<=0?'tied / leading':'+'+cat.fmt(gap)+' to lead'}</span></div>`;}).join('');return`<div class="card-inner"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">${cat.label}</span><span style="font-size:12px;color:${lAccent};font-family:'Oswald',sans-serif;letter-spacing:.06em;text-transform:uppercase">🥇 ${leadName} · ${cat.fmt(leadVal)}</span></div>${chasers||'<div style="font-size:12px;color:var(--muted)">No other teams</div>'}</div>`;}).join('');document.getElementById('gapToFirst').innerHTML=`<div class="sec-label" style="margin-bottom:16px">Gap to First</div>`+gapHtml;
 // ── Individual Contributions (live) ──
-const indHtml=teams.filter(t=>t.members.length>0).map(team=>{const accent=teamAccents[team.num-1];const rows=team.members.map(pid=>{const nm=people.find(p=>p.id===pid)?.name||'Unknown';const ps=calcPersonStats(pid,dates,turnoverByGiver);const isCap=pid===team.captain;const excl=excludeSet.has(pid);return`<div style="display:grid;grid-template-columns:1.4fr repeat(5,1fr);gap:6px;align-items:center;padding:8px 10px;background:var(--s3);border:1px solid var(--wire);margin-bottom:3px;font-size:13px"><span style="font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.03em;text-transform:uppercase">${nm}${isCap?' <span style="color:'+accent+';font-size:10px">©</span>':''}${excl?' <span style="color:var(--faint);font-size:9px;text-transform:none">no calls</span>':''}</span><span style="text-align:center">$${Math.round(ps.turnoverRevenue/1000*10)/10}k</span><span style="text-align:center">${ps.reviewPoints}</span><span style="text-align:center">${excl?'—':ps.closePercent.toFixed(0)+'%'}</span><span style="text-align:center">${ps.gymSessions}</span><span style="text-align:center">${ps.actionStats}</span></div>`;}).join('');return`<div style="margin-bottom:16px"><div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${accent};margin-bottom:8px">Team ${team.captainName}</div><div style="display:grid;grid-template-columns:1.4fr repeat(5,1fr);gap:6px;padding:0 10px 6px;font-size:10px;font-family:'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)"><span>Rep</span><span style="text-align:center">Turn $</span><span style="text-align:center">Rev</span><span style="text-align:center">Close</span><span style="text-align:center">Gym</span><span style="text-align:center">Stats</span></div>${rows}</div>`;}).join('');document.getElementById('individualContrib').innerHTML=`<div class="sec-label" style="margin-bottom:16px">Individual Contributions <span style="color:var(--faint);font-size:10px;margin-left:8px">© = captain · live</span></div>`+indHtml;
+const indHtml=teams.filter(t=>t.members.length>0).map(team=>{const accent=teamAccents[team.num-1];const rows=team.members.map(pid=>{const nm=people.find(p=>p.id===pid)?.name||'Unknown';const ps=calcPersonStats(pid,dates);const isCap=pid===team.captain;const excl=excludeSet.has(pid);return`<div style="display:grid;grid-template-columns:1.4fr repeat(5,1fr);gap:6px;align-items:center;padding:8px 10px;background:var(--s3);border:1px solid var(--wire);margin-bottom:3px;font-size:13px"><span style="font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.03em;text-transform:uppercase">${nm}${isCap?' <span style="color:'+accent+';font-size:10px">©</span>':''}${excl?' <span style="color:var(--faint);font-size:9px;text-transform:none">no calls</span>':''}</span><span style="text-align:center">$${Math.round(ps.turnoverRevenue/1000*10)/10}k</span><span style="text-align:center">${ps.reviewPoints}</span><span style="text-align:center">${excl?'—':ps.closePercent.toFixed(0)+'%'}</span><span style="text-align:center">${ps.gymSessions}</span><span style="text-align:center">${ps.actionStats}</span></div>`;}).join('');return`<div style="margin-bottom:16px"><div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${accent};margin-bottom:8px">Team ${team.captainName}</div><div style="display:grid;grid-template-columns:1.4fr repeat(5,1fr);gap:6px;padding:0 10px 6px;font-size:10px;font-family:'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)"><span>Rep</span><span style="text-align:center">Turn $</span><span style="text-align:center">Rev</span><span style="text-align:center">Close</span><span style="text-align:center">Gym</span><span style="text-align:center">Stats</span></div>${rows}</div>`;}).join('');document.getElementById('individualContrib').innerHTML=`<div class="sec-label" style="margin-bottom:16px">Individual Contributions <span style="color:var(--faint);font-size:10px;margin-left:8px">© = captain · live</span></div>`+indHtml;
 // ── Lock / Final Results ──
 const lockEl=document.getElementById('lockArea');const lbl=currentDate.toLocaleDateString('en-US',{month:'long',year:'numeric'});
 if(lockedSnap&&lockedSnap.teams){const when=lockedSnap.lockedAt?new Date(lockedSnap.lockedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'';const champ=teamStats[0];lockEl.innerHTML=`<div style="background:var(--s2);border:1px solid rgba(22,163,74,.4);border-left:3px solid var(--green);padding:16px 18px"><div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:6px">🔒 Final Standings Locked${when?' · '+when:''}</div><div style="font-size:13px;color:var(--muted);margin-bottom:12px">Winner: <strong style="color:var(--text)">Team ${champ?.captainName||'—'}</strong> with ${champ?.bonus||0}% (${champ?.wins||0} categories). These numbers are frozen and won't change if call or gym data is edited later.</div><button class="btn-outline" style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:7px 14px;cursor:pointer" onclick="unlockStandings()">Unlock for corrections</button></div>`;}
@@ -198,6 +204,272 @@ function lockStandings(){if(!lastLiveStats.length){alert('No standings to lock y
 function unlockStandings(){if(!confirm('Unlock '+currentMonthKey+'? Standings will go back to live and can be re-locked.'))return;db.ref(`competitionResults/${currentMonthKey}`).remove();}
 document.getElementById('prevMonth').onclick=()=>{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()-1,1);loadTeams();};
 document.getElementById('nextMonth').onclick=()=>{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+1,1);loadTeams();};
+</script>
+<style>
+/* ── competition race layer ── */
+.race-cat{background:var(--s2);border:1px solid var(--wire);padding:14px 16px;margin-bottom:10px}
+.race-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.race-title{font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;letter-spacing:.15em;text-transform:uppercase}
+.race-tag{font-family:'Oswald',sans-serif;font-size:9px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:3px 8px;border:1px solid}
+.race-tag.play{color:#f59e0b;border-color:rgba(245,158,11,.5);animation:rtPulse 1.6s ease-in-out infinite}
+.race-tag.locked{color:var(--muted);border-color:var(--wire)}
+@keyframes rtPulse{0%,100%{opacity:1}50%{opacity:.45}}
+.race-row{display:grid;grid-template-columns:92px 1fr auto;gap:10px;align-items:center;padding:4px 0;font-size:12px}
+.race-name{font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.race-track{background:var(--s3);height:14px;position:relative}
+.race-fill{height:100%;transition:width .5s ease}
+.race-val{font-family:'Oswald',sans-serif;font-weight:600;white-space:nowrap;text-align:right;min-width:120px}
+.race-gap{color:var(--muted);font-weight:400;font-size:11px}
+.wwi-card{background:var(--s2);border:1px solid var(--wire);border-left:3px solid;padding:14px 16px;margin-bottom:10px}
+.wwi-line{display:flex;gap:8px;padding:5px 0;font-size:13px;line-height:1.5;align-items:flex-start}
+.wwi-line .wi{flex:none}
+#swingFeed .sw-row{display:flex;gap:10px;align-items:baseline;padding:8px 12px;background:var(--s2);border:1px solid var(--wire);border-left:3px solid #f59e0b;margin-bottom:4px;font-size:13px}
+#swingFeed .sw-time{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap}
+#countdownBar{display:none;border:1px solid rgba(220,38,38,.6);background:linear-gradient(90deg,rgba(220,38,38,.14),transparent);padding:14px 18px;margin-top:24px;animation:cdGlow 2s ease-in-out infinite}
+@keyframes cdGlow{0%,100%{border-color:rgba(220,38,38,.6)}50%{border-color:rgba(220,38,38,1)}}
+#countdownBar .cd-big{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:2px;color:var(--red);line-height:1}
+#countdownBar .cd-sub{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+</style>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   COMPETITION RACE LAYER — race bars, what-wins-it, swing feed,
+   final-week countdown. Wraps renderStats; reads lastLiveStats /
+   savedResults so lock snapshots are respected.
+   ══════════════════════════════════════════════════════════════ */
+(function(){
+    const esc = t => String(t).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const INPLAY = { turnoverRevenue: v => Math.max(2500, v*0.15), reviewPoints: () => 6, closePercent: () => 3, gymSessions: () => 3, actionStats: () => 3 };
+    const NEED = {
+        turnoverRevenue: g => '<b>$' + Math.ceil(g).toLocaleString() + '</b> more turnover revenue',
+        reviewPoints:    g => '<b>' + Math.ceil(g) + ' more review pts</b> (\u2248' + Math.ceil(Math.ceil(g)/2) + ' photo review' + (Math.ceil(Math.ceil(g)/2)===1?'':'s') + ')',
+        closePercent:    g => 'raising close rate <b>' + g.toFixed(1) + ' pts</b>',
+        gymSessions:     g => '<b>' + Math.ceil(g) + ' more gym day' + (Math.ceil(g)===1?'':'s') + '</b>',
+        actionStats:     g => '<b>' + Math.ceil(g) + ' more Action Stat' + (Math.ceil(g)===1?'':'s') + '</b>'
+    };
+
+    // inject containers
+    const gapEl = document.getElementById('gapToFirst');
+    const lb = document.getElementById('leaderboard');
+    const cd = document.createElement('div'); cd.id = 'countdownBar';
+    lb.parentNode.insertBefore(cd, lb);
+    const feed = document.createElement('div'); feed.id = 'swingFeed'; feed.style.marginTop = '24px';
+    lb.parentNode.insertBefore(feed, lb.nextSibling);
+    const wwi = document.createElement('div'); wwi.id = 'whatWinsIt'; wwi.style.marginTop = '24px';
+    gapEl.parentNode.insertBefore(wwi, gapEl.nextSibling);
+
+    const realMonthKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); };
+    const isCurrentMonth = () => currentMonthKey === realMonthKey();
+    const isLocked = () => !!(savedResults[currentMonthKey] && savedResults[currentMonthKey].teams);
+    const displayStats = () => isLocked() ? savedResults[currentMonthKey].teams : lastLiveStats;
+
+    function catRank(ts, key){
+        return [...ts].sort((a,b) => (b[key]||0) - (a[key]||0));
+    }
+
+    /* ── 1. RACE BARS (replaces text gap section) ── */
+    function renderRaces(finalWeek){
+        const ts = displayStats();
+        if (!ts || !ts.length){ gapEl.innerHTML = ''; return; }
+        gapEl.innerHTML = '<div class="sec-label" style="margin-bottom:16px">Category Races' + (isLocked() ? ' — Final' : '') + '</div>' + CATS.map(cat => {
+            const ranked = catRank(ts, cat.key);
+            const lead = ranked[0][cat.key] || 0;
+            const second = ranked[1] ? (ranked[1][cat.key] || 0) : 0;
+            let tag = '';
+            if (finalWeek && lead > 0){
+                const inPlay = (lead - second) <= INPLAY[cat.key](lead);
+                tag = '<span class="race-tag ' + (inPlay ? 'play">IN PLAY' : 'locked">LOCKED UP') + '</span>';
+            }
+            const rows = ranked.map(t => {
+                const v = t[cat.key] || 0;
+                const w = lead > 0 ? Math.max(2, v / lead * 100) : 2;
+                const gap = lead - v;
+                const gapTxt = v === lead && lead > 0 ? '<span style="color:#22c55e">\u25B2 leading</span>'
+                    : lead === 0 ? '' 
+                    : '<span class="race-gap">\u2212' + (cat.key==='turnoverRevenue' ? '$'+Math.round(gap).toLocaleString() : cat.key==='closePercent' ? gap.toFixed(1)+' pts' : Math.ceil(gap)) + '</span>';
+                const accent = teamAccents[t.num-1];
+                return '<div class="race-row"><span class="race-name" style="color:' + accent + '">' + esc(t.captainName) + '</span><div class="race-track"><div class="race-fill" style="width:' + w + '%;background:' + accent + '"></div></div><span class="race-val">' + cat.fmt(v) + ' ' + gapTxt + '</span></div>';
+            }).join('');
+            return '<div class="race-cat"><div class="race-head"><span class="race-title">' + cat.label + ' <span style="color:var(--muted);font-weight:400">+' + cat.first + '% / +' + cat.second + '%</span></span>' + tag + '</div>' + rows + '</div>';
+        }).join('');
+    }
+
+    /* ── 2. WHAT WINS IT ── */
+    function renderWWI(){
+        const ts = displayStats();
+        if (!ts || !ts.length || isLocked()){ wwi.innerHTML = ''; return; }
+        wwi.innerHTML = '<div class="sec-label" style="margin-bottom:16px">What Wins It — Today\u2019s Playbook</div>' + ts.map(t => {
+            const accent = teamAccents[t.num-1];
+            const lines = [];
+            CATS.forEach(cat => {
+                const ranked = catRank(ts, cat.key);
+                const lead = ranked[0][cat.key] || 0;
+                const mine = t[cat.key] || 0;
+                if (lead <= 0){ return; }
+                if (mine === lead){
+                    const second = ranked.find(x => (x[cat.key]||0) < lead);
+                    const margin = second ? lead - (second[cat.key]||0) : lead;
+                    const tight = second && margin <= INPLAY[cat.key](lead);
+                    lines.push({ pri: tight ? 1 : 3, html: '<div class="wwi-line"><span class="wi">' + (tight ? '\u26A0\uFE0F' : '\u{1F6E1}\uFE0F') + '</span><span>' + (tight
+                        ? '<b>' + cat.label + ' lead is slipping</b> \u2014 only ' + (cat.key==='turnoverRevenue' ? '$'+Math.round(margin).toLocaleString() : cat.key==='closePercent' ? margin.toFixed(1)+' pts' : Math.ceil(margin)) + ' ahead. Defend the +' + cat.first + '%.'
+                        : '<b>' + cat.label + '</b>: leading \u2014 holding +' + cat.first + '%.') + '</span></div>' });
+                } else {
+                    const gap = lead - mine;
+                    const secondVal = ranked[1] ? (ranked[1][cat.key]||0) : 0;
+                    const holding = mine > 0 && mine === secondVal && ranked.filter(x => (x[cat.key]||0) === lead).length === 1;
+                    const reachable = gap <= INPLAY[cat.key](lead) * 2;
+                    lines.push({ pri: reachable ? 2 : 4, html: '<div class="wwi-line"><span class="wi">' + (reachable ? '\u{1F3AF}' : '\u{1F4CA}') + '</span><span>' + NEED[cat.key](gap) + ' ties for <b>' + cat.label + '</b> (+' + cat.first + '%)' + (holding ? ' \u2014 you hold 2nd (+' + cat.second + '%) now' : '') + (reachable ? '' : ' \u2014 long shot') + '.</span></div>' });
+                }
+            });
+            lines.sort((a,b) => a.pri - b.pri);
+            return '<div class="wwi-card" style="border-left-color:' + accent + '"><div style="font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:' + accent + ';margin-bottom:6px">Team ' + esc(t.captainName) + ' \u00b7 ' + t.bonus + '%</div>' + lines.slice(0,4).map(l => l.html).join('') + '</div>';
+        }).join('');
+    }
+
+    /* ── 3. SWING FEED ── */
+    let feedRef = null, feedMonth = null;
+    function attachFeed(){
+        if (feedMonth === currentMonthKey) return;
+        if (feedRef) feedRef.off();
+        feedMonth = currentMonthKey;
+        feedRef = db.ref('competitionFeed/' + currentMonthKey).limitToLast(12);
+        feedRef.on('value', s => {
+            const items = [];
+            s.forEach(ch => { items.push(ch.val()); });
+            items.reverse();
+            feed.innerHTML = items.length ? '<div class="sec-label" style="margin-bottom:12px">Lead Changes</div>' + items.map(i => {
+                const when = new Date(i.ts).toLocaleDateString('en-US', { month:'short', day:'numeric' }) + ' \u00b7 ' + new Date(i.ts).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+                const msg = i.from ? '<b>Team ' + esc(i.to) + '</b>&nbsp;took&nbsp;<b>' + esc(i.cat) + '</b>&nbsp;from Team ' + esc(i.from) : '<b>Team ' + esc(i.to) + '</b>&nbsp;claimed&nbsp;<b>' + esc(i.cat) + '</b>';
+                return '<div class="sw-row"><span>\u26A1</span><span>' + msg + '</span><span class="sw-time">' + when + '</span></div>';
+            }).join('') : '';
+        });
+    }
+    function detectSwings(){
+        if (!isCurrentMonth() || isLocked()) return;
+        const ts = lastLiveStats;
+        if (!ts || !ts.length || !logs || !Object.keys(logs).length) return;
+        const leaders = {};
+        let any = false;
+        CATS.forEach(cat => {
+            const ranked = catRank(ts, cat.key).filter(t => (t[cat.key]||0) > 0);
+            leaders[cat.key] = ranked.length ? ranked[0].captainName : null;
+            if (leaders[cat.key]) any = true;
+        });
+        if (!any) return;
+        const mk2 = currentMonthKey;
+        db.ref('competitionMeta/' + mk2 + '/catLeaders').transaction(cur => {
+            if (cur && JSON.stringify(cur) === JSON.stringify(leaders)) return; // no change → abort
+            return leaders;
+        }, (err, committed, snap) => {
+            if (err || !committed) return;
+        }, false);
+        // read-then-diff for announcements (separate from the txn to keep it simple)
+        db.ref('competitionMeta/' + mk2 + '/prevLeaders').once('value', s => {
+            const prev = s.val();
+            if (prev){
+                CATS.forEach(cat => {
+                    const was = prev[cat.key] || null, now = leaders[cat.key] || null;
+                    if (now && was !== now){
+                        db.ref('competitionFeed/' + mk2).push({ ts: Date.now(), cat: cat.label, from: was, to: now });
+                    }
+                });
+            }
+            db.ref('competitionMeta/' + mk2 + '/prevLeaders').set(leaders);
+        });
+    }
+
+    /* ── 4. FINAL-WEEK COUNTDOWN ── */
+    function daysLeftInMonth(){
+        const now = new Date();
+        const dim = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+        return dim - now.getDate() + 1;
+    }
+    function renderCountdown(){
+        const show = isCurrentMonth() && !isLocked() && daysLeftInMonth() <= 5 && lastLiveStats && lastLiveStats.length;
+        if (!show){ cd.style.display = 'none'; return false; }
+        const now = new Date();
+        const end = new Date(now.getFullYear(), now.getMonth()+1, 1);
+        const ms = end - now;
+        const d = Math.floor(ms/86400000), h = Math.floor(ms%86400000/3600000);
+        cd.style.display = 'block';
+        cd.innerHTML = '<div class="cd-big">\u23F1 FINAL WEEK \u2014 ' + d + 'D ' + h + 'H LEFT</div><div class="cd-sub">Bonus locks at month end \u00b7 every category below is win-or-lose money</div>';
+        return true;
+    }
+
+    window.renderRaceLayer = function(){
+        try {
+            attachFeed();
+            const fw = renderCountdown();
+            renderRaces(fw);
+            renderWWI();
+            detectSwings();
+        } catch(e){ /* best-effort layer */ }
+    };
+    const _rs2 = renderStats;
+    renderStats = function(){ _rs2(); renderRaceLayer(); };
+    setInterval(() => { if (isCurrentMonth() && daysLeftInMonth() <= 5) renderCountdown(); }, 60000);
+})();
+</script>
+<style>
+#abn,#abn-sheet,#abn-scrim{display:none}
+@media(max-width:900px){
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom))!important}
+#abn{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:99990;
+background:rgba(10,10,10,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+border-top:1px solid rgba(255,255,255,.09);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+html.light #abn{background:rgba(250,250,250,.94);border-top-color:rgba(0,0,0,.1)}
+.abn-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+padding:6px 2px;text-decoration:none;color:#8a8a8a;position:relative;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent;font:inherit}
+.abn-ico{font-size:19px;line-height:1}
+.abn-lab{font-family:'Oswald',sans-serif;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+.abn-tab.on{color:#dc2626}
+.abn-tab.on::before{content:'';position:absolute;top:-7px;left:25%;right:25%;height:2px;background:#dc2626}
+#abn-scrim.open{display:block;position:fixed;inset:0;z-index:99991;background:rgba(0,0,0,.55)}
+#abn-sheet.open{display:block;position:fixed;left:0;right:0;bottom:0;z-index:99992;
+background:#111;border-top:2px solid #dc2626;padding:18px 16px calc(20px + env(safe-area-inset-bottom))}
+html.light #abn-sheet.open{background:#fff}
+.abn-sh{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#7a7a7a;margin-bottom:12px}
+.abn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.abn-item{display:flex;align-items:center;gap:10px;padding:13px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);text-decoration:none;color:#e8e8e8}
+html.light .abn-item{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.08);color:#111}
+.abn-item .i{font-size:18px}
+.abn-item .t{font-family:'Oswald',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+}
+</style>
+<nav id="abn">
+ <a class="abn-tab" href="index.html" data-p="index.html"><span class="abn-ico">&#127968;</span><span class="abn-lab">Home</span></a>
+ <a class="abn-tab" href="calls.html" data-p="calls.html"><span class="abn-ico">&#128222;</span><span class="abn-lab">Calls</span></a>
+ <a class="abn-tab" href="goals.html" data-p="goals.html"><span class="abn-ico">&#127919;</span><span class="abn-lab">My Report</span></a>
+ <a class="abn-tab" href="turnin.html" data-p="turnin.html"><span class="abn-ico">&#128203;</span><span class="abn-lab">Turn-In</span></a>
+ <button class="abn-tab" id="abn-more" type="button"><span class="abn-ico">&#9776;</span><span class="abn-lab">More</span></button>
+</nav>
+<div id="abn-scrim"></div>
+<div id="abn-sheet">
+ <div class="abn-sh">More</div>
+ <div class="abn-grid">
+  <a class="abn-item" href="reports.html"><span class="i">&#128202;</span><span class="t">Team Report</span></a>
+  <a class="abn-item" href="money.html"><span class="i">&#128176;</span><span class="t">Money Owed</span></a>
+  <a class="abn-item" href="competition.html"><span class="i">&#127942;</span><span class="t">Competition</span></a>
+  <a class="abn-item" href="doors.html"><span class="i">&#128682;</span><span class="t">Door Knock</span></a>
+  <a class="abn-item" href="gym.html"><span class="i">&#127947;&#65039;</span><span class="t">Log Gym</span></a>
+  <a class="abn-item" href="training.html"><span class="i">&#127891;</span><span class="t">Sales Academy</span></a>
+  <a class="abn-item" href="manager.html"><span class="i">&#129517;</span><span class="t">Manager</span></a>
+ </div>
+</div>
+<script>
+(function(){
+ var p=(location.pathname.split('/').pop()||'index.html');
+ document.querySelectorAll('.abn-tab[data-p]').forEach(function(t){if(t.getAttribute('data-p')===p)t.classList.add('on');});
+ var more=['reports.html','money.html','competition.html','doors.html','gym.html','training.html','manager.html','action_workbook.html','team_workbook.html'];
+ if(more.indexOf(p)>-1)document.getElementById('abn-more').classList.add('on');
+ var sheet=document.getElementById('abn-sheet'),scrim=document.getElementById('abn-scrim');
+ document.getElementById('abn-more').onclick=function(){sheet.classList.toggle('open');scrim.classList.toggle('open');};
+ scrim.onclick=function(){sheet.classList.remove('open');scrim.classList.remove('open');};
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
 </script>
 </body>
 </html>
