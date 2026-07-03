@@ -1,14 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#080808">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="icon-192x192.png">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Individual Report — Action Plumbing</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -38,18 +32,6 @@ html.light input::placeholder,html.light textarea::placeholder{color:var(--faint
         .sec-label{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}.sec-label::after{content:'';flex:1;height:1px;background:var(--wire)}
         .sec-title{font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text);margin-bottom:10px}
         .stat-mosaic{display:grid;gap:2px;background:var(--wire);margin-bottom:16px}
-        .sc-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);margin-right:6px;vertical-align:middle}
-        .sc-dot.good{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.6)}
-        .sc-dot.warn{background:#f59e0b}
-        .sc-dot.bad{background:var(--red);box-shadow:0 0 6px rgba(220,38,38,.6)}
-        .stat-num.sc-good{color:#22c55e}
-        .stat-num.sc-warn{color:#f59e0b}
-        .stat-num.sc-bad{color:var(--red)}
-        .coach-line{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--wire);font-size:14px;line-height:1.55}
-        .coach-line:last-child{border-bottom:none}
-        .coach-line .ci{flex:none;font-size:16px;line-height:1.4}
-        .coach-line b{font-family:'Oswald',sans-serif;letter-spacing:.02em}
-        .coach-line a{color:var(--red);font-weight:600;text-decoration:none;border-bottom:1px solid var(--red)}
         .stat-block{background:var(--s1);padding:14px 16px;position:relative;overflow:hidden}.stat-block::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--red)}
         .stat-lbl{font-family:'Oswald',sans-serif;font-size:12px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
         .stat-num{font-family:'Bebas Neue',sans-serif;font-size:40px;line-height:1;color:var(--text);letter-spacing:1px}
@@ -140,22 +122,6 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
             <div class="stat-block"><div class="stat-lbl">Monthly Goal</div><input id="monthlyGoalInput" type="number" placeholder="Set monthly goal ($)" style="margin:8px 0"/><div id="monthlyProgress"></div><div style="margin-top:10px;padding:10px 12px;background:var(--s3);border:1px solid var(--wire)"><div class="stat-lbl">Forecast</div><div class="stat-num-md" id="monthlyForecast">$0</div><div class="stat-meta" id="monthlyForecastNote">Based on pace</div></div></div>
         </div>
         <div class="card-inner" style="margin-bottom:16px"><div class="stat-lbl">Yearly Goal — <span id="yearDisplay"></span></div><input id="yearlyGoalInput" type="number" placeholder="Set yearly goal ($)" style="margin:8px 0"/><div id="yearlyProgress"></div></div>
-        <div class="sec-label">Scorecard — This Month</div>
-        <div class="g3 stat-mosaic" style="margin-bottom:6px">
-            <div class="stat-block"><div class="stat-lbl"><span class="sc-dot" id="scDotClose"></span>Close %</div><div id="scClose" class="stat-num">—</div><div id="scCloseD" class="stat-meta">Target 60%</div></div>
-            <div class="stat-block"><div class="stat-lbl"><span class="sc-dot" id="scDotReview"></span>Reviews</div><div id="scReview" class="stat-num">—</div><div id="scReviewD" class="stat-meta">Target 70%</div></div>
-            <div class="stat-block"><div class="stat-lbl"><span class="sc-dot" id="scDotTO"></span>Turnover</div><div id="scTO" class="stat-num">—</div><div id="scTOD" class="stat-meta">Target 50%</div></div>
-            <div class="stat-block"><div class="stat-lbl"><span class="sc-dot" id="scDotPlans"></span>Plans</div><div id="scPlans" class="stat-num">—</div><div id="scPlansD" class="stat-meta">Target 40%</div></div>
-            <div class="stat-block"><div class="stat-lbl"><span class="sc-dot" id="scDotUpsell"></span>Upsell</div><div id="scUpsell" class="stat-num">—</div><div id="scUpsellD" class="stat-meta">Target 50%</div></div>
-        </div>
-        <div class="stat-meta" style="margin-bottom:20px">Green = hitting target &middot; Amber = within reach &middot; Red = focus here tomorrow</div>
-
-        <div class="sec-label">Pace Coach</div>
-        <div class="card-inner" id="paceCoach" style="margin-bottom:20px"><div class="stat-meta">Loading&hellip;</div></div>
-
-        <div class="sec-label">What's Working — Last 90 Days</div>
-        <div class="card-inner" id="repInsights" style="margin-bottom:20px"><div class="stat-meta">Loading&hellip;</div></div>
-
         <div class="sec-label">Performance</div>
         <div class="g4 stat-mosaic">
             <div class="stat-block"><div class="stat-lbl">Close %</div><div id="closeRate" class="stat-num">0%</div><div id="closeDetails" class="stat-meta">0 / 0</div></div>
@@ -410,7 +376,7 @@ function renderWinLog() {
     });
     document.getElementById('winLogFeed').innerHTML = html;
 }
-function calc(pid,dates){const t={totalCalls:0,callsSold:0,amountSold:0,amountCollected:0,estimatesLeft:0,estimateValue:0,doorKnocks:0,doorKnocksSold:0,reviewsCompleted:0,membershipPlansSold:0,upsellsCompleted:0,upsellAmount:0,restorationLeads:0,jobsCancelled:0,actionThermostats:0,turnoversReceived:0,turnoversReceivedRevenue:0,turnoversGiven:0,turnoverSources:{},trades:{plumbing:{jobs:0,revenue:0,ran:0,owed:0,owedJobs:0},hvac:{jobs:0,revenue:0,ran:0,owed:0,owedJobs:0},electrical:{jobs:0,revenue:0,ran:0,owed:0,owedJobs:0},cameras:{jobs:0,revenue:0,ran:0,owed:0,owedJobs:0}}};dates.forEach(d=>{const calls=getCalls(pid,d);calls.forEach(c=>{t.totalCalls++;if(c.actionThermostat)t.actionThermostats++;if(c.tradePlumbing)t.trades.plumbing.ran++;if(c.tradeHVAC)t.trades.hvac.ran++;if(c.tradeElectrical)t.trades.electrical.ran++;if(c.tradeCameras)t.trades.cameras.ran++;if(c.jobCancelled)t.jobsCancelled++;if(c.restorationLead)t.restorationLeads++;if(c.upsellCompleted){t.upsellsCompleted++;t.upsellAmount+=parseFloat(c.upsellAmount)||0;}if(c.jobSold){t.callsSold++;t.amountSold+=parseFloat(c.amountSold)||0;t.amountCollected+=parseFloat(c.amountCollected)||0;if(c.threeDoorKnocks)t.doorKnocksSold++;if(c.soldFromTurnover&&c.turnoverFrom){t.turnoversReceived++;t.turnoversReceivedRevenue+=parseFloat(c.amountSold)||0;if(!t.turnoverSources[c.turnoverFrom])t.turnoverSources[c.turnoverFrom]={count:0,revenue:0};t.turnoverSources[c.turnoverFrom].count++;t.turnoverSources[c.turnoverFrom].revenue+=parseFloat(c.amountSold)||0;}const rev=parseFloat(c.amountSold)||0;if(c.tradePlumbing){t.trades.plumbing.jobs++;t.trades.plumbing.revenue+=rev;}if(c.tradeHVAC){t.trades.hvac.jobs++;t.trades.hvac.revenue+=rev;}if(c.tradeElectrical){t.trades.electrical.jobs++;t.trades.electrical.revenue+=rev;}if(c.tradeCameras){t.trades.cameras.jobs++;t.trades.cameras.revenue+=rev;}}const owed=parseFloat(c.moneyOwed)||0;if(owed>0){if(c.tradePlumbing){t.trades.plumbing.owed+=owed;t.trades.plumbing.owedJobs++;}if(c.tradeHVAC){t.trades.hvac.owed+=owed;t.trades.hvac.owedJobs++;}if(c.tradeElectrical){t.trades.electrical.owed+=owed;t.trades.electrical.owedJobs++;}if(c.tradeCameras){t.trades.cameras.owed+=owed;t.trades.cameras.owedJobs++;}}if(c.leftEstimate){t.estimatesLeft++;t.estimateValue+=parseFloat(c.estimateAmount)||0;}if(c.threeDoorKnocks)t.doorKnocks++;if(c.reviewCompleted)t.reviewsCompleted++;if(c.membershipPlanSold)t.membershipPlansSold++;});people.forEach(p=>{if(p.id!==pid){getCalls(p.id,d).forEach(c=>{if(c.soldFromTurnover&&c.turnoverFrom===pid&&c.jobSold)t.turnoversGiven++;})}});});return t;}
+function calc(pid,dates){const t={totalCalls:0,callsSold:0,amountSold:0,amountCollected:0,estimatesLeft:0,estimateValue:0,doorKnocks:0,doorKnocksSold:0,reviewsCompleted:0,membershipPlansSold:0,upsellsCompleted:0,upsellAmount:0,restorationLeads:0,jobsCancelled:0,actionThermostats:0,turnoversReceived:0,turnoversReceivedRevenue:0,turnoversGiven:0,turnoverSources:{},trades:{plumbing:{jobs:0,revenue:0,ran:0,owed:0,owedJobs:0},hvac:{jobs:0,revenue:0,ran:0,owed:0,owedJobs:0},electrical:{jobs:0,revenue:0,ran:0,owed:0,owedJobs:0},cameras:{jobs:0,revenue:0,ran:0,owed:0,owedJobs:0}}};dates.forEach(d=>{const calls=getCalls(pid,d);calls.forEach(c=>{t.totalCalls++;if(c.actionThermostat)t.actionThermostats++;if(c.tradePlumbing)t.trades.plumbing.ran++;if(c.tradeHVAC)t.trades.hvac.ran++;if(c.tradeElectrical)t.trades.electrical.ran++;if(c.tradeCameras)t.trades.cameras.ran++;if(c.jobCancelled)t.jobsCancelled++;if(c.restorationLead)t.restorationLeads++;if(c.upsellCompleted){t.upsellsCompleted++;t.upsellAmount+=parseFloat(c.upsellAmount)||0;}if(c.jobSold){t.callsSold++;t.amountSold+=parseFloat(c.amountSold)||0;t.amountCollected+=parseFloat(c.amountCollected)||0;if(c.threeDoorKnocks)t.doorKnocksSold++;if(c.soldFromTurnover){t.turnoversReceived++;t.turnoversReceivedRevenue+=parseFloat(c.amountSold)||0;if(c.turnoverFrom){if(!t.turnoverSources[c.turnoverFrom])t.turnoverSources[c.turnoverFrom]={count:0,revenue:0};t.turnoverSources[c.turnoverFrom].count++;t.turnoverSources[c.turnoverFrom].revenue+=parseFloat(c.amountSold)||0;}}const rev=parseFloat(c.amountSold)||0;if(c.tradePlumbing){t.trades.plumbing.jobs++;t.trades.plumbing.revenue+=rev;}if(c.tradeHVAC){t.trades.hvac.jobs++;t.trades.hvac.revenue+=rev;}if(c.tradeElectrical){t.trades.electrical.jobs++;t.trades.electrical.revenue+=rev;}if(c.tradeCameras){t.trades.cameras.jobs++;t.trades.cameras.revenue+=rev;}}const owed=parseFloat(c.moneyOwed)||0;if(owed>0){if(c.tradePlumbing){t.trades.plumbing.owed+=owed;t.trades.plumbing.owedJobs++;}if(c.tradeHVAC){t.trades.hvac.owed+=owed;t.trades.hvac.owedJobs++;}if(c.tradeElectrical){t.trades.electrical.owed+=owed;t.trades.electrical.owedJobs++;}if(c.tradeCameras){t.trades.cameras.owed+=owed;t.trades.cameras.owedJobs++;}}if(c.leftEstimate){t.estimatesLeft++;t.estimateValue+=parseFloat(c.estimateAmount)||0;}if(c.threeDoorKnocks)t.doorKnocks++;if(c.reviewCompleted)t.reviewsCompleted++;if(c.membershipPlanSold)t.membershipPlansSold++;});people.forEach(p=>{if(p.id!==pid){getCalls(p.id,d).forEach(c=>{if(c.soldFromTurnover&&c.turnoverFrom===pid&&c.jobSold)t.turnoversGiven++;})}});});return t;}
 function calcTeamTotal(dates){let total=0,jobs=0;people.forEach(p=>{dates.forEach(d=>{getCalls(p.id,d).forEach(c=>{if(c.jobSold){total+=parseFloat(c.amountSold)||0;jobs++;}});});});return{total,jobs};}
 function getStreak(){let s=0;const today=new Date();for(let i=0;i<365;i++){const d=new Date(today);d.setDate(today.getDate()-i);if(getCalls(selected,d).some(c=>c.jobSold))s++;else if(i>0)break;}return s;}
 function getDaysSinceSale(){const today=new Date();for(let i=0;i<365;i++){const d=new Date(today);d.setDate(today.getDate()-i);if(getCalls(selected,d).some(c=>c.jobSold))return i;}return 365;}
@@ -619,228 +585,6 @@ function renderAll(){const week=getWeek(currentDate),month=getMDates(currentDate
 document.getElementById('prevMonth').onclick=()=>{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()-1,1);loadGoals();};
 document.getElementById('nextMonth').onclick=()=>{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+1,1);loadGoals();};
 loadGoals();
-</script>
-<script>
-/* ══════════════════════════════════════════════════════════════
-   SALES COACH LAYER — Scorecard, Pace Coach, What's Working
-   Reads the same globals the page already maintains (logs, people,
-   selected, monthlyGoals, currentDate) and re-renders whenever the
-   page's own renderAll runs.
-   ══════════════════════════════════════════════════════════════ */
-(function(){
-    const TGT = { close:60, review:70, turnover:50, plans:40, upsell:50 };
-    const esc = t => String(t).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-
-    function scan(pid, dates){
-        const s = { calls:0, sold:0, rev:0, reviews:0, reviewsPic:0, toAtt:0, toAcc:0, toAttSold:0, plans:0, upsells:0,
-                    amCalls:0, amSold:0, pmCalls:0, pmSold:0,
-                    trades:{ Plumbing:{ran:0,sold:0}, HVAC:{ran:0,sold:0}, Electrical:{ran:0,sold:0}, Cameras:{ran:0,sold:0} },
-                    objections:{} };
-        dates.forEach(d => getCalls(pid, d).forEach(c => {
-            s.calls++;
-            if (c.jobSold){ s.sold++; s.rev += parseFloat(c.amountSold)||0; }
-            if (c.reviewWithPic){ s.reviews++; s.reviewsPic++; } else if (c.reviewCompleted) s.reviews++;
-            if (c.turnoverAttempted){ s.toAtt++; if (c.turnoverAccepted) s.toAcc++; if (c.jobSold) s.toAttSold++; }
-            if (c.membershipPlanSold) s.plans++;
-            if (c.upsellCompleted) s.upsells++;
-            const h = parseInt(c.timeOfDay);
-            if (!isNaN(h)){ if (h < 12){ s.amCalls++; if (c.jobSold) s.amSold++; } else { s.pmCalls++; if (c.jobSold) s.pmSold++; } }
-            if (c.tradePlumbing){ s.trades.Plumbing.ran++; if (c.jobSold) s.trades.Plumbing.sold++; }
-            if (c.tradeHVAC){ s.trades.HVAC.ran++; if (c.jobSold) s.trades.HVAC.sold++; }
-            if (c.tradeElectrical){ s.trades.Electrical.ran++; if (c.jobSold) s.trades.Electrical.sold++; }
-            if (c.tradeCameras){ s.trades.Cameras.ran++; if (c.jobSold) s.trades.Cameras.sold++; }
-            if (!c.jobSold && !c.jobCancelled && c.objection) s.objections[c.objection] = (s.objections[c.objection]||0) + 1;
-        }));
-        return s;
-    }
-    const pct = (n, d) => d > 0 ? Math.round(n / d * 100) : null;
-
-    function light(id, val, target, detail){
-        const num = document.getElementById('sc'+id), dot = document.getElementById('scDot'+id), det = document.getElementById('sc'+id+'D');
-        if (!num) return;
-        dot.className = 'sc-dot'; num.className = 'stat-num';
-        if (val === null){ num.textContent = '\u2014'; det.textContent = detail || ('Target '+target+'%'); return; }
-        const cls = val >= target ? 'good' : (val >= target * 0.8 ? 'warn' : 'bad');
-        dot.classList.add(cls); num.classList.add('sc-' + (cls==='good'?'good':cls==='warn'?'warn':'bad'));
-        num.textContent = val + '%';
-        det.textContent = (detail ? detail + ' \u00b7 ' : '') + 'Target ' + target + '%';
-    }
-
-    function renderScorecard(ms){
-        light('Close',  pct(ms.sold, ms.calls),   TGT.close,  ms.sold + '/' + ms.calls);
-        light('Review', pct(ms.reviews, ms.calls), TGT.review, ms.reviews + ' reviews');
-        light('TO',     pct(ms.toAcc, ms.toAtt),  TGT.turnover, ms.toAcc + '/' + ms.toAtt + ' attempted');
-        light('Plans',  pct(ms.plans, ms.sold),   TGT.plans,  ms.plans + ' plans');
-        light('Upsell', pct(ms.upsells, ms.sold), TGT.upsell, ms.upsells + ' upsells');
-    }
-
-    const line = (icon, html) => '<div class="coach-line"><span class="ci">' + icon + '</span><span>' + html + '</span></div>';
-
-    function renderPace(ms){
-        const el = document.getElementById('paceCoach');
-        if (!el) return;
-        const today = new Date();
-        const viewingNow = currentDate.getMonth() === today.getMonth() && currentDate.getFullYear() === today.getFullYear();
-        const out = [];
-        if (!viewingNow){
-            el.innerHTML = line('\u{1F4C5}', 'Pace coaching runs on the current month \u2014 flip back to today.');
-            return;
-        }
-        const goal = parseFloat(monthlyGoals[selected + '_' + currentMonthKey]) || 0;
-        const dim = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-        const day = today.getDate();
-        const daysLeft = dim - day + 1;
-        const avgSale = ms.sold > 0 ? ms.rev / ms.sold : 0;
-        if (!goal){
-            out.push(line('\u{1F3AF}', 'Set a monthly goal above to unlock pace coaching.'));
-        } else {
-            const expected = goal * (day / dim);
-            const diff = ms.rev - expected;
-            const remaining = goal - ms.rev;
-            if (remaining <= 0){
-                out.push(line('\u{1F3C6}', '<b>GOAL HIT.</b> You\u2019re <b>$' + Math.round(ms.rev - goal).toLocaleString() + '</b> over your $' + goal.toLocaleString() + ' month with ' + daysLeft + ' days still on the clock. Reset it higher.'));
-            } else {
-                out.push(line(diff >= 0 ? '\u{1F525}' : '\u23F1\uFE0F',
-                    'You\u2019re <b>$' + Math.abs(Math.round(diff)).toLocaleString() + ' ' + (diff >= 0 ? 'ahead of' : 'behind') + ' pace</b> for your $' + goal.toLocaleString() + ' month.'));
-                if (avgSale > 0){
-                    const jobs = Math.ceil(remaining / avgSale);
-                    const every = Math.max(1, Math.floor(daysLeft / jobs));
-                    out.push(line('\u{1F4AA}', '<b>$' + Math.round(remaining).toLocaleString() + '</b> to go in ' + daysLeft + ' days \u2014 about <b>' + jobs + ' sold job' + (jobs===1?'':'s') + '</b> at your $' + Math.round(avgSale).toLocaleString() + ' average. That\u2019s one close every <b>' + every + ' day' + (every===1?'':'s') + '</b>.'));
-                } else {
-                    out.push(line('\u{1F4AA}', '<b>$' + Math.round(remaining).toLocaleString() + '</b> to go in ' + daysLeft + ' days. First close of the month sets your pace.'));
-                }
-            }
-        }
-        // leaderboard gap
-        try {
-            const month = getMDates(currentDate);
-            const board = people.map(p => { let rev = 0; month.forEach(d => getCalls(p.id, d).forEach(c => { if (c.jobSold) rev += parseFloat(c.amountSold)||0; })); return { id: p.id, name: p.name, rev }; }).sort((a,b) => b.rev - a.rev);
-            const idx = board.findIndex(b => b.id === selected);
-            if (idx > 0){
-                const above = board[idx-1];
-                const gap = above.rev - board[idx].rev;
-                const oneJob = avgSale > 0 && gap <= avgSale;
-                out.push(line('\u{1F3C1}', 'You\u2019re <b>$' + Math.round(gap).toLocaleString() + '</b> behind <b>' + esc(above.name) + '</b> for #' + idx + ' on the board' + (oneJob ? ' \u2014 <b>one sold job passes them.</b>' : '.')));
-            } else if (idx === 0 && board.length > 1){
-                const lead = board[0].rev - board[1].rev;
-                out.push(line('\u{1F451}', 'You\u2019re <b>#1 on the board</b>, up <b>$' + Math.round(lead).toLocaleString() + '</b> on ' + esc(board[1].name) + '. Don\u2019t let off.'));
-            }
-        } catch(e){}
-        el.innerHTML = out.join('');
-    }
-
-    function renderInsights(){
-        const el = document.getElementById('repInsights');
-        if (!el) return;
-        const dates = [];
-        const today = new Date();
-        for (let i = 89; i >= 0; i--){ const d = new Date(today); d.setDate(today.getDate() - i); dates.push(d); }
-        const s = scan(selected, dates);
-        const out = [];
-        // trade split
-        const tr = Object.entries(s.trades).map(([name, t]) => ({ name, ran: t.ran, rate: pct(t.sold, t.ran) })).filter(t => t.ran >= 5 && t.rate !== null);
-        if (tr.length >= 2){
-            tr.sort((a,b) => b.rate - a.rate);
-            const best = tr[0], worst = tr[tr.length-1];
-            if (best.rate - worst.rate >= 15)
-                out.push(line('\u{1F527}', 'You close <b>' + best.rate + '% on ' + best.name + '</b> but <b>' + worst.rate + '% on ' + worst.name + '</b>. Ask for the ' + best.name + ' calls \u2014 and drill ' + worst.name + ' in the <a href="training.html">Academy</a>.'));
-        }
-        // time of day
-        const am = pct(s.amSold, s.amCalls), pm = pct(s.pmSold, s.pmCalls);
-        if (s.amCalls >= 5 && s.pmCalls >= 5 && am !== null && pm !== null && Math.abs(am - pm) >= 10){
-            const hi = am > pm;
-            out.push(line('\u23F0', 'Your close rate ' + (hi ? 'before noon' : 'after noon') + ' is <b>' + (hi?am:pm) + '%</b> vs <b>' + (hi?pm:am) + '%</b> ' + (hi ? 'in the afternoon' : 'in the morning') + '. Stack your best energy where it pays.'));
-        }
-        // turnover attempts
-        if (s.toAtt >= 3){
-            const conv = pct(s.toAttSold, s.toAtt);
-            out.push(line('\u{1F504}', 'When you attempt a turnover, the job sells <b>' + conv + '% of the time</b> \u2014 and you\u2019ve attempted <b>' + s.toAtt + '</b> in 90 days. ' + (conv >= 50 ? 'That button works. Press it more.' : 'Sharpen the handoff in the <a href="training.html">Academy</a>.')));
-        }
-        // top objection
-        const obj = Object.entries(s.objections).sort((a,b) => b[1] - a[1])[0];
-        if (obj && obj[1] >= 3){
-            out.push(line('\u{1F6E1}\uFE0F', '<b>\u201C' + esc(obj[0]) + '\u201D</b> has cost you <b>' + obj[1] + ' jobs</b> in 90 days. Run that exact objection in the <a href="training.html">Academy</a> this week.'));
-        }
-        // photo reviews
-        if (s.reviews >= 5 && pct(s.reviewsPic, s.reviews) < 50){
-            out.push(line('\u{1F4F8}', 'Only <b>' + s.reviewsPic + ' of your ' + s.reviews + ' reviews</b> had a photo. Photo reviews score <b>2x</b> in the competition \u2014 easiest points on the board.'));
-        }
-        el.innerHTML = out.length ? out.join('') : line('\u{1F4C8}', 'Keep logging calls \u2014 your personal patterns unlock as the data builds (about 2\u20133 weeks of normal volume).');
-    }
-
-    window.renderCoach = function(){
-        try {
-            const ms = scan(selected, getMDates(currentDate));
-            renderScorecard(ms);
-            renderPace(ms);
-            renderInsights();
-        } catch(e){ /* coach layer is best-effort */ }
-    };
-    const _ra = renderAll;
-    renderAll = function(){ _ra(); renderCoach(); };
-})();
-</script>
-<style>
-#abn,#abn-sheet,#abn-scrim{display:none}
-@media(max-width:900px){
-body{padding-bottom:calc(76px + env(safe-area-inset-bottom))!important}
-#abn{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:99990;
-background:rgba(10,10,10,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-border-top:1px solid rgba(255,255,255,.09);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
-html.light #abn{background:rgba(250,250,250,.94);border-top-color:rgba(0,0,0,.1)}
-.abn-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
-padding:6px 2px;text-decoration:none;color:#8a8a8a;position:relative;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent;font:inherit}
-.abn-ico{font-size:19px;line-height:1}
-.abn-lab{font-family:'Oswald',sans-serif;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
-.abn-tab.on{color:#dc2626}
-.abn-tab.on::before{content:'';position:absolute;top:-7px;left:25%;right:25%;height:2px;background:#dc2626}
-#abn-scrim.open{display:block;position:fixed;inset:0;z-index:99991;background:rgba(0,0,0,.55)}
-#abn-sheet.open{display:block;position:fixed;left:0;right:0;bottom:0;z-index:99992;
-background:#111;border-top:2px solid #dc2626;padding:18px 16px calc(20px + env(safe-area-inset-bottom))}
-html.light #abn-sheet.open{background:#fff}
-.abn-sh{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#7a7a7a;margin-bottom:12px}
-.abn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.abn-item{display:flex;align-items:center;gap:10px;padding:13px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);text-decoration:none;color:#e8e8e8}
-html.light .abn-item{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.08);color:#111}
-.abn-item .i{font-size:18px}
-.abn-item .t{font-family:'Oswald',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
-}
-</style>
-<nav id="abn">
- <a class="abn-tab" href="index.html" data-p="index.html"><span class="abn-ico">&#127968;</span><span class="abn-lab">Home</span></a>
- <a class="abn-tab" href="calls.html" data-p="calls.html"><span class="abn-ico">&#128222;</span><span class="abn-lab">Calls</span></a>
- <a class="abn-tab" href="goals.html" data-p="goals.html"><span class="abn-ico">&#127919;</span><span class="abn-lab">My Report</span></a>
- <a class="abn-tab" href="turnin.html" data-p="turnin.html"><span class="abn-ico">&#128203;</span><span class="abn-lab">Turn-In</span></a>
- <button class="abn-tab" id="abn-more" type="button"><span class="abn-ico">&#9776;</span><span class="abn-lab">More</span></button>
-</nav>
-<div id="abn-scrim"></div>
-<div id="abn-sheet">
- <div class="abn-sh">More</div>
- <div class="abn-grid">
-  <a class="abn-item" href="reports.html"><span class="i">&#128202;</span><span class="t">Team Report</span></a>
-  <a class="abn-item" href="money.html"><span class="i">&#128176;</span><span class="t">Money Owed</span></a>
-  <a class="abn-item" href="competition.html"><span class="i">&#127942;</span><span class="t">Competition</span></a>
-  <a class="abn-item" href="doors.html"><span class="i">&#128682;</span><span class="t">Door Knock</span></a>
-  <a class="abn-item" href="gym.html"><span class="i">&#127947;&#65039;</span><span class="t">Log Gym</span></a>
-  <a class="abn-item" href="training.html"><span class="i">&#127891;</span><span class="t">Sales Academy</span></a>
-  <a class="abn-item" href="manager.html"><span class="i">&#129517;</span><span class="t">Manager</span></a>
- </div>
-</div>
-<script>
-(function(){
- var p=(location.pathname.split('/').pop()||'index.html');
- document.querySelectorAll('.abn-tab[data-p]').forEach(function(t){if(t.getAttribute('data-p')===p)t.classList.add('on');});
- var more=['reports.html','money.html','competition.html','doors.html','gym.html','training.html','manager.html','action_workbook.html','team_workbook.html'];
- if(more.indexOf(p)>-1)document.getElementById('abn-more').classList.add('on');
- var sheet=document.getElementById('abn-sheet'),scrim=document.getElementById('abn-scrim');
- document.getElementById('abn-more').onclick=function(){sheet.classList.toggle('open');scrim.classList.toggle('open');};
- scrim.onclick=function(){sheet.classList.remove('open');scrim.classList.remove('open');};
-})();
-</script>
-<script>
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
-}
 </script>
 </body>
 </html>

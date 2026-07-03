@@ -1,14 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#080808">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="icon-192x192.png">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Team Report — Action Plumbing</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -107,12 +101,6 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
             <div class="stat-block"><div class="stat-lbl">Total Calls</div><div id="totalCalls" class="stat-num">0</div><div class="stat-meta">This month</div></div>
         </div>
         <!-- Turnovers -->
-        <div class="sec-label">Rep Scorecard — vs Targets</div>
-        <div style="overflow-x:auto;margin-bottom:6px;-webkit-overflow-scrolling:touch">
-            <div id="repScorecard" style="min-width:560px"></div>
-        </div>
-        <div class="stat-meta" style="margin-bottom:20px">Targets: Close 60% &middot; Reviews 70% &middot; Turnover 50% &middot; Plans 40% &middot; Upsell 50%</div>
-
         <div class="sec-label">Turnover Performance</div>
         <div class="g2 stat-mosaic" style="margin-bottom:10px">
             <div class="stat-block"><div class="stat-lbl">Revenue from Turnovers</div><div id="turnoverRevenue" class="stat-num">$0</div><div id="turnoverRevenuePercent" class="stat-meta">0% of total</div></div>
@@ -173,8 +161,8 @@ document.getElementById('teamYearlyGoalInput').onchange=e=>{tyGoal=parseFloat(e.
 function getMDates(date){const y=date.getFullYear(),m=date.getMonth(),last=new Date(y,m+1,0).getDate();return Array.from({length:last},(_,i)=>new Date(y,m,i+1));}
 function getYDates(year){const arr=[];for(let m=0;m<12;m++)arr.push(...getMDates(new Date(year,m,1)));return arr;}
 function getCalls(pid,d){const key=`${pid}_${dk(d)}`;const l=logs[key];return l?Object.values(l):[];}
-function calcTeam(dates){const t={totalCalls:0,callsSold:0,amountSold:0,moneyOwed:0,reviewsCompleted:0,turnoversAttempted:0,turnoversAccepted:0,restorationLeads:0,plansSold:0,upsellsCompleted:0,estimatesLeft:0,estimateValue:0,doorKnocks:0,doorKnocksSold:0,objections:{},turnoverRevenue:0,turnoverJobs:0,turnoverGivers:{},trades:{plumbing:{jobs:0,revenue:0,owed:0,owedJobs:0},hvac:{jobs:0,revenue:0,owed:0,owedJobs:0},electrical:{jobs:0,revenue:0,owed:0,owedJobs:0},cameras:{jobs:0,revenue:0,owed:0,owedJobs:0}}};people.forEach(p=>{dates.forEach(d=>{const calls=getCalls(p.id,d);calls.forEach(c=>{t.totalCalls++;if(c.jobSold){t.callsSold++;t.amountSold+=parseFloat(c.amountSold)||0;if(c.threeDoorKnocks)t.doorKnocksSold++;if(c.soldFromTurnover&&c.turnoverFrom){t.turnoverRevenue+=parseFloat(c.amountSold)||0;t.turnoverJobs++;if(!t.turnoverGivers[c.turnoverFrom])t.turnoverGivers[c.turnoverFrom]={count:0,revenue:0};t.turnoverGivers[c.turnoverFrom].count++;t.turnoverGivers[c.turnoverFrom].revenue+=parseFloat(c.amountSold)||0;}const rev=parseFloat(c.amountSold)||0;if(c.tradePlumbing){t.trades.plumbing.jobs++;t.trades.plumbing.revenue+=rev;}if(c.tradeHVAC){t.trades.hvac.jobs++;t.trades.hvac.revenue+=rev;}if(c.tradeElectrical){t.trades.electrical.jobs++;t.trades.electrical.revenue+=rev;}if(c.tradeCameras){t.trades.cameras.jobs++;t.trades.cameras.revenue+=rev;}}const owed=parseFloat(c.moneyOwed)||0;if(owed>0){t.moneyOwed+=owed;if(c.tradePlumbing){t.trades.plumbing.owed+=owed;t.trades.plumbing.owedJobs++;}if(c.tradeHVAC){t.trades.hvac.owed+=owed;t.trades.hvac.owedJobs++;}if(c.tradeElectrical){t.trades.electrical.owed+=owed;t.trades.electrical.owedJobs++;}if(c.tradeCameras){t.trades.cameras.owed+=owed;t.trades.cameras.owedJobs++;}}if(c.reviewCompleted)t.reviewsCompleted++;if(c.turnoverAttempted)t.turnoversAttempted++;if(c.turnoverAccepted)t.turnoversAccepted++;if(c.restorationLead)t.restorationLeads++;if(c.membershipPlanSold)t.plansSold++;if(c.upsellCompleted)t.upsellsCompleted++;if(c.leftEstimate){t.estimatesLeft++;t.estimateValue+=parseFloat(c.estimateAmount)||0;}if(c.threeDoorKnocks)t.doorKnocks++;if(c.objection)t.objections[c.objection]=(t.objections[c.objection]||0)+1;});});});return t;}
-function calcPerson(pid,dates){let totalCalls=0,callsSold=0,amountSold=0,turnoversSold=0,turnoverRevenue=0,actionThermostats=0;dates.forEach(d=>{getCalls(pid,d).forEach(c=>{totalCalls++;if(c.actionThermostat)actionThermostats++;if(c.jobSold){callsSold++;amountSold+=parseFloat(c.amountSold)||0;if(c.soldFromTurnover&&c.turnoverFrom){turnoversSold++;turnoverRevenue+=parseFloat(c.amountSold)||0;}}});});return{totalCalls,callsSold,amountSold,turnoversSold,turnoverRevenue,actionThermostats};}
+function calcTeam(dates){const t={totalCalls:0,callsSold:0,amountSold:0,moneyOwed:0,reviewsCompleted:0,turnoversAttempted:0,turnoversAccepted:0,restorationLeads:0,plansSold:0,upsellsCompleted:0,estimatesLeft:0,estimateValue:0,doorKnocks:0,doorKnocksSold:0,objections:{},turnoverRevenue:0,turnoverJobs:0,turnoverGivers:{},trades:{plumbing:{jobs:0,revenue:0,owed:0,owedJobs:0},hvac:{jobs:0,revenue:0,owed:0,owedJobs:0},electrical:{jobs:0,revenue:0,owed:0,owedJobs:0},cameras:{jobs:0,revenue:0,owed:0,owedJobs:0}}};people.forEach(p=>{dates.forEach(d=>{const calls=getCalls(p.id,d);calls.forEach(c=>{t.totalCalls++;if(c.jobSold){t.callsSold++;t.amountSold+=parseFloat(c.amountSold)||0;if(c.threeDoorKnocks)t.doorKnocksSold++;if(c.soldFromTurnover){t.turnoverRevenue+=parseFloat(c.amountSold)||0;t.turnoverJobs++;if(c.turnoverFrom){if(!t.turnoverGivers[c.turnoverFrom])t.turnoverGivers[c.turnoverFrom]={count:0,revenue:0};t.turnoverGivers[c.turnoverFrom].count++;t.turnoverGivers[c.turnoverFrom].revenue+=parseFloat(c.amountSold)||0;}}const rev=parseFloat(c.amountSold)||0;if(c.tradePlumbing){t.trades.plumbing.jobs++;t.trades.plumbing.revenue+=rev;}if(c.tradeHVAC){t.trades.hvac.jobs++;t.trades.hvac.revenue+=rev;}if(c.tradeElectrical){t.trades.electrical.jobs++;t.trades.electrical.revenue+=rev;}if(c.tradeCameras){t.trades.cameras.jobs++;t.trades.cameras.revenue+=rev;}}const owed=parseFloat(c.moneyOwed)||0;if(owed>0){t.moneyOwed+=owed;if(c.tradePlumbing){t.trades.plumbing.owed+=owed;t.trades.plumbing.owedJobs++;}if(c.tradeHVAC){t.trades.hvac.owed+=owed;t.trades.hvac.owedJobs++;}if(c.tradeElectrical){t.trades.electrical.owed+=owed;t.trades.electrical.owedJobs++;}if(c.tradeCameras){t.trades.cameras.owed+=owed;t.trades.cameras.owedJobs++;}}if(c.reviewCompleted)t.reviewsCompleted++;if(c.turnoverAttempted)t.turnoversAttempted++;if(c.turnoverAccepted)t.turnoversAccepted++;if(c.restorationLead)t.restorationLeads++;if(c.membershipPlanSold)t.plansSold++;if(c.upsellCompleted)t.upsellsCompleted++;if(c.leftEstimate){t.estimatesLeft++;t.estimateValue+=parseFloat(c.estimateAmount)||0;}if(c.threeDoorKnocks)t.doorKnocks++;if(c.objection)t.objections[c.objection]=(t.objections[c.objection]||0)+1;});});});return t;}
+function calcPerson(pid,dates){let totalCalls=0,callsSold=0,amountSold=0,turnoversSold=0,turnoverRevenue=0,actionThermostats=0;dates.forEach(d=>{getCalls(pid,d).forEach(c=>{totalCalls++;if(c.actionThermostat)actionThermostats++;if(c.jobSold){callsSold++;amountSold+=parseFloat(c.amountSold)||0;if(c.soldFromTurnover){turnoversSold++;turnoverRevenue+=parseFloat(c.amountSold)||0;}}});});return{totalCalls,callsSold,amountSold,turnoversSold,turnoverRevenue,actionThermostats};}
 function renderGoalProg(elId,actual,goal){if(!goal){document.getElementById(elId).innerHTML='';return;}const p=(actual/goal)*100;const c=p>=100?'var(--green)':p>=50?'var(--amber)':'var(--red)';document.getElementById(elId).innerHTML=`<div style="background:var(--s3);height:6px;width:100%;margin:6px 0 3px"><div style="background:${c};height:100%;width:${Math.min(p,100)}%"></div></div><div style="font-size:13px;color:var(--muted)">${p.toFixed(1)}% · $${Math.round(actual).toLocaleString()} / $${Math.round(goal).toLocaleString()}</div>`;}
 function renderAll(){const dates=getMDates(currentDate),yearDates=getYDates(currentDate.getFullYear());const stats=calcTeam(dates),yearStats=calcTeam(yearDates);document.getElementById('monthYear').textContent=currentDate.toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();document.getElementById('yearDisplay').textContent=currentDate.getFullYear();renderGoalProg('teamMonthlyProgress',stats.amountSold,tmGoal);renderGoalProg('teamYearlyProgress',yearStats.amountSold,tyGoal);const today=new Date();const dIM=new Date(currentDate.getFullYear(),currentDate.getMonth()+1,0).getDate();const mDP=currentDate.getMonth()===today.getMonth()&&currentDate.getFullYear()===today.getFullYear()?today.getDate():dIM;const dailyAvg=mDP>0?stats.amountSold/mDP:0;document.getElementById('teamForecast').textContent='$'+Math.round(dailyAvg*dIM).toLocaleString();document.getElementById('forecastNote').textContent='$'+Math.round(dailyAvg).toLocaleString()+'/day';const cr=stats.totalCalls>0?((stats.callsSold/stats.totalCalls)*100).toFixed(1):0;document.getElementById('closingRate').textContent=cr+'%';document.getElementById('closingDetails').textContent=stats.callsSold+' / '+stats.totalCalls;document.getElementById('callAverage').textContent='$'+(stats.callsSold>0?Math.round(stats.amountSold/stats.callsSold):0).toLocaleString();const rr=stats.totalCalls>0?((stats.reviewsCompleted/stats.totalCalls)*100).toFixed(1):0;document.getElementById('reviewRate').textContent=rr+'%';document.getElementById('reviewDetails').textContent=stats.reviewsCompleted+' reviews';const tr=stats.turnoversAttempted>0?((stats.turnoversAccepted/stats.turnoversAttempted)*100).toFixed(1):0;document.getElementById('turnoverRate').textContent=tr+'%';document.getElementById('turnoverDetails').textContent=stats.turnoversAccepted+' / '+stats.turnoversAttempted;document.getElementById('restorationLeads').textContent=stats.restorationLeads;document.getElementById('plansSold').textContent=stats.plansSold;const mr=stats.callsSold>0?((stats.plansSold/stats.callsSold)*100).toFixed(1):0;document.getElementById('membershipRate').textContent=mr+'%';const ur=stats.callsSold>0?((stats.upsellsCompleted/stats.callsSold)*100).toFixed(1):0;document.getElementById('upsellRate').textContent=ur+'%';document.getElementById('upsellDetails').textContent=stats.upsellsCompleted+' upsells';document.getElementById('totalRevenue').textContent='$'+Math.round(stats.amountSold).toLocaleString();document.getElementById('revenueDetails').textContent=stats.callsSold+' sales';document.getElementById('estimatesLeft').textContent=stats.estimatesLeft;document.getElementById('estimateValue').textContent='$'+stats.estimateValue.toLocaleString()+' potential';document.getElementById('doorKnocks').textContent=stats.doorKnocks;document.getElementById('doorKnocksRate').textContent=(stats.doorKnocks>0?((stats.doorKnocksSold/stats.doorKnocks)*100).toFixed(1):0)+'% conv';document.getElementById('totalCalls').textContent=stats.totalCalls;
 document.getElementById('turnoverRevenue').textContent='$'+Math.round(stats.turnoverRevenue).toLocaleString();document.getElementById('turnoverRevenuePercent').textContent=(stats.amountSold>0?((stats.turnoverRevenue/stats.amountSold)*100).toFixed(1):0)+'% of total';document.getElementById('turnoverJobs').textContent=stats.turnoverJobs;document.getElementById('turnoverJobsPercent').textContent=(stats.callsSold>0?((stats.turnoverJobs/stats.callsSold)*100).toFixed(1):0)+'% of total';
@@ -189,131 +177,6 @@ function renderYearlyContributions(dates){const yearTotal=calcTeam(dates).amount
 document.getElementById('prevMonth').onclick=()=>{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()-1,1);loadTeamGoals();};
 document.getElementById('nextMonth').onclick=()=>{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+1,1);loadTeamGoals();};
 loadTeamGoals();
-</script>
-<script>
-/* ── REP SCORECARD GRID — every rep vs the six targets ── */
-(function(){
-    const COLS = [
-        { key:'close',  label:'Close',  tgt:60 },
-        { key:'review', label:'Reviews',tgt:70 },
-        { key:'to',     label:'TO',     tgt:50 },
-        { key:'plans',  label:'Plans',  tgt:40 },
-        { key:'upsell', label:'Upsell', tgt:50 }
-    ];
-    const pct = (n,d) => d > 0 ? Math.round(n/d*100) : null;
-    const esc = t => String(t).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-
-    function repStats(pid, dates){
-        const s = { calls:0, sold:0, reviews:0, toAtt:0, toAcc:0, plans:0, upsells:0 };
-        dates.forEach(d => getCalls(pid, d).forEach(c => {
-            s.calls++;
-            if (c.jobSold) s.sold++;
-            if (c.reviewCompleted || c.reviewWithPic) s.reviews++;
-            if (c.turnoverAttempted){ s.toAtt++; if (c.turnoverAccepted) s.toAcc++; }
-            if (c.membershipPlanSold) s.plans++;
-            if (c.upsellCompleted) s.upsells++;
-        }));
-        return {
-            calls: s.calls,
-            close:  pct(s.sold, s.calls),
-            review: pct(s.reviews, s.calls),
-            to:     pct(s.toAcc, s.toAtt),
-            plans:  pct(s.plans, s.sold),
-            upsell: pct(s.upsells, s.sold)
-        };
-    }
-
-    function cell(val, tgt){
-        if (val === null) return '<div style="padding:9px 6px;text-align:center;color:var(--muted);background:var(--s2)">\u2014</div>';
-        const color = val >= tgt ? '#22c55e' : (val >= tgt*0.8 ? '#f59e0b' : 'var(--red)');
-        return '<div style="padding:9px 6px;text-align:center;background:var(--s2);font-family:\'Oswald\',sans-serif;font-weight:600;color:' + color + '">' + val + '%</div>';
-    }
-
-    window.renderRepScorecard = function(){
-        try {
-            const box = document.getElementById('repScorecard');
-            if (!box) return;
-            const dates = getMDates(currentDate);
-            const rows = people.map(p => ({ name: p.name, s: repStats(p.id, dates) }))
-                .filter(r => r.s.calls > 0)
-                .sort((a,b) => (b.s.close||0) - (a.s.close||0));
-            if (!rows.length){ box.innerHTML = '<div class="stat-meta" style="padding:10px">No calls logged this month yet.</div>'; return; }
-            let html = '<div style="display:grid;grid-template-columns:1.6fr repeat(5,1fr);gap:2px;background:var(--wire)">';
-            html += '<div style="padding:9px 10px;background:var(--s3);font-family:\'Oswald\',sans-serif;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)">Rep</div>';
-            COLS.forEach(c => { html += '<div style="padding:9px 4px;text-align:center;background:var(--s3);font-family:\'Oswald\',sans-serif;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">' + c.label + '</div>'; });
-            rows.forEach(r => {
-                html += '<div style="padding:9px 10px;background:var(--s2);font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.name) + '</div>';
-                COLS.forEach(c => { html += cell(r.s[c.key], c.tgt); });
-            });
-            html += '</div>';
-            box.innerHTML = html;
-        } catch(e){ /* best-effort */ }
-    };
-    const _ra = renderAll;
-    renderAll = function(){ _ra(); renderRepScorecard(); };
-})();
-</script>
-<style>
-#abn,#abn-sheet,#abn-scrim{display:none}
-@media(max-width:900px){
-body{padding-bottom:calc(76px + env(safe-area-inset-bottom))!important}
-#abn{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:99990;
-background:rgba(10,10,10,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-border-top:1px solid rgba(255,255,255,.09);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
-html.light #abn{background:rgba(250,250,250,.94);border-top-color:rgba(0,0,0,.1)}
-.abn-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
-padding:6px 2px;text-decoration:none;color:#8a8a8a;position:relative;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent;font:inherit}
-.abn-ico{font-size:19px;line-height:1}
-.abn-lab{font-family:'Oswald',sans-serif;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
-.abn-tab.on{color:#dc2626}
-.abn-tab.on::before{content:'';position:absolute;top:-7px;left:25%;right:25%;height:2px;background:#dc2626}
-#abn-scrim.open{display:block;position:fixed;inset:0;z-index:99991;background:rgba(0,0,0,.55)}
-#abn-sheet.open{display:block;position:fixed;left:0;right:0;bottom:0;z-index:99992;
-background:#111;border-top:2px solid #dc2626;padding:18px 16px calc(20px + env(safe-area-inset-bottom))}
-html.light #abn-sheet.open{background:#fff}
-.abn-sh{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#7a7a7a;margin-bottom:12px}
-.abn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.abn-item{display:flex;align-items:center;gap:10px;padding:13px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);text-decoration:none;color:#e8e8e8}
-html.light .abn-item{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.08);color:#111}
-.abn-item .i{font-size:18px}
-.abn-item .t{font-family:'Oswald',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
-}
-</style>
-<nav id="abn">
- <a class="abn-tab" href="index.html" data-p="index.html"><span class="abn-ico">&#127968;</span><span class="abn-lab">Home</span></a>
- <a class="abn-tab" href="calls.html" data-p="calls.html"><span class="abn-ico">&#128222;</span><span class="abn-lab">Calls</span></a>
- <a class="abn-tab" href="goals.html" data-p="goals.html"><span class="abn-ico">&#127919;</span><span class="abn-lab">My Report</span></a>
- <a class="abn-tab" href="turnin.html" data-p="turnin.html"><span class="abn-ico">&#128203;</span><span class="abn-lab">Turn-In</span></a>
- <button class="abn-tab" id="abn-more" type="button"><span class="abn-ico">&#9776;</span><span class="abn-lab">More</span></button>
-</nav>
-<div id="abn-scrim"></div>
-<div id="abn-sheet">
- <div class="abn-sh">More</div>
- <div class="abn-grid">
-  <a class="abn-item" href="reports.html"><span class="i">&#128202;</span><span class="t">Team Report</span></a>
-  <a class="abn-item" href="money.html"><span class="i">&#128176;</span><span class="t">Money Owed</span></a>
-  <a class="abn-item" href="competition.html"><span class="i">&#127942;</span><span class="t">Competition</span></a>
-  <a class="abn-item" href="doors.html"><span class="i">&#128682;</span><span class="t">Door Knock</span></a>
-  <a class="abn-item" href="gym.html"><span class="i">&#127947;&#65039;</span><span class="t">Log Gym</span></a>
-  <a class="abn-item" href="training.html"><span class="i">&#127891;</span><span class="t">Sales Academy</span></a>
-  <a class="abn-item" href="manager.html"><span class="i">&#129517;</span><span class="t">Manager</span></a>
- </div>
-</div>
-<script>
-(function(){
- var p=(location.pathname.split('/').pop()||'index.html');
- document.querySelectorAll('.abn-tab[data-p]').forEach(function(t){if(t.getAttribute('data-p')===p)t.classList.add('on');});
- var more=['reports.html','money.html','competition.html','doors.html','gym.html','training.html','manager.html','action_workbook.html','team_workbook.html'];
- if(more.indexOf(p)>-1)document.getElementById('abn-more').classList.add('on');
- var sheet=document.getElementById('abn-sheet'),scrim=document.getElementById('abn-scrim');
- document.getElementById('abn-more').onclick=function(){sheet.classList.toggle('open');scrim.classList.toggle('open');};
- scrim.onclick=function(){sheet.classList.remove('open');scrim.classList.remove('open');};
-})();
-</script>
-<script>
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
-}
 </script>
 </body>
 </html>
