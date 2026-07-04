@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
     <link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+
     <meta name="theme-color" content="#080808">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -15,10 +17,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        :root{--red:#dc2626;--red2:#991b1b;--red3:#450a0a;--bg:#080808;--s1:#111;--s2:#181818;--s3:#202020;--wire:rgba(255,255,255,0.06);--wire2:rgba(255,255,255,0.10);--wire3:rgba(255,255,255,0.18);--muted:#aaa;--faint:#666;--text:#efefef;--green:#16a34a;--amber:#d97706}
+        :root{--red:#dc2626;--gold:#eab308;--gold2:#a16207;--red2:#991b1b;--red3:#450a0a;--bg:#080808;--s1:#141414;--s2:#1a1a1a;--s3:#232323;--wire:rgba(255,255,255,0.09);--wire2:rgba(255,255,255,0.14);--wire3:rgba(255,255,255,0.18);--muted:#aaa;--faint:#666;--text:#efefef;--green:#16a34a;--amber:#d97706}
 
 /* ── LIGHT MODE ── */
-html.light{--bg:#f4f4f4;--s1:#ffffff;--s2:#ebebeb;--s3:#e0e0e0;--s4:#d4d4d4;--wire:rgba(0,0,0,0.08);--wire2:rgba(0,0,0,0.14);--wire3:rgba(0,0,0,0.22);--muted:#555555;--faint:#999999;--text:#111111;--red3:#fde8e8;}
+html.light{--gold:#a16207;--gold2:#854d0e;--bg:#f4f4f4;--s1:#ffffff;--s2:#ebebeb;--s3:#e0e0e0;--s4:#d4d4d4;--wire:rgba(0,0,0,0.08);--wire2:rgba(0,0,0,0.14);--wire3:rgba(0,0,0,0.22);--muted:#555555;--faint:#999999;--text:#111111;--red3:#fde8e8;}
 html.light body::after{display:none;}
 html.light input,html.light select,html.light textarea{background:var(--s3);border-color:var(--wire2);color:var(--text);}
 html.light input::placeholder,html.light textarea::placeholder{color:var(--faint);}
@@ -35,7 +37,7 @@ html.light input::placeholder,html.light textarea::placeholder{color:var(--faint
         .card-inner{background:var(--s2);border:1px solid var(--wire);padding:16px 18px;margin-bottom:10px}
         .month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
         .month-nav h2{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px}
-        .sec-label{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}.sec-label::after{content:'';flex:1;height:1px;background:var(--wire)}
+        .sec-label{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}.sec-label::before{content:'';width:14px;height:2px;background:var(--red);flex:none}.sec-label::after{content:'';flex:1;height:1px;background:var(--wire)}
         .sec-title{font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text);margin-bottom:10px}
         .stat-mosaic{display:grid;gap:2px;background:var(--wire);margin-bottom:16px}
         .sc-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);margin-right:6px;vertical-align:middle}
@@ -174,7 +176,7 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
             <div class="stat-block"><div class="stat-lbl">Upsell Revenue</div><div id="upsellRevenue" class="stat-num">$0</div><div class="stat-meta">Added revenue</div></div>
             <div class="stat-block"><div class="stat-lbl">Restoration Leads</div><div id="restorationLeads" class="stat-num">0</div><div class="stat-meta">This month</div></div>
             <div class="stat-block"><div class="stat-lbl">Cancellations</div><div id="cancellations" class="stat-num">0</div><div id="cancellationRate" class="stat-meta">0% of calls</div></div>
-            <div class="stat-block"><div class="stat-lbl">🌡️ Action Stats</div><div id="actionThermostats" class="stat-num">0</div><div class="stat-meta">Thermostats sold</div></div>
+            <div class="stat-block"><div class="stat-lbl"><i class="ti ti-temperature" style="color:var(--red)"></i> Action Stats</div><div id="actionThermostats" class="stat-num">0</div><div class="stat-meta">Thermostats sold</div></div>
         </div>
         <div class="sec-label" style="margin-top:20px">Performance Last Week</div>
         <div id="lastWeekDateRange" style="font-size:12px;color:var(--muted);font-family:'Oswald',sans-serif;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px"></div>
@@ -267,7 +269,7 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
         </div>
         <div id="winLogFeed"></div>
         <div class="streak-block"><div style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(252,165,165,.5);margin-bottom:6px">Current Streak</div><div class="streak-num" id="streakDays">0</div><div style="font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:rgba(252,165,165,.4);margin-top:4px">Consecutive days with sales</div></div>
-        <div class="sec-label" style="margin-top:20px">🏆 Personal Records</div>
+        <div class="sec-label" style="margin-top:20px"><i class="ti ti-trophy" style="color:var(--red)"></i> Personal Records</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:14px">All-time bests pulled from your full history. Updates automatically as you break them.</div>
         <div id="prContainer">
             <div style="text-align:center;padding:24px;font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint)">Scanning your history...</div>
@@ -414,7 +416,7 @@ function calc(pid,dates){const t={totalCalls:0,callsSold:0,amountSold:0,amountCo
 function calcTeamTotal(dates){let total=0,jobs=0;people.forEach(p=>{dates.forEach(d=>{getCalls(p.id,d).forEach(c=>{if(c.jobSold){total+=parseFloat(c.amountSold)||0;jobs++;}});});});return{total,jobs};}
 function getStreak(){let s=0;const today=new Date();for(let i=0;i<365;i++){const d=new Date(today);d.setDate(today.getDate()-i);if(getCalls(selected,d).some(c=>c.jobSold))s++;else if(i>0)break;}return s;}
 function getDaysSinceSale(){const today=new Date();for(let i=0;i<365;i++){const d=new Date(today);d.setDate(today.getDate()-i);if(getCalls(selected,d).some(c=>c.jobSold))return i;}return 365;}
-function renderGoalProgress(elId,actual,goal){if(!goal){document.getElementById(elId).innerHTML='<div style="font-size:12px;color:var(--muted)">Set a goal to track progress</div>';return;}const p=(actual/goal)*100;const c=p>=100?'var(--green)':p>=50?'var(--amber)':'var(--red)';document.getElementById(elId).innerHTML=`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--muted)">Progress</span><span style="font-family:'Oswald',sans-serif;font-weight:700">${p.toFixed(1)}%</span></div><div style="background:var(--s3);height:8px;width:100%"><div style="background:${c};height:100%;width:${Math.min(p,100)}%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:3px"><span>$${Math.round(actual).toLocaleString()}</span><span>Goal: $${Math.round(goal).toLocaleString()}</span></div>`;}
+function renderGoalProgress(elId,actual,goal){if(!goal){document.getElementById(elId).innerHTML='<div style="font-size:12px;color:var(--muted)">Set a goal to track progress</div>';return;}const p=(actual/goal)*100;const c=p>=100?'var(--gold)':p>=50?'var(--amber)':'var(--red)';document.getElementById(elId).innerHTML=`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--muted)">Progress</span><span style="font-family:'Oswald',sans-serif;font-weight:700">${p.toFixed(1)}%</span></div><div style="background:var(--s3);height:8px;width:100%"><div style="background:${c};height:100%;width:${Math.min(p,100)}%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:3px"><span>$${Math.round(actual).toLocaleString()}${p<100?` · <span style="color:var(--gold)">$${Math.round(goal-actual).toLocaleString()} to go</span>`:` · <span style="color:var(--gold)">goal hit</span>`}</span><span>Goal: $${Math.round(goal).toLocaleString()}</span></div>`;}
 function renderTiers(weekSales){const container=document.getElementById('tierStatus');if(!commissionTiers.tier2&&!commissionTiers.tier3){container.innerHTML='<div style="font-size:12px;color:var(--muted);padding:10px">Enter your tier thresholds above.</div>';return;}const t2=commissionTiers.tier2,t3=commissionTiers.tier3;const build=(label,rate,pct,threshold)=>{if(!threshold)return'';const reached=weekSales>=threshold,needed=Math.max(threshold-weekSales,0),progress=Math.min((weekSales/threshold)*100,100),commission=Math.round(threshold*rate);return`<div class="tier-card${reached?' reached':''}"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div><div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">${label} — ${pct}</div><div style="font-size:13px;color:var(--muted);margin-top:2px">$${threshold.toLocaleString()} threshold · $${commission.toLocaleString()} commission</div></div>${reached?`<div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--green);border:1px solid rgba(22,163,74,.3);padding:4px 10px">✓ Reached</div>`:`<div style="text-align:right"><div style="font-size:13px;color:var(--muted)">Still need</div><div class="tier-needed">$${needed.toLocaleString()}</div></div>`}</div><div style="background:var(--s3);height:6px;width:100%"><div style="background:${reached?'var(--green)':'#f97316'};height:100%;width:${Math.max(progress,2).toFixed(1)}%"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:3px"><span>$${Math.round(weekSales).toLocaleString()} this week</span><span>$${threshold.toLocaleString()} to unlock</span></div></div>`;};container.innerHTML=[build('Tier 2',0.07,'7%',t2),build('Tier 3',0.10,'10%',t3)].join('');}
 function loadGoals(){currentWeekKey=wk(currentDate);currentMonthKey=mk(currentDate);currentYearKey=yk(currentDate);document.getElementById('weeklyGoalInput').value=weeklyGoals[`${selected}_${currentWeekKey}`]||'';document.getElementById('monthlyGoalInput').value=monthlyGoals[`${selected}_${currentMonthKey}`]||'';document.getElementById('yearlyGoalInput').value=yearlyGoals[`${selected}_${currentYearKey}`]||'';db.ref(`teamYearlyGoals/${currentYearKey}`).once('value',snap=>{tyGoal=snap.val()||0;renderAll();});renderAll();}
 document.getElementById('weeklyGoalInput').onchange=e=>{db.ref(`weeklyGoals/${selected}_${currentWeekKey}`).set(parseFloat(e.target.value)||0);renderAll();};
@@ -809,23 +811,23 @@ body{padding-bottom:0!important}
 }
 </style>
 <nav id="abn">
- <a class="abn-tab" href="index.html" data-p="index.html"><span class="abn-ico">&#127968;</span><span class="abn-lab">Home</span></a>
- <a class="abn-tab" href="calls.html" data-p="calls.html"><span class="abn-ico">&#128222;</span><span class="abn-lab">Calls</span></a>
- <a class="abn-tab" href="goals.html" data-p="goals.html"><span class="abn-ico">&#127919;</span><span class="abn-lab">My Report</span></a>
- <a class="abn-tab" href="turnin.html" data-p="turnin.html"><span class="abn-ico">&#128203;</span><span class="abn-lab">Turn-In</span></a>
- <button class="abn-tab" id="abn-more" type="button"><span class="abn-ico">&#9776;</span><span class="abn-lab">More</span></button>
+ <a class="abn-tab" href="index.html" data-p="index.html"><span class="abn-ico"><i class="ti ti-home"></i></span><span class="abn-lab">Home</span></a>
+ <a class="abn-tab" href="calls.html" data-p="calls.html"><span class="abn-ico"><i class="ti ti-phone"></i></span><span class="abn-lab">Calls</span></a>
+ <a class="abn-tab" href="goals.html" data-p="goals.html"><span class="abn-ico"><i class="ti ti-target"></i></span><span class="abn-lab">My Report</span></a>
+ <a class="abn-tab" href="turnin.html" data-p="turnin.html"><span class="abn-ico"><i class="ti ti-clipboard-list"></i></span><span class="abn-lab">Turn-In</span></a>
+ <button class="abn-tab" id="abn-more" type="button"><span class="abn-ico"><i class="ti ti-menu-2"></i></span><span class="abn-lab">More</span></button>
 </nav>
 <div id="abn-scrim"></div>
 <div id="abn-sheet">
  <div class="abn-sh">More</div>
  <div class="abn-grid">
-  <a class="abn-item" href="reports.html"><span class="i">&#128202;</span><span class="t">Team Report</span></a>
-  <a class="abn-item" href="money.html"><span class="i">&#128176;</span><span class="t">Money Owed</span></a>
-  <a class="abn-item" href="competition.html"><span class="i">&#127942;</span><span class="t">Competition</span></a>
-  <a class="abn-item" href="doors.html"><span class="i">&#128682;</span><span class="t">Door Knock</span></a>
-  <a class="abn-item" href="gym.html"><span class="i">&#127947;&#65039;</span><span class="t">Log Gym</span></a>
-  <a class="abn-item" href="training.html"><span class="i">&#127891;</span><span class="t">Sales Academy</span></a>
-  <a class="abn-item" href="manager.html"><span class="i">&#129517;</span><span class="t">Manager</span></a>
+  <a class="abn-item" href="reports.html"><span class="i"><i class="ti ti-chart-bar"></i></span><span class="t">Team Report</span></a>
+  <a class="abn-item" href="money.html"><span class="i"><i class="ti ti-cash"></i></span><span class="t">Money Owed</span></a>
+  <a class="abn-item" href="competition.html"><span class="i"><i class="ti ti-trophy"></i></span><span class="t">Competition</span></a>
+  <a class="abn-item" href="doors.html"><span class="i"><i class="ti ti-door"></i></span><span class="t">Door Knock</span></a>
+  <a class="abn-item" href="gym.html"><span class="i"><i class="ti ti-barbell"></i></span><span class="t">Log Gym</span></a>
+  <a class="abn-item" href="training.html"><span class="i"><i class="ti ti-school"></i></span><span class="t">Sales Academy</span></a>
+  <a class="abn-item" href="manager.html"><span class="i"><i class="ti ti-compass"></i></span><span class="t">Manager</span></a>
  </div>
 </div>
 <script>
@@ -843,6 +845,26 @@ body{padding-bottom:0!important}
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
+</script>
+<script>
+(function(){
+ var ids=["monthRevenue", "weekRevenue", "yearRevenue"];
+ function animate(el,target,prefix){var start=performance.now(),dur=700;
+  function step(t){var k=Math.min((t-start)/dur,1);k=1-Math.pow(1-k,3);
+   el.textContent=prefix+Math.round(target*k).toLocaleString();
+   if(k<1)requestAnimationFrame(step);}
+  requestAnimationFrame(step);}
+ ids.forEach(function(id){var el=document.getElementById(id);if(!el)return;
+  var done=false;
+  var mo=new MutationObserver(function(){
+   if(done)return;
+   var raw=el.textContent.trim();var prefix=raw.charAt(0)==='$'?'$':'';
+   var n=parseFloat(raw.replace(/[$,]/g,''));
+   if(!isFinite(n)||n<=0)return;
+   done=true;mo.disconnect();animate(el,n,prefix);});
+  mo.observe(el,{childList:true,characterData:true,subtree:true});
+  setTimeout(function(){done=true;mo.disconnect();},6000);});
+})();
 </script>
 </body>
 </html>

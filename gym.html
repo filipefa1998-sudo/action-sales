@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
     <link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+
     <meta name="theme-color" content="#080808">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -16,8 +18,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        :root{--red:#dc2626;--red2:#991b1b;--red3:#450a0a;--bg:#080808;--s1:#111;--s2:#181818;--s3:#202020;--wire:rgba(255,255,255,0.06);--wire2:rgba(255,255,255,0.10);--wire3:rgba(255,255,255,0.18);--muted:#aaa;--faint:#666;--text:#efefef;--green:#16a34a;--amber:#d97706}
-        html.light{--bg:#f4f4f4;--s1:#ffffff;--s2:#ebebeb;--s3:#e0e0e0;--s4:#d4d4d4;--wire:rgba(0,0,0,0.08);--wire2:rgba(0,0,0,0.14);--wire3:rgba(0,0,0,0.22);--muted:#555555;--faint:#999999;--text:#111111;--red3:#fde8e8;}
+        :root{--red:#dc2626;--gold:#eab308;--gold2:#a16207;--red2:#991b1b;--red3:#450a0a;--bg:#080808;--s1:#141414;--s2:#1a1a1a;--s3:#232323;--wire:rgba(255,255,255,0.09);--wire2:rgba(255,255,255,0.14);--wire3:rgba(255,255,255,0.18);--muted:#aaa;--faint:#666;--text:#efefef;--green:#16a34a;--amber:#d97706}
+        html.light{--gold:#a16207;--gold2:#854d0e;--bg:#f4f4f4;--s1:#ffffff;--s2:#ebebeb;--s3:#e0e0e0;--s4:#d4d4d4;--wire:rgba(0,0,0,0.08);--wire2:rgba(0,0,0,0.14);--wire3:rgba(0,0,0,0.22);--muted:#555555;--faint:#999999;--text:#111111;--red3:#fde8e8;}
         html.light body::after{display:none;}
         html.light input,html.light select,html.light textarea{background:var(--s3);border-color:var(--wire2);color:var(--text);}
         html.light input::placeholder,html.light textarea::placeholder{color:var(--faint);}
@@ -31,7 +33,7 @@
         .card{background:var(--s1);border:1px solid var(--wire);padding:24px 28px;margin-bottom:20px}
         .month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
         .month-nav h2{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px}
-        .sec-label{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}.sec-label::after{content:'';flex:1;height:1px;background:var(--wire)}
+        .sec-label{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}.sec-label::before{content:'';width:14px;height:2px;background:var(--red);flex:none}.sec-label::after{content:'';flex:1;height:1px;background:var(--wire)}
         .field{margin-bottom:14px}
         .field label{font-family:'Oswald',sans-serif;font-size:12px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
         input[type=text],input[type=number],input[type=date],textarea,select{background:var(--s3);border:1px solid var(--wire2);color:var(--text);padding:11px 14px;width:100%;font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color .15s}
@@ -103,19 +105,19 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
         <!-- Log a session -->
         <div class="sec-label">Log a Session</div>
         <div class="g2">
-            <div class="field"><label>📍 Where did you go?</label><input id="gymName" type="text" placeholder="Gym / location" /></div>
-            <div class="field"><label>📅 Date</label><input id="gymDate" type="date" /></div>
+            <div class="field"><label><i class="ti ti-map-pin" style="color:var(--red)"></i> Where did you go?</label><input id="gymName" type="text" placeholder="Gym / location" /></div>
+            <div class="field"><label><i class="ti ti-calendar" style="color:var(--red)"></i> Date</label><input id="gymDate" type="date" /></div>
         </div>
-        <div class="field"><label>💪 What did you do?</label><textarea id="gymWorkout" rows="3" placeholder="Chest & triceps, 5 mile run, leg day…"></textarea></div>
+        <div class="field"><label><i class="ti ti-barbell" style="color:var(--red)"></i> What did you do?</label><textarea id="gymWorkout" rows="3" placeholder="Chest & triceps, 5 mile run, leg day…"></textarea></div>
         <div class="g2">
             <div class="field"><label>⏱️ How long? (minutes)</label><input id="gymDuration" type="number" min="1" placeholder="60" /></div>
-            <div class="field"><label>📸 Photo (optional)</label>
+            <div class="field"><label><i class="ti ti-camera" style="color:var(--red)"></i> Photo (optional)</label>
                 <div class="photo-drop" id="photoDrop">Tap to add a photo</div>
                 <input id="photoInput" type="file" accept="image/*" style="display:none" />
                 <div class="photo-preview" id="photoPreview"><button class="photo-clear" id="photoClear">✕ Remove</button><img id="photoImg" src="" alt=""></div>
             </div>
         </div>
-        <button class="btn-save" id="saveBtn">💾 Log Gym Session</button>
+        <button class="btn-save" id="saveBtn"><i class="ti ti-device-floppy" style="color:var(--red)"></i> Log Gym Session</button>
     </div>
 
     <!-- This month stats -->
@@ -138,7 +140,7 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
 
     <!-- Leaderboard -->
     <div class="card">
-        <div class="sec-label">🏆 Gym Leaderboard — Most Sessions</div>
+        <div class="sec-label"><i class="ti ti-trophy" style="color:var(--red)"></i> Gym Leaderboard — Most Sessions</div>
         <div id="leaderboard"></div>
         <div style="font-size:12px;color:var(--faint);font-family:'Oswald',sans-serif;letter-spacing:.08em;text-transform:uppercase;margin-top:12px">Ranked by sessions · feeds the monthly competition Gym category</div>
     </div>
@@ -269,23 +271,23 @@ body{padding-bottom:0!important}
 }
 </style>
 <nav id="abn">
- <a class="abn-tab" href="index.html" data-p="index.html"><span class="abn-ico">&#127968;</span><span class="abn-lab">Home</span></a>
- <a class="abn-tab" href="calls.html" data-p="calls.html"><span class="abn-ico">&#128222;</span><span class="abn-lab">Calls</span></a>
- <a class="abn-tab" href="goals.html" data-p="goals.html"><span class="abn-ico">&#127919;</span><span class="abn-lab">My Report</span></a>
- <a class="abn-tab" href="turnin.html" data-p="turnin.html"><span class="abn-ico">&#128203;</span><span class="abn-lab">Turn-In</span></a>
- <button class="abn-tab" id="abn-more" type="button"><span class="abn-ico">&#9776;</span><span class="abn-lab">More</span></button>
+ <a class="abn-tab" href="index.html" data-p="index.html"><span class="abn-ico"><i class="ti ti-home"></i></span><span class="abn-lab">Home</span></a>
+ <a class="abn-tab" href="calls.html" data-p="calls.html"><span class="abn-ico"><i class="ti ti-phone"></i></span><span class="abn-lab">Calls</span></a>
+ <a class="abn-tab" href="goals.html" data-p="goals.html"><span class="abn-ico"><i class="ti ti-target"></i></span><span class="abn-lab">My Report</span></a>
+ <a class="abn-tab" href="turnin.html" data-p="turnin.html"><span class="abn-ico"><i class="ti ti-clipboard-list"></i></span><span class="abn-lab">Turn-In</span></a>
+ <button class="abn-tab" id="abn-more" type="button"><span class="abn-ico"><i class="ti ti-menu-2"></i></span><span class="abn-lab">More</span></button>
 </nav>
 <div id="abn-scrim"></div>
 <div id="abn-sheet">
  <div class="abn-sh">More</div>
  <div class="abn-grid">
-  <a class="abn-item" href="reports.html"><span class="i">&#128202;</span><span class="t">Team Report</span></a>
-  <a class="abn-item" href="money.html"><span class="i">&#128176;</span><span class="t">Money Owed</span></a>
-  <a class="abn-item" href="competition.html"><span class="i">&#127942;</span><span class="t">Competition</span></a>
-  <a class="abn-item" href="doors.html"><span class="i">&#128682;</span><span class="t">Door Knock</span></a>
-  <a class="abn-item" href="gym.html"><span class="i">&#127947;&#65039;</span><span class="t">Log Gym</span></a>
-  <a class="abn-item" href="training.html"><span class="i">&#127891;</span><span class="t">Sales Academy</span></a>
-  <a class="abn-item" href="manager.html"><span class="i">&#129517;</span><span class="t">Manager</span></a>
+  <a class="abn-item" href="reports.html"><span class="i"><i class="ti ti-chart-bar"></i></span><span class="t">Team Report</span></a>
+  <a class="abn-item" href="money.html"><span class="i"><i class="ti ti-cash"></i></span><span class="t">Money Owed</span></a>
+  <a class="abn-item" href="competition.html"><span class="i"><i class="ti ti-trophy"></i></span><span class="t">Competition</span></a>
+  <a class="abn-item" href="doors.html"><span class="i"><i class="ti ti-door"></i></span><span class="t">Door Knock</span></a>
+  <a class="abn-item" href="gym.html"><span class="i"><i class="ti ti-barbell"></i></span><span class="t">Log Gym</span></a>
+  <a class="abn-item" href="training.html"><span class="i"><i class="ti ti-school"></i></span><span class="t">Sales Academy</span></a>
+  <a class="abn-item" href="manager.html"><span class="i"><i class="ti ti-compass"></i></span><span class="t">Manager</span></a>
  </div>
 </div>
 <script>
