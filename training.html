@@ -790,7 +790,7 @@
   <div style="display:flex;align-items:center;gap:10px">
     <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--card2);border:1px solid var(--border);color:var(--text-muted);font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:6px 12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;">
       <span id="themeIcon">☀️</span><span id="themeLabel">LIGHT</span>
-    </button>
+    </button><img src="actionsite-logo.png" alt="Action Plumbing" class="hdr-logo" style="height:28px;width:auto;display:block"><style>@media(max-width:520px){.hdr-logo{height:20px!important}}</style>
     <span style="font-family:Oswald;font-size:12px;letter-spacing:2px;color:var(--text-muted)">SALES ACADEMY</span>
   </div>
 </div>
@@ -1713,6 +1713,16 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyAcad
     <div class="card-sub">Score 7+ to unlock the next difficulty level</div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:4px" id="progressionGrid">
       <!-- filled by JS -->
+    </div>
+  </div>
+
+  <div id="weaknessBanner" class="card" style="display:none;border-left:3px solid var(--red)">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px">
+        <div style="font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--red)"><i class="ti ti-target"></i> Your #1 lost-call objection this month</div>
+        <div id="weaknessText" style="font-size:15px;margin-top:6px;color:var(--text)"></div>
+      </div>
+      <button class="btn" onclick="startWeaknessRoleplay()">Practice It Now</button>
     </div>
   </div>
 
@@ -3743,6 +3753,60 @@ body{padding-bottom:0!important}
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
+</script>
+<script>
+const OBJ_INFO={price:{label:'Price too high',line:"it's just too expensive, the price is too high"},think:{label:'Need to think',line:"I need to think about it"},spouse:{label:'Spouse approval',line:"I need to talk to my spouse before deciding anything"},someone:{label:'Have someone',line:"we already have a guy we usually use"},quotes:{label:'Multiple quotes',line:"we're getting multiple quotes before we decide"},timing:{label:'Not now',line:"now just isn't a good time for us"}};
+let weaknessKey=null;
+async function loadWeakness(){
+ if(!currentRep||!currentRep.personId)return;
+ try{
+  const logs=(await db.ref('callLogs').once('value')).val()||{};
+  const now=new Date();
+  const pre=currentRep.personId+'_'+now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-';
+  const counts={};
+  Object.keys(logs).forEach(k=>{
+   if(k.indexOf(pre)!==0)return;
+   Object.values(logs[k]||{}).forEach(c=>{
+    if(c&&!c.jobSold&&c.objection&&OBJ_INFO[c.objection])counts[c.objection]=(counts[c.objection]||0)+1;
+   });
+  });
+  const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  if(!top)return;
+  weaknessKey=top[0];
+  document.getElementById('weaknessText').textContent='"'+OBJ_INFO[top[0]].label+'" \u2014 lost '+top[1]+' call'+(top[1]===1?'':'s')+' to it. The AI homeowner will run exactly this play until you can beat it.';
+  document.getElementById('weaknessBanner').style.display='block';
+ }catch(e){}
+}
+function prefillWeakness(key){
+ const sel=document.getElementById('rpScenario');
+ if(sel){sel.value='custom';}
+ const wrap=document.getElementById('customScenarioWrap');
+ if(wrap)wrap.style.display='block';
+ const box=document.getElementById('customScenario');
+ if(box)box.value='The homeowner has a real problem and could buy today, but their core resistance is: "'+OBJ_INFO[key].line+'". Raise this objection early, and keep coming back to it in different ways until the technician genuinely handles it. Do not fold easily.';
+ const d=document.getElementById('rpDifficulty');
+ if(d){for(const o of d.options){if(o.value==='hard'){d.value='hard';break;}}}
+}
+function startWeaknessRoleplay(){
+ if(!weaknessKey)return;
+ prefillWeakness(weaknessKey);
+ startRoleplay();
+}
+(function(){
+ const p=new URLSearchParams(location.search).get('objection');
+ if(p&&OBJ_INFO[p]){
+  setTimeout(()=>{
+   prefillWeakness(p);
+   weaknessKey=p;
+   const b=document.getElementById('weaknessBanner');
+   document.getElementById('weaknessText').textContent='Loaded from your last call: "'+OBJ_INFO[p].label+'". The scenario is set \u2014 hit Practice It Now or Start Roleplay when ready.';
+   b.style.display='block';
+   b.scrollIntoView({behavior:'smooth',block:'center'});
+  },700);
+ }else{
+  setTimeout(loadWeakness,900);
+ }
+})();
 </script>
 </body>
 </html>

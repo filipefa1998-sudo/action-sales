@@ -573,7 +573,7 @@ html.light .nav-card.mgr-card .nav-card-title{color:var(--muted);}
     </style>
 </head>
 <body>
-<div id="themeToggleWrap" style="position:fixed;top:12px;right:16px;z-index:9999;">
+<div id="themeToggleWrap" style="position:fixed;top:12px;right:16px;z-index:9999;display:flex;flex-direction:row-reverse;align-items:center;gap:10px;">
   <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--s2);border:1px solid var(--wire2);color:var(--muted);font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:7px 12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;">
     <span id="themeIcon">☀️</span><span id="themeLabel">LIGHT</span>
   </button>
@@ -594,7 +594,7 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
                 <div class="hero-eyebrow">
                     <span class="live-dot">Live</span>
                 </div>
-                <div class="hero-title">Action<br><em>Plumbing</em></div>
+                <img src="actionsite-logo.png" alt="Action Plumbing" style="height:62px;width:auto;max-width:100%;display:block;margin:8px 0 6px">
                 <div class="hero-sub">Sales Performance Tracker</div>
             </div>
             <div class="hero-date">
