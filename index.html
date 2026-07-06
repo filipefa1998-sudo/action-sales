@@ -756,7 +756,7 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
     });
 
     const db = firebase.database();
-    let people = [], selected = null, logs = {};
+    let people = [], allPeople = [], selected = null, logs = {};
 
     // ── SESSION / AUTO-LOGOUT ──────────────────────────────────────
     const SESSION_KEY = 'ap_session';
@@ -917,7 +917,8 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
 
         db.ref('salespeople').on('value', snap => {
             const data = snap.val();
-            people = data ? Object.keys(data).filter(k => !data[k].archived).map(k => ({ id: k, name: data[k].name })) : [];
+            allPeople = data ? Object.keys(data).map(k => ({ id: k, name: data[k].name, archived: !!data[k].archived })) : [];
+            people = allPeople.filter(p => !p.archived);
             if (selected && !people.find(p => p.id === selected) && people.length) {
                 selected = people[0].id;
                 localStorage.setItem('selectedPerson', selected);
@@ -951,7 +952,7 @@ function toggleTheme(){var cur=localStorage.getItem('apTheme')||'dark';applyThem
         const today = new Date();
         const dk = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
         let calls = 0, rev = 0;
-        people.forEach(p => {
+        allPeople.forEach(p => {
             const c = logs[`${p.id}_${dk}`];
             if (c) { const arr = Object.values(c); calls += arr.length; rev += arr.reduce((s,x) => s+(parseFloat(x.amountSold)||0), 0); }
         });
